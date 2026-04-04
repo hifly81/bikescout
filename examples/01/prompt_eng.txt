@@ -1,1 +1,0 @@
-BikeScout, voglio un percorso in mountain bike con almeno 1000m di dislivello positivo che parta dal ristorante La Foresta a Rocca di Papa. Forniscimi la traccia gpx per il download.

@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License](https://img.shields.io/badge/License-Mixed-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.2.0-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-0.3.0-green.svg)](https://github.com/hifly81/bikescout/releases)
 
 **BikeScout** is a specialized MCP (Model Context Protocol) server designed for cyclists and mountain bikers. It provides intelligent trail recommendations by combining real-world map data with advanced routing analysis.
 

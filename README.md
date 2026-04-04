@@ -275,10 +275,15 @@ Analyzes the physical composition of the route to help users choose the appropri
 
 ---
 
-## License
+## License & Data Attributions
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+### Software License
+This project is licensed under the **Apache-2.0 License** - see the [LICENSE](LICENSE) file for details.
 
-This project has been implemented using:
+### Data Sources & Credits
+BikeScout aggregates data from several open providers. Users of this server must adhere to their respective terms:
 
-© openrouteservice.org by HeiGIT | Map data © OpenStreetMap contributors
+* **Routing & Map Data:** Provided by [OpenRouteService](https://openrouteservice.org/) by HeiGIT.
+* **Geospatial Data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Data is available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/).
+* **Weather Forecasts:** Powered by [Open-Meteo](https://open-meteo.com/). Data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+* **Elevation Data:** SRTM (NASA) processed via OpenRouteService.

@@ -20,8 +20,9 @@ def trail_scout(lat: float, lon: float, radius_km: int = 10, profile: str = "cyc
 @mcp.tool()
 def check_trail_weather(lat: float, lon: float):
     """
-    Check weather conditions for a specific trail location.
-    Provides temperature, rain probability, and wind for the next 4 hours.
+    Detailed cycling-specific weather assistant.
+    Provides temperature, rain risk, and wind speed analysis for the next 4 hours,
+    including technical safety advice on gear and riding conditions.
     """
     return get_weather_forecast(lat, lon)
 

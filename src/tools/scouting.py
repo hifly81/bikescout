@@ -3,17 +3,40 @@ import requests
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 ORS_BASE_URL = "https://api.openrouteservice.org/v2/directions"
 
+def calculate_detailed_difficulty(dist_km: float, ascent_m: float) -> str:
+    """
+    Categorizes the route difficulty based on distance, ascent, and average gradient.
+    """
+    if dist_km == 0:
+        return "Unknown"
+
+    # Calculate average gradient
+    # Formula: (ascent / (distance * 1000)) * 100
+    avg_gradient = (ascent_m / (dist_km * 1000)) * 100
+
+    # 1. EXPERT: High distance, high climbing, or very steep
+    if dist_km > 50 or ascent_m > 1000 or avg_gradient > 7:
+        return "🔴 Expert (Challenging distance or very steep climbs)"
+
+    # 2. ADVANCED: Significant climbing or moderate distance
+    if dist_km > 30 or ascent_m > 600 or avg_gradient > 4:
+        return "🟠 Advanced (Requires good fitness and stamina)"
+
+    # 3. MODERATE: Accessible but with some effort
+    if dist_km > 15 or ascent_m > 300:
+        return "🟡 Moderate (Accessible for regular cyclists)"
+
+    # 4. BEGINNER: Short and flat
+    return "🟢 Beginner (Short and relatively flat, ideal for everyone)"
 
 def generate_gpx(geojson_data):
     """Converts GeoJSON coordinates into a standard GPX XML string."""
     try:
-        # ORS returns [lon, lat, elevation]
         coords = geojson_data['features'][0]['geometry']['coordinates']
         gpx = '<?xml version="1.0" encoding="UTF-8"?>\n'
         gpx += '<gpx version="1.1" creator="BikeScout" xmlns="http://www.topografix.com/GPX/1/1">\n'
         gpx += '  <trk><name>BikeScout Route</name><trkseg>\n'
         for p in coords:
-            # lat=p[1], lon=p[0], ele=p[2]
             ele = f"<ele>{p[2]}</ele>" if len(p) > 2 else ""
             gpx += f'    <trkpt lat="{p[1]}" lon="{p[0]}">{ele}</trkpt>\n'
         gpx += '  </trkseg></trk></gpx>'
@@ -25,7 +48,6 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
     """
     Finds trails using OSM and ORS. Returns technical data, map link, and GPX content.
     """
-
     # 1. OSM NAMES (Overpass)
     trail_names = []
     try:
@@ -43,7 +65,6 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
         'Content-Type': 'application/json'
     }
 
-    # Round Trip structure for ORS V2
     payload = {
         "coordinates": [[lon, lat]],
         "options": {
@@ -52,19 +73,15 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
                 "seed": 42
             }
         },
-        "elevation": "true", # ORS prefers string "true" in some versions
+        "elevation": "true",
         "instructions": "false",
         "units": "m"
     }
 
     try:
-        # The correct V2 endpoint for GeoJSON output is usually:
-        # https://api.openrouteservice.org/v2/directions/{profile}/geojson
         endpoint = f"{ORS_BASE_URL}/{profile}/geojson"
-
         response = requests.post(endpoint, json=payload, headers=headers, timeout=15)
 
-        # If 404, try the non-geojson endpoint
         if response.status_code == 404:
             endpoint = f"{ORS_BASE_URL}/{profile}"
             response = requests.post(endpoint, json=payload, headers=headers, timeout=15)
@@ -73,14 +90,16 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
         data = response.json()
 
         if 'features' not in data:
-            return {"status": "Error", "message": "API returned success but no route features found."}
+            return {"status": "Error", "message": "No route features found."}
 
         props = data['features'][0]['properties']
         summary = props.get('summary', {})
 
         dist = round(summary.get('distance', 0) / 1000, 2)
-        # Ascent is often in 'ascent' or inside 'summary'
         ascent = round(props.get('ascent', summary.get('ascent', 0)), 0)
+
+        # Apply new difficulty logic
+        difficulty_rating = calculate_detailed_difficulty(dist, ascent)
 
         return {
             "status": "Success",
@@ -88,9 +107,9 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
                 "trails": trail_names[:5],
                 "distance_km": dist,
                 "ascent_m": ascent,
-                "difficulty": "Expert" if ascent > 500 else "Easy"
+                "difficulty": difficulty_rating
             },
-            "map_url": f"https://www.google.com/maps?q={lat},{lon}",
+            "map_url": f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}",
             "gpx_content": generate_gpx(data)
         }
 

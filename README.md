@@ -1,7 +1,10 @@
 # BikeScout MCP Server
 
 [![License](https://img.shields.io/badge/License-Mixed-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.3.1-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-0.4.0-green.svg)](https://github.com/hifly81/bikescout/releases)
+![Python](https://img.shields.io/badge/python-3.10-blue.svg)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![Downloads](https://pepy.tech/badge/global-chem)](https://pepy.tech/project/global-chem)
 
 **BikeScout** is a specialized MCP (Model Context Protocol) server designed for cyclists and mountain bikers. It provides intelligent trail recommendations by combining real-world map data with advanced routing analysis.
 
@@ -121,7 +124,7 @@ I found an MTB loop near **Frascati**. Here are the details:
 #### 📊 Route Details
 * 📍 **Distance:** 11.26 km
 * ⛰️ **Total Ascent:** 856 meters
-* 🏷️ **Difficulty:** Expert
+* 🏷️ **Difficulty:** Expert (Challenging distance or very steep climbs)
 * 🛤️ **Included Trails:** *Viale Moderno, Via dei Sepolcri*
 * 🔗 **Map:** [View on Google Maps](https://www.google.com/maps?q=41.8078,12.6808)
 
@@ -150,7 +153,7 @@ Ho trovato un giro in MTB vicino a **Frascati**. Ecco i dettagli:
 #### 📊 Dettagli del Percorso
 * 📍 **Distanza:** 11.26 km
 * ⛰️ **Dislivello:** 856 metri di salita
-* 🏷️ **Difficoltà:** Esperto
+* 🏷️ **Difficoltà:** Esperto (richiede buona forma fisica e resistenza)
 * 🛤️ **Sentieri inclusi:** *Viale Moderno, Via dei Sepolcri*
 * 🔗 **Mappa:** [Visualizza su Google Maps](https://www.google.com/maps?q=41.8078,12.6808)
 

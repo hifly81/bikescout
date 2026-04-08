@@ -121,7 +121,7 @@ I found an MTB loop near **Frascati**. Here are the details:
 #### 📊 Route Details
 * 📍 **Distance:** 11.26 km
 * ⛰️ **Total Ascent:** 856 meters
-* 🏷️ **Difficulty:** Expert
+* 🏷️ **Difficulty:** Expert (Challenging distance or very steep climbs)
 * 🛤️ **Included Trails:** *Viale Moderno, Via dei Sepolcri*
 * 🔗 **Map:** [View on Google Maps](https://www.google.com/maps?q=41.8078,12.6808)
 
@@ -150,7 +150,7 @@ Ho trovato un giro in MTB vicino a **Frascati**. Ecco i dettagli:
 #### 📊 Dettagli del Percorso
 * 📍 **Distanza:** 11.26 km
 * ⛰️ **Dislivello:** 856 metri di salita
-* 🏷️ **Difficoltà:** Esperto
+* 🏷️ **Difficoltà:** Esperto (richiede buona forma fisica e resistenza)
 * 🛤️ **Sentieri inclusi:** *Viale Moderno, Via dei Sepolcri*
 * 🔗 **Mappa:** [Visualizza su Google Maps](https://www.google.com/maps?q=41.8078,12.6808)
 

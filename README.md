@@ -17,6 +17,9 @@
 - **Smart Safety and Weather Forecast**: BikeScout doesn't just find trails; it cross-references location data with real-time weather forecasts to ensure you don't get caught in a storm.
 - **Surface Detection:** Identifies asphalt, gravel, grass, stones, and unpaved sections.
 - **Percentage Breakdown:** Calculates the exact percentage of each surface type relative to the total distance.
+- **Seamless Location Search**: No GPS coordinates required. Use natural language to find trails (e.g., "Find a ride in Albano Laziale") via integrated Nominatim Geocoding.
+- **Instant Map Previews**: Automatically generates a Static Map (.png) of the route, allowing you to visualize the trail directly within the chat interface.
+- **Pro-Cycling Weather Gear Advice**: Goes beyond basic forecasts by providing specific technical advice on clothing and gear based on temperature, wind, and rain thresholds.
 
 ## Prerequisites
 
@@ -26,7 +29,10 @@
 
 ## Installation
 
-1. **Clone or save the script**: Save `mcp_server.py` in a local folder.
+1. Clone the repo in a local folder:
+   ```bash
+   git clone git@github.com:hifly81/bikescout.git <your_local_folder_path>
+   ```
 2. Create a Python Virtual Env from the local folder:
    ```bash
    python3 -m venv venv
@@ -83,7 +89,7 @@ If your goal is to test the BikeScout server while you are coding, you don't act
 {
   "mcpServers": {
     "bikescout": {
-       "command": "PATH/TO/YOUR/BIKESCOUT_FOLDER/venv/bin/python3",
+      "command": "PATH/TO/YOUR/BIKESCOUT_FOLDER/venv/bin/python3",
       "args": ["PATH/TO/YOUR/BIKESCOUT_FOLDER/mcp_server.py"],
       "env": {
         "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER"
@@ -99,28 +105,21 @@ If your goal is to test the BikeScout server while you are coding, you don't act
 
 You can ask **BikeScout** questions. It understands complex requests regarding distance, elevation, and specific file types.
 
-### 🇬🇧 English
-* *"BikeScout, find me a 20km mountain bike loop near Frascati and tell me the total ascent and check if it's too windy for a mountain bike."*
-* *"Are there any named trails near [Lat, Lon]? I need to know the surface type."*
-* *"Suggest a difficult MTB route with at least 600m of climbing."*
-* *"What is the terrain like for a 15km ride starting at these coordinates?"*
-* *"Find me a 20km loop that is at least 50% gravel, but only if the ground isn't wet (rain probability < 10%) near Rocca di Papa."*
-
-### 🇮🇹 Italiano
-* *"BikeScout, trovami un giro in MTB di 20km vicino a Frascati e dimmi quanta salita c'è. Dammi la traccia GPX ed il link alla traccia e come sarà il tempo lungo il percorso."*
-* *"Ci sono sentieri con un nome ufficiale vicino a [Lat, Lon]? Dimmi che tipo di terreno troverò."*
-* *"Suggeriscimi un percorso MTB difficile con almeno 600m di dislivello."*
-* *"Com'è il terreno per un giro di 15km partendo da queste coordinate?"*
-* *"Trovami un giro da 20km che sia almeno al 50% su sterrato, ma solo se il terreno non è bagnato (pioggia < 10%) vicino Rocca di Papa."*
+* *"BikeScout, find me a 20km mountain bike loop near Frascati, Italy and tell me the total ascent and check if it's too windy for a mountain bike."*
+* *"Are there any named trails in the area of Taichung, China? I need to know the surface type."*
+* *"Suggest a difficult MTB route with at least 600m of climbing near Park City, Utah"*
+* *"What is the terrain like for a 15km ride starting at these coordinates [LAT,LON]?"*
+* *"Find me a 20km loop that is at least 50% gravel, but only if the ground isn't wet (rain probability < 10%) near Kyoto, Japan."*
+* *"Search for a beginner-friendly loop in Vancouver, Canada."*
 ---
 
 ## Example Responses
 
 Below is an example of the detailed information **BikeScout** can provide:
 
-I found an MTB loop near **Frascati**. Here are the details:
+I found an MTB loop near **Frascati, Italy**. Here are the details:
 
-#### 📊 Route Details
+### 📊 Route Details
 * 📍 **Distance:** 11.26 km
 * ⛰️ **Total Ascent:** 856 meters
 * 🏷️ **Difficulty:** Expert (Challenging distance or very steep climbs)
@@ -160,7 +159,7 @@ I found an MTB loop near **Frascati**. Here are the details:
 
 > ✅ **Advice:** Perfect for riding! The route is challenging (856m of climbing over 11km) but offers great scenic views over the Colli Albani area.
 
-### 🚵‍♂️ BikeScout Terrain Analysis
+#### 🚵‍♂️ BikeScout Terrain Analysis
 The route composition is as follows:
 
 * 🪨 **Gravel/Dirt:** 65% (Ideal for MTB or Gravel bikes)
@@ -168,6 +167,8 @@ The route composition is as follows:
 * 🌿 **Grass/Trail:** 10%
 
 > 💡 **Technical Advice:** Given the high percentage of gravel and loose stones, we recommend using tires with a minimum width of **40mm** and slightly lower tire pressure to improve grip and comfort.
+
+---
 
 ## Tools Reference
 

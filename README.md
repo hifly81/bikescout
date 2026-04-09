@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License](https://img.shields.io/badge/License-Mixed-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.5.1-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-0.6.0-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![Downloads](https://pepy.tech/badge/global-chem)](https://pepy.tech/project/global-chem)
@@ -29,6 +29,25 @@
 
 ## Installation
 
+BikeScout is now available on **PyPI**. You can install it directly using `pip` or `uv`.
+
+### Install via pip
+We recommend installing BikeScout in a virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate 
+pip install bikescout
+```
+
+Configure your OpenRouteService API Key:
+
+```bash
+export ORS_API_KEY=YOUR_OPENROUTE_SERVICE_API_KEY
+```
+
+## Manual Installation
+
 1. Clone the repo in a local folder:
    ```bash
    git clone git@github.com:hifly81/bikescout.git <your_local_folder_path>
@@ -41,36 +60,40 @@
    ```bash
    ./venv/bin/pip install -r requirements.txt
    ```
-4. Configure the API Key: Open `mcp_server.py` and replace `YOUR_OPENROUTE_SERVICE_API_KEY` with your actual token.
 
-## Configuration
+## Configuration for Claude Desktop
 Add the server to your `claude_desktop_config.json`:
 
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json` 
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 You must replace the placeholders in the JSON configuration with your local absolute paths to the Python script file.
-`PATH/TO/YOUR/BIKESCOUT_FOLDER/mcp_server.py`
+`PATH/TO/YOUR/BIKESCOUT_FOLDER/src/bikescout/mcp_server.py`
 
 Example:
- - Linux/macOS: `/home/username/bikescout/mcp_server.py`
- - Windows: `C:/Users/Username/Documents/bikescout/mcp_server.py`
+ - Linux/macOS: `/home/username/bikescout/src/bikescout/mcp_server.py`
+ - Windows: `C:/Users/Username/Documents/bikescout/src/bikescout/mcp_server.py`
 
 ```json
 {
   "mcpServers": {
     "bikescout": {
       "command": "PATH/TO/YOUR/BIKESCOUT_FOLDER/venv/bin/python3",
-      "args": ["PATH/TO/YOUR/BIKESCOUT_FOLDER/mcp_server.py"],
+       "args": [
+          "-u",
+          "-m",
+          "bikescout.mcp_server"
+       ],
       "env": {
-        "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER"
+        "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER/src", 
+        "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY"
       }
     }
   }
 }
 ```
 
-### Using BikeScout with VS Code (Linux/Windows/macOS)
+## Using BikeScout with VS Code (Linux/Windows/macOS)
 If your goal is to test the BikeScout server while you are coding, you don't actually need the Claude Desktop app. You can use VS Code along with the Cline (formerly Claude Dev) or Continue extensions.
 
 1. Install the Extension:
@@ -87,19 +110,42 @@ If your goal is to test the BikeScout server while you are coding, you don't act
 
 ```json
 {
-  "mcpServers": {
-    "bikescout": {
-      "command": "PATH/TO/YOUR/BIKESCOUT_FOLDER/venv/bin/python3",
-      "args": ["PATH/TO/YOUR/BIKESCOUT_FOLDER/mcp_server.py"],
-      "env": {
-        "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER"
+   "mcpServers": {
+      "bikescout": {
+         "command": "PATH/TO/YOUR/BIKESCOUT_FOLDER/venv/bin/python3",
+         "args": [
+            "-u",
+            "-m",
+            "bikescout.mcp_server"
+         ],
+         "env": {
+            "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER/src",
+            "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY"
+         }
       }
-    }
-  }
+   }
 }
 ```
 4. Start Scouting
    Once saved, you can chat with the AI directly within VS Code. It will automatically detect BikeScout as a "tool." You can then ask: _"Find me a scenic 30km MTB route starting from my current coordinates."_ The AI will execute the Python script, fetch the data from OpenStreetMap and OpenRouteService, and present the results right in your chat window.
+
+## Debugging and Testing
+
+You can test **BikeScout** using the [MCP Inspector](https://github.com/modelcontextprotocol/inspector), a web-based tool for testing MCP servers.
+
+#### Using the Inspector
+To launch the inspector and interact with the tools manually, run the following command from the root directory:
+
+```bash
+export ORS_API_KEY=YOUR_OPENROUTE_SERVICE_API_KEY
+PYTHONPATH=./src npx @modelcontextprotocol/inspector ./venv/bin/python3 -m bikescout.mcp_server
+```
+
+What to check:
+- **List Tools**: Ensure all tools (geocode_location, trail_scout, etc.) are visible. 
+- **Run Tool**: Test the geocode_location tool by passing a city name (e.g., "Rome") to verify the Nominatim integration.
+
+---
 
 ## Example Queries
 

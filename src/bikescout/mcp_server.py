@@ -1,14 +1,20 @@
 import os
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-from src.tools.scouting import get_complete_trail_scout
-from src.tools.weather import get_weather_forecast
-from src.tools.surface import get_surface_analyzer
-from src.tools.geocoding import get_coordinates
+from bikescout.tools.scouting import get_complete_trail_scout
+from bikescout.tools.weather import get_weather_forecast
+from bikescout.tools.surface import get_surface_analyzer
+from bikescout.tools.geocoding import get_coordinates
 
 # Initialize the MCP Server
 mcp = FastMCP("BikeScout")
 
-ORS_API_KEY = "YOUR_OPENROUTE_SERVICE_API_KEY"
+load_dotenv()
+
+ORS_API_KEY = os.getenv("ORS_API_KEY")
+
+if not ORS_API_KEY:
+    raise ValueError("ORS_API_KEY not found.")
 
 @mcp.tool()
 def geocode_location(location_name: str):

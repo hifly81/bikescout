@@ -1,5 +1,5 @@
 import requests
-from src.tools.maps import get_static_map_url
+from bikescout.tools.maps import get_static_map_url
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 ORS_BASE_URL = "https://api.openrouteservice.org/v2/directions"

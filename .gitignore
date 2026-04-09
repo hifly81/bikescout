@@ -1,6 +1,7 @@
 venv/
 .idea/
 src/bikescout/__pycache__/
+src/bikescout/tools/__pycache__/
 dist/
 scripts/
 .env

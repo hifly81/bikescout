@@ -297,6 +297,37 @@ Analyzes the physical composition of the route to help users choose the appropri
 
 ---
 
+## 🤝 Contributing
+
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make to **BikeScout** are **greatly appreciated**.
+
+### How to Contribute
+
+1. **Report Bugs**: Found a glitch? Open an [Issue](https://github.com/yourusername/bikescout/issues) with a detailed description and steps to reproduce.
+2. **Feature Requests**: Have an idea to make BikeScout better? Open an issue to discuss it!
+3. **Pull Requests**:
+   - Fork the Project.
+   - Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
+   - Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+   - Push to the Branch (`git checkout origin feature/AmazingFeature`).
+   - Open a Pull Request.
+
+### Development Roadmap
+We are currently looking for help with:
+- [ ] **POI Integration**: Adding water fountains, bike repair stations, and cafés to the route summary.
+- [ ] **Advanced Surface Analysis**: Better mapping of trail technicality grades (S0-S5).
+- [ ] **Frontend Mockups**: Visualizing how BikeScout looks in different MCP clients.
+
+### Coding Standards
+- Please follow [PEP 8](https://peps.python.org/pep-0008/) for Python code.
+- Ensure all new tools are documented in the `README.md`.
+- Keep comments in English for international collaboration.
+
+
+*By contributing, you agree that your contributions will be licensed under the project's Apache-2.0 License.*
+
+---
+
 ## License & Data Attributions
 
 ### Software License

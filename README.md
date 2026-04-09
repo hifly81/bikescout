@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License](https://img.shields.io/badge/License-Mixed-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-0.6.2-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-0.7.0-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![Downloads](https://pepy.tech/badge/global-chem)](https://pepy.tech/project/global-chem)
@@ -221,6 +221,40 @@ The route composition is as follows:
 * 🌿 **Grass/Trail:** 10%
 
 > 💡 **Technical Advice:** Given the high percentage of gravel and loose stones, we recommend using tires with a minimum width of **40mm** and slightly lower tire pressure to improve grip and comfort.
+
+---
+
+## AI Explorer Prompts
+
+BikeScout includes pre-configured **AI Prompts**. These prompts provide local context, gear tips, and cultural insights.
+
+| Prompt Name                     | Destination | Specialization |
+|:--------------------------------| :--- | :--- |
+| `explore-moab-usa`              | 🏜️ Moab, Utah | Desert riding, technical sandstone, hydration & gear safety. |
+| `explore-castelli-romani-italy` | 🇮🇹 Castelli Romani | Volcanic terrain, steep climbs, Roman history, and local food stops. |
+
+### How to use them:
+
+1. Open your MCP-compatible client (e.g., Claude Desktop or Cline).
+2. Look for the **Prompts** library (usually a 📄 or ✨ icon).
+3. Select an explorer prompt to start a guided session.
+
+---
+
+## Knowledge Resources
+
+BikeScout provides direct access to specialized cycling knowledge bases via the **MCP Resource** protocol. These resources can be read by the AI to provide accurate, data-driven advice.
+
+| Resource URI | Content | Use Case |
+| :--- | :--- | :--- |
+| `bikescout://safety/checklist` | Essential pre-ride safety steps. | Checking brakes, bolts, and emergency gear. |
+| `bikescout://tech/tire-pressure` | Recommended PSI/Bar by terrain. | Optimizing grip for Mud, Rock, or Asphalt. |
+
+### How to access:
+
+In your AI client, you can ask:
+* *"Read the safety checklist from BikeScout"* * *"What is the recommended tire pressure for wet gravel?"*
+  The AI will automatically fetch the data from the resource URI.
 
 ---
 

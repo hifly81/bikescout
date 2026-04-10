@@ -9,61 +9,84 @@
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans">
 
-    <header class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-20 px-6 text-center">
-        <h1 class="text-5xl md:text-6xl font-extrabold mb-4">🚲 BikeScout</h1>
-        <p class="text-xl md:text-2xl opacity-90 max-w-2xl mx-auto mb-8">
-            The professional MCP server that turns your AI into an expert cycling coach and local guide.
-        </p>
-        <div class="flex justify-center gap-4">
-            <a href="https://github.com/tuo-username/bikescout" class="bg-white text-blue-700 px-8 py-3 rounded-full font-bold hover:bg-opacity-90 transition">View on GitHub</a>
-            <code class="bg-blue-900 bg-opacity-40 px-6 py-3 rounded-full border border-blue-400 border-opacity-30 hidden md:block">pip install bikescout</code>
-        </div>
-    </header>
+<header class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white py-20 px-6 text-center">
+    <h1 class="text-5xl md:text-6xl font-extrabold mb-4">🚲 BikeScout</h1>
+    <p class="text-xl md:text-2xl opacity-90 max-w-2xl mx-auto mb-8">
+        The professional MCP server that turns your AI into an expert cycling coach and local guide.
+    </p>
+    <div class="flex justify-center gap-4">
+        <a href="https://github.com/hifly81/bikescout" class="bg-white text-blue-700 px-8 py-3 rounded-full font-bold hover:bg-opacity-90 transition">View on GitHub</a>
+        <code class="bg-blue-900 bg-opacity-40 px-6 py-3 rounded-full border border-blue-400 border-opacity-30 hidden md:block">pip install bikescout</code>
+    </div>
+</header>
 
-    <section class="max-w-6xl mx-auto py-20 px-6 grid md:grid-cols-3 gap-12">
-        <div class="text-center">
+<section class="max-w-6xl mx-auto py-20 px-6">
+    <h2 class="text-3xl font-bold text-center mb-16">Why BikeScout?</h2>
+    <div class="grid md:grid-cols-3 gap-12">
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+            <div class="text-blue-600 text-3xl mb-4"><i class="fas fa-mountain"></i></div>
+            <h3 class="text-xl font-bold mb-3">Filtered Elevation</h3>
+            <p class="text-slate-600">Stop trusting "fake" vertical gains. Our progressive filtering eliminates satellite noise for realistic elevation metrics.</p>
+        </div>
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+            <div class="text-blue-600 text-3xl mb-4"><i class="fas fa-microchip"></i></div>
+            <h3 class="text-xl font-bold mb-3">MTB-Scale Parsing</h3>
+            <p class="text-slate-600">We decode technical OSM tags (S0-S5). Know if a trail requires trial skills or if it's a smooth gravel cruise.</p>
+        </div>
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition">
+            <div class="text-blue-600 text-3xl mb-4"><i class="fas fa-biking"></i></div>
+            <h3 class="text-xl font-bold mb-3">Multi-Discipline Logic</h3>
+            <p class="text-slate-600">Custom algorithms for Road, Gravel, and Enduro. Effort scoring that adapts to your bike's rolling resistance.</p>
+        </div>
+    </div>
+</section>
+
+<section class="bg-white py-20 px-6 border-y border-slate-100">
+    <div class="max-w-6xl mx-auto grid md:grid-cols-3 gap-12 text-center">
+        <div>
             <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-700 text-2xl">
                 <i class="fas fa-map-marked-alt"></i>
             </div>
             <h3 class="text-xl font-bold mb-2">Trail Scouting</h3>
-            <p class="text-slate-600">Discover nearby trails using OpenStreetMap and OpenRouteService data.</p>
+            <p class="text-slate-600">Deep analysis of surfaces and waytypes using OSM and OpenRouteService.</p>
         </div>
-        <div class="text-center">
+        <div>
             <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-700 text-2xl">
-                <i class="fas fa-gauge-high"></i>
+                <i class="fas fa-cloud-sun"></i>
             </div>
-            <h3 class="text-xl font-bold mb-2">Technical Insight</h3>
-            <p class="text-slate-600">Get expert advice on tire pressure, safety checklists, and elevation profiles.</p>
+            <h3 class="text-xl font-bold mb-2">Weather Guard</h3>
+            <p class="text-slate-600">Cycling-specific forecasts with technical advice on wind and rain risk.</p>
         </div>
-        <div class="text-center">
+        <div>
             <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-700 text-2xl">
                 <i class="fas fa-robot"></i>
             </div>
             <h3 class="text-xl font-bold mb-2">Native MCP</h3>
-            <p class="text-slate-600">Seamlessly integrates with Claude Desktop, Cursor, and Cline.</p>
+            <p class="text-slate-600">Zero-config integration for Claude Desktop, Cursor, and the MCP ecosystem.</p>
         </div>
-    </section>
+    </div>
+</section>
 
-    <section class="bg-slate-100 py-20 px-6">
-        <div class="max-w-4xl mx-auto">
-            <h2 class="text-3xl font-bold text-center mb-12">Built-in Intelligence</h2>
-            <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                <h4 class="font-bold text-blue-700 mb-2 uppercase tracking-widest text-sm text-center">Featured Prompt</h4>
-                <h3 class="text-2xl font-bold text-center mb-6 italic">"Explore Castelli Romani"</h3>
-                <p class="text-slate-700 leading-relaxed text-center italic">
-                    "Act as a local MTB expert for the Castelli Romani. Analyze the volcanic soil of Monte Cavo, plan the ascent, and don't forget the post-ride stop in Ariccia."
-                </p>
-            </div>
+<section class="bg-slate-100 py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+        <h2 class="text-3xl font-bold text-center mb-12">Built-in Intelligence</h2>
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <h4 class="font-bold text-blue-700 mb-2 uppercase tracking-widest text-sm text-center">Featured Prompt</h4>
+            <h3 class="text-2xl font-bold text-center mb-6 italic">"Explore Monte Cavo"</h3>
+            <p class="text-slate-700 leading-relaxed text-center italic">
+                "Act as a local Enduro expert. Analyze the technical descent from Monte Cavo, check for S3 rock gardens, and suggest a loop that avoids unpaved roads for the climb."
+            </p>
         </div>
-    </section>
+    </div>
+</section>
 
-    <footer class="py-12 text-center text-slate-500 border-t border-slate-200">
-        <p>Built with ❤️ by <strong>hifly</strong>. Data from OSM, OpenRouteService, and Open-Meteo.</p>
-        <div class="mt-4 flex justify-center gap-6 text-xl">
-            <a href="https://github.com/tuo-username/bikescout" class="hover:text-blue-700"><i class="fab fa-github"></i></a>
-            <a href="https://pypi.org/project/bikescout/" class="hover:text-blue-700"><i class="fas fa-box"></i></a>
-        </div>
-    </footer>
+<footer class="py-12 text-center text-slate-500 border-t border-slate-200">
+    <p>Built with 🚲 by <strong>hifly81</strong>. Data from OSM, OpenRouteService, and Open-Meteo.</p>
+    <div class="mt-4 flex justify-center gap-6 text-xl">
+        <a href="https://github.com/hifly81/bikescout" class="hover:text-blue-700"><i class="fab fa-github"></i></a>
+        <a href="https://pypi.org/project/bikescout/" class="hover:text-blue-700"><i class="fas fa-box"></i></a>
+    </div>
+</footer>
 
 </body>
 </html>

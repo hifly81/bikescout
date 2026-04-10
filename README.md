@@ -21,6 +21,49 @@
 * **Instant Map Previews**: Automatically generates a **Static Map (.png)** of the route to visualize the trail directly within the chat interface.
 * **Local Expert Knowledge**: Specialized regional prompts for world-class destinations like the **Dolomites (UNESCO)**, **Moab (USA)**, and **Castelli Romani**.
 * **Pro Climb Categorization**: Automatically identifies and names specific climbs (from **Category 4** to **Hors Catégorie**) using professional cycling standards based on length and average gradient.
+* **Smart POI Scouting (Pit-Stop Finder)**: Automatically locates cycling-specific amenities like **drinking water fountains**, **bicycle repair stations**, and **mountain shelters** within a 2km radius of your route.
+
+# Why BikeScout? (vs Generic Maps)
+
+While Google Maps or standard navigation tools are excellent for urban commuting, they fail when the terrain gets technical. **BikeScout** bridges the gap between a simple "line on a map" and the technical reality of professional cycling, turning your AI into an expert local guide.
+
+### 1. Truth in Elevation (Progressive Filtering)
+Raw satellite data (SRTM) often suffers from "noise," overestimating total vertical gain by up to 40% in mountainous areas due to sudden spikes in readings.
+* **Generic Maps:** Display "jagged" elevation profiles that inflate effort and make charts unreadable.
+* **BikeScout:** Uses a **Progressive Elevation Filter**. Our algorithm recognizes and smooths out satellite sensor errors, returning a total ascent value that matches real-world barometric sensors (Garmin/Wahoo).
+
+### 2. Beyond "Paved" vs "Unpaved" (S-Scale Grading)
+For a standard navigator, a trail is just a trail. For a cyclist, the difference between packed gravel and a bed of loose rocks is the difference between fun and danger.
+* **Generic Maps:** Indiscriminately label everything that isn't asphalt as "unpaved."
+* **BikeScout:** Parses deep OpenStreetMap metadata to extract the **MTB-Scale (S0-S5)** and **SAC-Scale**. It warns you if you'll encounter a Grade S0 (easy) or an S3 (technical with rocks and steps), allowing you to decide if your setup is appropriate.
+
+### 3. Beyond traditional POI
+Generic maps often prioritize sponsored results or restaurants. BikeScout probes deep OpenStreetMap tags like amenity=drinking_water and shop=bicycle. These points are often verified by the cycling community, ensuring you find a working fountain on a mountain pass rather than a closed supermarket.
+
+### 4. Discipline-Specific Intelligence
+Effort is relative to your gear. 500m of climbing feels different on a 7kg Road bike than on a 16kg Enduro rig with 2.4" knobby tires.
+* **Generic Maps:** Provide "standard" travel times and difficulty based on generic averages.
+* **BikeScout:** Features a **Dynamic Effort Engine**. It calculates difficulty and climb categorization (from Cat 4 to *Hors Catégorie*) based specifically on your **Bike Type** (Road, Gravel, MTB, Enduro) and your **Tire Setup**.
+
+### 5. Native AI Orchestration (MCP)
+BikeScout isn't just an isolated script; it's a native extension for next-generation large language models.
+* **Generic Maps:** Require manual searches, screenshots, and visual interpretation by the user.
+* **BikeScout:** Is a **Model Context Protocol (MCP)** server. It allows Claude, Cursor, or other LLMs to "reason" like a local guide, automatically cross-referencing weather, soil type, and technical setup in a single conversational flow.
+
+
+
+### Comparison at a Glance
+
+| Feature | Generic Maps | BikeScout AI |
+| :--- | :--- | :--- |
+| **Elevation Gain** | Raw & Noisy | **Filtered & Realistic** |
+| **Surface Analysis** | Basic (Paved/Dirt) | **Technical (S-Scale/Tracktype)** |
+| **Difficulty Rating** | Time-based only | **Weighted by Bike Type** |
+| **Climb Grading** | None | **UCI-Standard (Cat 4 to HC)** |
+| **AI Integration** | Manual / External | **Native MCP Tooling** |
+
+---
+
 
 ## Prerequisites
 
@@ -580,6 +623,61 @@ This tool goes beyond simple mapping by analyzing the physical composition of th
 }
 ```
 
+### 5. `poi_scout`
+A specialized safety and logistics tool designed to identify critical cycling amenities. It bypasses standard "commercial noise" by focusing strictly on professional cycling infrastructure and public utilities.
+
+#### **Functionality:**
+* **Cyclist-Centric Filtering:** Excludes generic businesses to focus on water fountains, repair stations, and shelters.
+* **Request Bundling:** Optimized to perform multiple specialized searches (Water, Repair, Shelter) ensuring comprehensive results even where API limits are strict.
+* **Smart Proximity Sorting:** Automatically calculates the distance from your current coordinate or trail point to the nearest amenity.
+
+#### **Parameters:**
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `lat` | `float` | Required | Latitude of the area to scout. |
+| `lon` | `float` | Required | Longitude of the area to scout. |
+| `radius_km` | `float` | `2.0` | Search radius in km. Capped at **2.0 km** for maximum API stability. |
+
+#### **Example Output (JSON):**
+```json
+{
+  "status": "Success",
+  "search_radius": "2000m",
+  "total_found": 3,
+  "amenities": [
+    {
+      "name": "Public Fountain",
+      "type": "Water Fountain 💧",
+      "distance_m": 120,
+      "location": { "lat": 40.7128, "lon": -74.0060 },
+      "details": {
+        "opening_hours": "24/7",
+        "note": "Potable water available"
+      }
+    },
+    {
+      "name": "Local Bike Hub",
+      "type": "Bike Shop/Repair 🔧",
+      "distance_m": 450,
+      "location": { "lat": 40.7140, "lon": -74.0075 },
+      "details": {
+        "opening_hours": "09:00-19:00",
+        "note": "Tools and pumps available"
+      }
+    },
+    {
+      "name": "Trailside Shelter",
+      "type": "Shelter/Rest Area 🏠",
+      "distance_m": 1100,
+      "location": { "lat": 40.7180, "lon": -74.0100 },
+      "details": {
+        "opening_hours": "N/A",
+        "note": "Rain shelter for cyclists"
+      }
+    }
+  ]
+}
+```
 ---
 
 ## 🤝 Contributing

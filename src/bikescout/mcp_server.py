@@ -5,6 +5,7 @@ from bikescout.tools.scouting import get_complete_trail_scout
 from bikescout.tools.weather import get_weather_forecast
 from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.geocoding import get_coordinates
+from bikescout.tools.poi import get_poi_scout
 from bikescout.prompts import BikeScoutPrompts
 from bikescout.resources import BikeScoutResources
 
@@ -88,6 +89,18 @@ def analyze_route_surfaces(
         surface_preference
     )
 
+@mcp.tool()
+def poi_scout(lat: float, lon: float, radius_km: int = 5):
+    """
+    Identifies bike-specific points of interest (POIs) around a location.
+    Focuses on water fountains, bike shops, repair stations, and shelters.
+
+    Args:
+        lat: Latitude of the center point (usually start/end or a climb peak).
+        lon: Longitude of the center point.
+        radius_km: Search radius in kilometers (max 5km recommended for precision).
+    """
+    return get_poi_scout(ORS_API_KEY, lat, lon, radius_km)
 
 # --- PROMPTS SECTION ---
 

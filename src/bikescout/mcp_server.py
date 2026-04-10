@@ -51,12 +51,40 @@ def check_trail_weather(lat: float, lon: float):
     return get_weather_forecast(lat, lon)
 
 @mcp.tool()
-def analyze_route_surfaces(lat: float, lon: float, radius_km: int = 10, profile: str = "cycling-mountain"):
+def analyze_route_surfaces(
+    lat: float,
+    lon: float,
+    radius_km: int = 10,
+    profile: str = "cycling-mountain",
+    bike_type: str = "MTB",
+    tire_size_option: str = "29",
+    points: int = 3,
+    seed: int = 42
+):
     """
-    Provides a detailed breakdown of the terrain types (e.g., % of gravel, asphalt, dirt).
-    Useful for choosing the right bike for the route.
+    Analyzes the route surface, technical difficulty, categorize climbs, and bike compatibility.
+
+    Args:
+        lat: Latitude of the starting point.
+        lon: Longitude of the starting point.
+        radius_km: Total target distance for the round-trip loop.
+        profile: ORS profile (cycling-mountain, cycling-road, cycling-regular).
+        bike_type: Type of bike (MTB, Road, Gravel, E-MTB).
+        tire_size_option: For MTB: '26', '27.5', '29'. For Road/Gravel: '700c', '650b'.
+        points: Complexity of the loop shape (3=triangle, 10=circular).
+        seed: Random seed to generate different route variations for the same area.
     """
-    return get_surface_analyzer(ORS_API_KEY, lat, lon, radius_km, profile)
+    return get_surface_analyzer(
+        ORS_API_KEY,
+        lat,
+        lon,
+        radius_km,
+        profile,
+        bike_type,
+        tire_size_option,
+        points,
+        seed
+    )
 
 
 # --- PROMPTS SECTION ---

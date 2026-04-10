@@ -1,13 +1,124 @@
 import requests
 
-def get_surface_analyzer(api_key: str, lat: float, lon: float, radius_km: int, profile: str, bike_type: str, tire_width_mm: int):
-    """
-    Analyzes the route surface composition, bike compatibility, and climb difficulty.
-    Implements fallback mechanisms for profiles and metadata (extra_info) availability.
-    """
 
-    # Attempts: (profile, extra_info_list)
-    # We try full metadata first, then downgrade if the API rejects specific tags like 'tracktype'
+def _get_tire_setup(bike_type: str, tire_size_option: str):
+    """
+    Standardizes tire size and width based on bike type.
+    Returns (actual_tire_mm, display_string).
+    """
+    if bike_type.lower() in ["mtb", "e-mtb", "enduro"]:
+        display_tire = "29" if tire_size_option in ["700c", "650b", "25", "28"] else tire_size_option
+        return 58, f"{display_tire} wheels (Wide Grip)" # 58mm ~ 2.3-2.4"
+
+    if bike_type.lower() == "gravel":
+        display_tire = tire_size_option if tire_size_option in ["700c", "650b"] else "700c"
+        return 40, f"{display_tire} wheels"
+
+    # Default for Road
+    return 25, "700c wheels"
+
+def _sanitize_elevation(raw_ascent: float):
+    """
+    Filters satellite SRTM noise. Applies progressive reduction based on ascent intensity.
+    """
+    if raw_ascent > 2000:
+        return round(raw_ascent * 0.60, 0)  # 40% reduction for high noise
+    if raw_ascent > 1000:
+        return round(raw_ascent * 0.70, 0)  # 30% reduction
+    return round(raw_ascent * 0.85, 0)      # 15% reduction for light hills
+
+def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
+    """
+    Calculates the average gradient and assigns a pro-cycling climb category.
+    Adjusts effort scores and climbing ratios based on the specific bike type (Road, MTB, Enduro).
+    """
+    # --- 1. DYNAMIC CLIMBING RATIO & EFFORT MULTIPLIER ---
+    # Enduro: Steep, punchy climbs followed by descents (Climbing covers ~25% of total distance)
+    # MTB/XC: Mixed trails with moderate climbing efficiency (~30% of total distance)
+    # Road/Gravel: Longer, sustained efforts on predictable terrain (~45% of total distance)
+
+    bike_type_low = bike_type.lower()
+
+    if "enduro" in bike_type_low:
+        climbing_ratio = 0.25
+        effort_multiplier = 1.6  # Maximum effort due to technical terrain and bike weight
+    elif "mountain" in bike_type_low or "mtb" in bike_type_low:
+        climbing_ratio = 0.30
+        effort_multiplier = 1.4  # Increased effort for off-road rolling resistance
+    else:
+        climbing_ratio = 0.45
+        effort_multiplier = 1.0  # Baseline effort for paved or smooth surfaces
+
+    # --- 2. GRADIENT CALCULATION ---
+    climbing_dist = total_dist_m * climbing_ratio
+    avg_gradient = (total_ascent / climbing_dist) * 100 if climbing_dist > 0 else 0
+
+    # Cap the display gradient for realism (Enduro can realistically reach higher averages)
+    max_display = 25.0 if "enduro" in bike_type_low else 20.0
+    display_gradient = min(avg_gradient, max_display)
+
+    # --- 3. EFFORT SCORE CALCULATION ---
+    # The score combines total vertical gain with steepness and a bike-specific multiplier
+    # We cap the gradient at 18% for the scoring formula to prevent outliers from breaking categories
+    scoring_gradient = min(display_gradient, 18.0)
+    adjusted_score = total_ascent * (scoring_gradient / 10) * effort_multiplier
+
+    # --- 4. CATEGORIZATION LOGIC ---
+    if total_ascent < 50:
+        return "Flat / Rolling", display_gradient
+
+    # HC (Hors Catégorie): Climbs that are beyond classification
+    if adjusted_score >= 800 or total_ascent > 1000:
+        category = "Hors Catégorie (HC) - Legendary Challenge"
+    elif adjusted_score >= 500:
+        category = "Category 1 - Brutal Ascent"
+    elif adjusted_score >= 300:
+        category = "Category 2 - Hard Climb"
+    elif adjusted_score >= 150:
+        category = "Category 3 - Challenging"
+    else:
+        category = "Category 4 - Short Burner"
+
+    # Append technical tag for Enduro to distinguish from standard XC/MTB
+    if "enduro" in bike_type_low:
+        category = f"Enduro Tech: {category}"
+
+    return category, display_gradient
+
+def _analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_map: dict):
+    """
+    Checks if the bike setup is compatible with the detected surfaces.
+    """
+    breakdown = []
+    warnings = []
+    is_compatible = True
+
+    if 'surface' in extras:
+        for item in extras['surface']['summary']:
+            name = surface_map.get(item['value'], "Other")
+            percentage = round(item['amount'], 1)
+
+            if bike_type.lower() == "road":
+                if name in ["Gravel", "Unpaved", "Pebbles", "Grass", "Other"]:
+                    is_compatible = False
+                    warnings.append(f"Safety risk: {percentage}% of the route is {name}.")
+            elif bike_type.lower() == "gravel":
+                if name in ["Pebbles", "Grass", "Other"]:
+                    warnings.append(f"Comfort warning: {percentage}% is {name}.")
+
+            breakdown.append({"type": name, "percentage": f"{percentage}%"})
+
+    return breakdown, warnings, is_compatible
+
+
+def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_size_option, points, seed):
+    """
+    Main entry point for route analysis.
+    """
+    # 1. Setup tires
+    tire_mm, tire_display = _get_tire_setup(bike_type, tire_size_option)
+
+    # 2. API Setup and fallback logic
     attempts = [
         (profile, ["surface", "waytype", "tracktype"]),
         (profile, ["surface", "waytype"]),
@@ -15,125 +126,53 @@ def get_surface_analyzer(api_key: str, lat: float, lon: float, radius_km: int, p
     ]
 
     last_error = ""
-
     for current_profile, current_extras in attempts:
         url = f"https://api.openrouteservice.org/v2/directions/{current_profile}/geojson"
-
-        headers = {
-            'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8',
-            'Authorization': api_key,
-            'Content-Type': 'application/json; charset=utf-8'
-        }
-
+        headers = {'Authorization': api_key, 'Content-Type': 'application/json'}
         body = {
             "coordinates": [[lon, lat]],
             "elevation": True,
-            "options": {
-                "round_trip": {
-                    "length": radius_km * 1000,
-                    "points": 3,
-                    "seed": 42
-                }
-            },
+            "options": {"round_trip": {"length": radius_km * 1000, "points": points, "seed": seed}},
             "extra_info": current_extras
         }
 
         try:
             response = requests.post(url, json=body, headers=headers)
-
             if response.status_code == 400:
-                error_data = response.json()
-                msg = error_data.get('error', {}).get('message', '')
-
-                # If the error is about unsupported metadata, move to the next fallback attempt
-                if "extra_info" in msg or "tracktype" in msg:
-                    last_error = f"Metadata '{current_extras}' not supported for {current_profile}."
-                    continue
-                last_error = msg
+                last_error = response.json().get('error', {}).get('message', 'Bad Request')
                 continue
 
             response.raise_for_status()
             data = response.json()
 
-            # Technical mappings for ORS attributes
-            surface_map = {
-                0: "Unknown", 1: "Asphalt", 2: "Unpaved", 3: "Paved", 4: "Cobblestone",
-                5: "Gravel", 6: "Fine Gravel", 7: "Atv", 8: "Pebbles", 9: "Wood",
-                10: "Stepping Stones", 11: "Grass", 12: "Compact", 13: "Sett", 14: "Concrete"
-            }
-            tracktype_map = {21: "Grade 1", 22: "Grade 2", 23: "Grade 3", 24: "Grade 4", 25: "Grade 5"}
+            # 3. Extract Core Data
+            props = data['features'][0]['properties']
+            total_dist_m = props['summary']['distance']
 
-            # Extraction of general route metrics
-            properties = data['features'][0]['properties']
-            summary = properties['summary']
-            total_dist_m = summary['distance']
-            total_ascent = properties.get('ascent', 0)
+            # 4. Process Elevation and Climbs
+            clean_ascent = _sanitize_elevation(props.get('ascent', 0))
+            climb_cat, avg_grad = _categorize_climb(clean_ascent, total_dist_m, current_profile)
 
-            # --- ENHANCED MTB/ROAD CLIMB LOGIC ---
+            # 5. Process Surfaces
+            surface_map = {0: "Unknown", 1: "Asphalt", 2: "Unpaved", 3: "Paved", 4: "Cobblestone",
+                           5: "Gravel", 6: "Fine Gravel", 11: "Grass", 12: "Compact", 14: "Concrete"}
 
-            # 1. Base Gradient Calculation
-            avg_gradient = (total_ascent / (total_dist_m / 2)) * 100 if total_dist_m > 0 else 0
+            breakdown, warnings, compatible = _analyze_compatibility(bike_type, tire_mm, props.get('extras', {}), surface_map)
 
-            # 2. Effort Multiplier: MTB trails are ~30-50% harder than asphalt for the same gradient
-            effort_multiplier = 1.3 if "mountain" in current_profile else 1.0
-
-            # 3. Adjusted Score
-            # We multiply the ascent by the effort and the steepness
-            adjusted_score = total_ascent * (avg_gradient / 10) * effort_multiplier
-
-            climb_category = "Flat / Rolling"
-
-            if total_ascent >= 50: # Lower threshold for MTB
-                if adjusted_score >= 800 or total_ascent > 1000:
-                    climb_category = "Hors Catégorie (HC) - Extreme MTB Epic"
-                elif adjusted_score >= 500 or total_ascent > 600:
-                    climb_category = "Category 1 - Brutal Ascent"
-                elif adjusted_score >= 300 or total_ascent > 400:
-                    climb_category = "Category 2 - Tough Climb"
-                elif adjusted_score >= 150 or total_ascent > 200:
-                    climb_category = "Category 3 - Challenging"
-                else:
-                    climb_category = "Category 4 - Short Burner"
-
-            # --- SURFACE & COMPATIBILITY ANALYSIS ---
-            extras = properties.get('extras', {})
-            breakdown = []
-            warnings = []
-            is_compatible = True
-
-            if 'surface' in extras:
-                for item in extras['surface']['summary']:
-                    name = surface_map.get(item['value'], "Other")
-                    percentage = round(item['amount'], 1)
-
-                    if bike_type.lower() != "mtb" and (bike_type.lower() == "road" or tire_width_mm < 30):
-                        if name in ["Gravel", "Unpaved", "Pebbles", "Grass", "Other", "Fine Gravel"]:
-                            is_compatible = False
-                            warnings.append(f"High risk: {percentage}% of the route is {name}.")
-
-                    breakdown.append({"type": name, "percentage": f"{percentage}%"})
-
-            if 'tracktype' in extras:
-                for item in extras['tracktype']['summary']:
-                    grade_val = item['value']
-                    grade_name = tracktype_map.get(grade_val, "Unknown")
-                    # Rule: Gravel bikes should avoid Grade 4 (soft/unpaved) or Grade 5 (very difficult)
-                    if bike_type.lower() == "gravel" and grade_val >= 24:
-                        warnings.append(f"Technical Warning: Includes {grade_name} sections (rough/soft terrain).")
-
+            # 6. Final Response
             return {
                 "status": "Success",
                 "profile_used": current_profile,
                 "technical_summary": {
                     "distance_km": round(total_dist_m / 1000, 2),
-                    "elevation_gain_m": round(total_ascent, 0),
-                    "climb_category": climb_category,
-                    "est_avg_climb_gradient": f"{round(avg_gradient, 1)}%"
+                    "elevation_gain_m": clean_ascent,
+                    "climb_category": climb_cat,
+                    "avg_gradient_est": f"{round(avg_grad, 1)}%"
                 },
                 "bike_setup_check": {
-                    "compatible": is_compatible,
+                    "compatible": compatible,
                     "bike_used": bike_type,
-                    "tire_width": f"{tire_width_mm}mm"
+                    "tire_setup": tire_display
                 },
                 "surface_breakdown": breakdown,
                 "safety_warnings": warnings
@@ -143,9 +182,4 @@ def get_surface_analyzer(api_key: str, lat: float, lon: float, radius_km: int, p
             last_error = str(e)
             continue
 
-    # Final error response if all fallbacks fail
-    return {
-        "status": "Error",
-        "message": f"Route analysis failed. Details: {last_error}",
-        "hint": "The area might lack mapped trails, or the starting point is too far from a road."
-    }
+    return {"status": "Error", "message": f"Analysis failed: {last_error}"}

@@ -57,14 +57,34 @@ def analyze_route_surfaces(
     radius_km: int = 10,
     profile: str = "cycling-mountain",
     bike_type: str = "MTB",
-    tire_width_mm: int = 54
+    tire_size_option: str = "29",
+    points: int = 3,
+    seed: int = 42
 ):
     """
-    Analyzes the route surface and checks compatibility with the user's bike setup.
-    bike_type: 'Road', 'Gravel', 'MTB', 'E-MTB'
-    tire_width_mm: width of tires in mm (e.g., 28, 40, 54)
+    Analyzes the route surface, technical difficulty, and bike compatibility.
+
+    Args:
+        lat: Latitude of the starting point.
+        lon: Longitude of the starting point.
+        radius_km: Total target distance for the round-trip loop.
+        profile: ORS profile (cycling-mountain, cycling-road, cycling-regular).
+        bike_type: Type of bike (MTB, Road, Gravel, E-MTB).
+        tire_size_option: For MTB: '26', '27.5', '29'. For Road/Gravel: '700c', '650b'.
+        points: Complexity of the loop shape (3=triangle, 10=circular).
+        seed: Random seed to generate different route variations for the same area.
     """
-    return get_surface_analyzer(ORS_API_KEY, lat, lon, radius_km, profile, bike_type, tire_width_mm)
+    return get_surface_analyzer(
+        ORS_API_KEY,
+        lat,
+        lon,
+        radius_km,
+        profile,
+        bike_type,
+        tire_size_option,
+        points,
+        seed
+    )
 
 
 # --- PROMPTS SECTION ---

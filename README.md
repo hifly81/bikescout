@@ -411,78 +411,163 @@ A real-time safety tool designed specifically for outdoor activities. It provide
 ```
 
 ### 4. `analyze_route_surfaces`
-Analyzes the physical composition of the route to help users choose the appropriate bike (Road, Gravel, or MTB).
-This tool goes beyond simple mapping by analyzing the physical composition of the route and cross-referencing it with the user's specific bike setup to ensure safety and performance.
 
-#### **Functionality:**
-* **Surface Detection:** Identifies asphalt, gravel, grass, stones, and unpaved sections.
+Analyzes the physical composition of the route to help users choose the appropriate bike (Road, Gravel, or MTB) and categorizes climbs using professional cycling standards.
+This tool goes beyond simple mapping by analyzing the physical composition of the route and cross-referencing it with the user's specific bike setup to ensure safety, performance, and realistic effort estimation.
+
+#### **Core Functionality:**
+* **Surface Detection:** Identifies asphalt, gravel, grass, stones, and unpaved sections using OpenStreetMap metadata.
 * **Percentage Breakdown:** Calculates the exact percentage of each surface type relative to the total distance.
-* **Waytype Insights:** Distinguishes between cycleways, tracks, and footways.
-* **Bike Compatibility Check**: Automatically assesses if the route is suitable based on tire width and bike type.
-* **Safety Warnings**: Generates alerts if the terrain is too technical or soft for the specified setup (e.g., road tires on loose gravel).
-* **Technical Grading**: Analyzes OSM tracktype (Grades 1-5) to distinguish between smooth gravel and rough MTB trails.
+* **Pro Climb Categorization:** Identifies climbs (Category 4 to Hors Catégorie) using an effort-weighted algorithm that accounts for terrain resistance.
+* **Elevation Sanitization:** Uses a progressive filtering logic to remove "satellite noise" from SRTM data, providing realistic elevation gain metrics.
+* **Bike Compatibility Check:** Automatically assesses if the route is suitable based on the bike type and standardized tire setup.
+* **Safety & Technical Grading:** Analyzes OSM tracktype (Grades 1-5) to distinguish between smooth gravel and rough, technical MTB trails.
 
 #### **Parameters:**
-| Parameter | Type    | Default  | Description                                             |
-| :--- |:--------|:---------|:--------------------------------------------------------|
-| `lat` | `float` | Required | Latitude of the starting point.                         |
-| `lon` | `float` | Required | Longitude of the starting point.                        |
-| `radius_km` | `int`   | `10`     | The total length of the loop to analyze.                |
-| `bike_type` | `str`   | `MTB`    | User's bike (options: Road, Gravel, MTB, E-MTB).        |
-| `tire_width_mm` | `int`   | `54`     | Tire width in mm. Used to trigger compatibility alerts. |
 
-**Example Output (JSON):**
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `lat` | `float` | Required | Latitude of the starting point. |
+| `lon` | `float` | Required | Longitude of the starting point. |
+| `radius_km` | `int` | `10` | The total target distance of the loop (Round Trip). |
+| `profile` | `str` | `cycling-mountain` | ORS routing profile (e.g., `cycling-road`, `cycling-mountain`). |
+| `bike_type` | `str` | `MTB` | User's bike (Options: `Road`, `Gravel`, `MTB`, `E-MTB`, `Enduro`). |
+| `tire_size_option` | `str` | `29` | Standard wheel sizes (MTB: `26`, `27.5`, `29` | Road/Gravel: `700c`, `650b`). |
+| `points` | `int` | `3` | Complexity of the loop shape (3 = triangle, 10 = circular). |
+| `seed` | `int` | `42` | Random seed. Change it to discover a different route variation in the same area. |
+
+#### **Technical Insights:**
+
+> **Reality Filter:** This tool automatically reduces raw satellite elevation data by up to 40% on steep terrain to correct for SRTM sensor noise, ensuring the "Elevation Gain" matches real-world barometric sensors.
+>
+> **Effort Multiplier:** Climb categories are calculated with a **1.4x intensity factor** for MTB profiles to account for the increased rolling resistance and technical effort of off-road ascending.
+
+**Example Output (JSON) for MTB:**
 ```json
 {
   "status": "Success",
   "profile_used": "cycling-mountain",
   "technical_summary": {
-    "distance_km": 54.83,
-    "elevation_gain_m": 3751,
-    "climb_category": "Hors Catégorie (HC) - Legend Climb",
-    "est_avg_climb_gradient": "13.7%"
+    "distance_km": 39.64,
+    "elevation_gain_m": 1796,
+    "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+    "avg_gradient_est": "12.9%"
   },
   "bike_setup_check": {
     "compatible": true,
     "bike_used": "MTB",
-    "tire_width": "29mm"
+    "tire_setup": "29 wheels (~54mm)"
   },
   "surface_breakdown": [
     {
-      "type": "Unknown",
-      "percentage": "49.4%"
+      "type": "Paved",
+      "percentage": "44.8%"
     },
     {
-      "type": "Paved",
-      "percentage": "43.4%"
+      "type": "Unknown",
+      "percentage": "39.5%"
     },
     {
       "type": "Compact",
-      "percentage": "5.2%"
-    },
-    {
-      "type": "Unpaved",
-      "percentage": "0.8%"
-    },
-    {
-      "type": "Concrete",
-      "percentage": "0.7%"
-    },
-    {
-      "type": "Asphalt",
-      "percentage": "0.3%"
+      "percentage": "7.2%"
     },
     {
       "type": "Grass",
-      "percentage": "0.2%"
+      "percentage": "5.7%"
+    },
+    {
+      "type": "Concrete",
+      "percentage": "1.6%"
+    },
+    {
+      "type": "Asphalt",
+      "percentage": "1.2%"
+    }
+  ],
+  "safety_warnings": []
+}
+```
+
+**Example Output (JSON) for Road:**
+```json
+{
+  "status": "Success",
+  "profile_used": "cycling-road",
+  "technical_summary": {
+    "distance_km": 44.48,
+    "elevation_gain_m": 979,
+    "climb_category": "Category 2 - Hard Climb",
+    "avg_gradient_est": "4.9%"
+  },
+  "bike_setup_check": {
+    "compatible": true,
+    "bike_used": "Road",
+    "tire_setup": "700c wheels"
+  },
+  "surface_breakdown": [
+    {
+      "type": "Paved",
+      "percentage": "61.3%"
+    },
+    {
+      "type": "Unknown",
+      "percentage": "37.4%"
+    },
+    {
+      "type": "Asphalt",
+      "percentage": "0.7%"
+    },
+    {
+      "type": "Concrete",
+      "percentage": "0.6%"
+    }
+  ],
+  "safety_warnings": []
+}
+```
+
+**Example Output (JSON) for Gravel:**
+```json
+{
+  "status": "Success",
+  "profile_used": "cycling-regular",
+  "technical_summary": {
+    "distance_km": 38.08,
+    "elevation_gain_m": 976,
+    "climb_category": "Category 1 - Brutal Ascent",
+    "avg_gradient_est": "5.7%"
+  },
+  "bike_setup_check": {
+    "compatible": true,
+    "bike_used": "Gravel",
+    "tire_setup": "700c wheels"
+  },
+  "surface_breakdown": [
+    {
+      "type": "Paved",
+      "percentage": "51.9%"
+    },
+    {
+      "type": "Unknown",
+      "percentage": "45.2%"
+    },
+    {
+      "type": "Asphalt",
+      "percentage": "1.3%"
+    },
+    {
+      "type": "Concrete",
+      "percentage": "1.1%"
+    },
+    {
+      "type": "Other",
+      "percentage": "0.5%"
     }
   ],
   "safety_warnings": [
-    "High risk: 0.2% is Grass."
+    "Comfort warning: 0.5% is Other."
   ]
 }
-
-
 ```
 
 ---

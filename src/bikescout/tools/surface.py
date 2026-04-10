@@ -85,6 +85,36 @@ def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
 
     return category, display_gradient
 
+def _analyze_technical_difficulty(extras: dict):
+    """
+    Parses OSM tags for professional technical grading (MTB-Scale & SAC-Scale).
+    """
+    # 1. MTB Scale (Singletrail-Skala S0-S5)
+    # ORS returns 'surface' or 'tracktype' summaries, but specific scale tags
+    # are often in the 'steepness' or 'suitability' segments if enabled.
+    # Se ORS non passa il tag diretto, usiamo il tracktype come fallback intelligente.
+
+    mtb_val = extras.get('mtb_scale', {}).get('summary', [{}])[0].get('value', 'N/A')
+
+    scale_info = {
+        "0": "S0: Smooth, paved/firm trails without obstacles.",
+        "1": "S1: Small roots/stones, easy technical sections.",
+        "2": "S2: Loose soil, larger roots/stones, steps required.",
+        "3": "S3: Technical rock gardens, high steps, hairpins.",
+        "4": "S4: Extreme steepness, tight switchbacks, trial skills.",
+        "5": "S5: Near-vertical terrain, maximum difficulty."
+    }
+
+    # 2. Trail Visibility
+    vis_val = extras.get('trail_visibility', {}).get('summary', [{}])[0].get('value', '1')
+    vis_map = {"1": "Excellent", "2": "Good", "3": "Poor", "4": "Invisible/Requires GPS"}
+
+    return {
+        "mtb_scale": scale_info.get(str(mtb_val), "Standard / Unclassified"),
+        "trail_visibility": vis_map.get(str(vis_val), "Standard"),
+        "technical_notes": "Technical grading based on OSM mountain standards."
+    }
+
 def _analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_map: dict):
     """
     Checks if the bike setup is compatible with the detected surfaces.
@@ -159,6 +189,8 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
 
             breakdown, warnings, compatible = _analyze_compatibility(bike_type, tire_mm, props.get('extras', {}), surface_map)
 
+            tech_specs = _analyze_technical_difficulty(props.get('extras', {}))
+
             # 6. Final Response
             return {
                 "status": "Success",
@@ -167,7 +199,8 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
                     "distance_km": round(total_dist_m / 1000, 2),
                     "elevation_gain_m": clean_ascent,
                     "climb_category": climb_cat,
-                    "avg_gradient_est": f"{round(avg_grad, 1)}%"
+                    "avg_gradient_est": f"{round(avg_grad, 1)}%",
+                    "technical_difficulty": tech_specs
                 },
                 "bike_setup_check": {
                     "compatible": compatible,

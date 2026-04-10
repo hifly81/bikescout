@@ -62,7 +62,7 @@ def analyze_route_surfaces(
     seed: int = 42
 ):
     """
-    Analyzes the route surface, technical difficulty, and bike compatibility.
+    Analyzes the route surface, technical difficulty, categorize climbs, and bike compatibility.
 
     Args:
         lat: Latitude of the starting point.

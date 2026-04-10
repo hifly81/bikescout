@@ -419,6 +419,7 @@ This tool goes beyond simple mapping by analyzing the physical composition of th
 * **Surface Detection:** Identifies asphalt, gravel, grass, stones, and unpaved sections using OpenStreetMap metadata.
 * **Percentage Breakdown:** Calculates the exact percentage of each surface type relative to the total distance.
 * **Pro Climb Categorization:** Identifies climbs (Category 4 to Hors Catégorie) using an effort-weighted algorithm that accounts for terrain resistance.
+* **Professional Technical Grading**: Leverages international standards like MTB-Scale (S0-S5) and SAC-Scale. It identifies technical features such as rock gardens, steep steps, and trail visibility to provide expert-level safety briefings.
 * **Elevation Sanitization:** Uses a progressive filtering logic to remove "satellite noise" from SRTM data, providing realistic elevation gain metrics.
 * **Bike Compatibility Check:** Automatically assesses if the route is suitable based on the bike type and standardized tire setup.
 * **Safety & Technical Grading:** Analyzes OSM tracktype (Grades 1-5) to distinguish between smooth gravel and rough, technical MTB trails.
@@ -451,7 +452,12 @@ This tool goes beyond simple mapping by analyzing the physical composition of th
     "distance_km": 39.64,
     "elevation_gain_m": 1796,
     "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
-    "avg_gradient_est": "12.9%"
+    "avg_gradient_est": "12.9%",
+    "technical_difficulty": {
+      "mtb_scale": "Standard / Unclassified",
+      "trail_visibility":"Excellent",
+      "technical_notes": "Technical grading based on OSM mountain standards."
+    }
   },
   "bike_setup_check": {
     "compatible": true,

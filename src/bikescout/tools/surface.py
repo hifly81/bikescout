@@ -140,8 +140,28 @@ def _analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_m
 
     return breakdown, warnings, is_compatible
 
+def _build_ors_options(surface_preference):
+    """
+    Translates user surface preferences into ORS API options.
+    """
+    options = {}
+    avoid_features = []
 
-def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_size_option, points, seed):
+    if surface_preference == "avoid_unpaved":
+        avoid_features.append("unpaved")
+
+    if surface_preference == "prefer_paved":
+        options["avoid_polygons"] = {}
+        if "unpaved" not in avoid_features:
+            avoid_features.append("unpaved")
+
+    if avoid_features:
+        options["avoid_features"] = avoid_features
+
+    return options
+
+
+def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_size_option, points, seed, surface_preference):
     """
     Main entry point for route analysis.
     """
@@ -162,7 +182,7 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
         body = {
             "coordinates": [[lon, lat]],
             "elevation": True,
-            "options": {"round_trip": {"length": radius_km * 1000, "points": points, "seed": seed}},
+            "options": {"round_trip": {"length": radius_km * 1000, "points": points, "seed": seed},**_build_ors_options(surface_preference)},
             "extra_info": current_extras
         }
 

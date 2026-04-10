@@ -59,10 +59,11 @@ def analyze_route_surfaces(
     bike_type: str = "MTB",
     tire_size_option: str = "29",
     points: int = 3,
-    seed: int = 42
+    seed: int = 42,
+    surface_preference: str = "neutral"
 ):
     """
-    Analyzes the route surface, technical difficulty, categorize climbs, and bike compatibility.
+    Analyzes the route surface, technical difficulty, categorize climbs, and bike compatibility with surface-aware preferences.
 
     Args:
         lat: Latitude of the starting point.
@@ -83,7 +84,8 @@ def analyze_route_surfaces(
         bike_type,
         tire_size_option,
         points,
-        seed
+        seed,
+        surface_preference
     )
 
 

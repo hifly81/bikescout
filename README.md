@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Version](https://img.shields.io/badge/Version-0.7.3-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-0.8.0-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![Downloads](https://pepy.tech/badge/global-chem)](https://pepy.tech/project/global-chem)
@@ -423,6 +423,7 @@ This tool goes beyond simple mapping by analyzing the physical composition of th
 * **Elevation Sanitization:** Uses a progressive filtering logic to remove "satellite noise" from SRTM data, providing realistic elevation gain metrics.
 * **Bike Compatibility Check:** Automatically assesses if the route is suitable based on the bike type and standardized tire setup.
 * **Safety & Technical Grading:** Analyzes OSM tracktype (Grades 1-5) to distinguish between smooth gravel and rough, technical MTB trails.
+* **Surface-Aware Routing:** Fine-tunes the route generation based on user preferences like "avoid unpaved" or "prefer trails."
 
 #### **Parameters:**
 
@@ -436,12 +437,15 @@ This tool goes beyond simple mapping by analyzing the physical composition of th
 | `tire_size_option` | `str` | `29` | Standard wheel sizes (MTB: `26`, `27.5`, `29` | Road/Gravel: `700c`, `650b`). |
 | `points` | `int` | `3` | Complexity of the loop shape (3 = triangle, 10 = circular). |
 | `seed` | `int` | `42` | Random seed. Change it to discover a different route variation in the same area. |
+| `surface_pref`| `str` | `neutral` | Routing preference (Options: `neutral`, `avoid_unpaved`, `prefer_trails`). |
 
 #### **Technical Insights:**
 
 > **Reality Filter:** This tool automatically reduces raw satellite elevation data by up to 40% on steep terrain to correct for SRTM sensor noise, ensuring the "Elevation Gain" matches real-world barometric sensors.
 >
 > **Effort Multiplier:** Climb categories are calculated with a **1.4x intensity factor** for MTB profiles to account for the increased rolling resistance and technical effort of off-road ascending.
+>
+> **MTB-Scale Integration:** Routes are analyzed for technical obstacles. An "S3" rating will trigger warnings for Gravel/Road setups, indicating sections with rock gardens or high steps.
 
 **Example Output (JSON) for MTB:**
 ```json

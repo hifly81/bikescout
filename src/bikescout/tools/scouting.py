@@ -34,20 +34,65 @@ def calculate_detailed_difficulty(dist_km: float, ascent_m: float) -> str:
     # 4. BEGINNER: Short and flat
     return "🟢 Beginner (Short and relatively flat, ideal for everyone)"
 
-def generate_gpx(geojson_data):
-    """Converts GeoJSON coordinates into a standard GPX XML string."""
-    try:
-        coords = geojson_data['features'][0]['geometry']['coordinates']
-        gpx = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        gpx += '<gpx version="1.1" creator="BikeScout" xmlns="http://www.topografix.com/GPX/1/1">\n'
-        gpx += '  <trk><name>BikeScout Route</name><trkseg>\n'
-        for p in coords:
-            ele = f"<ele>{p[2]}</ele>" if len(p) > 2 else ""
-            gpx += f'    <trkpt lat="{p[1]}" lon="{p[0]}">{ele}</trkpt>\n'
-        gpx += '  </trkseg></trk></gpx>'
-        return gpx
-    except:
-        return "GPX conversion failed."
+def generate_tactical_gpx(geojson_data, amenities=[]):
+    """
+    Generates a GPX with embedded tactical waypoints for navigation units.
+    Includes Summits, Steep Climbs (>10%), and Cycling Amenities.
+    """
+    feature = geojson_data['features'][0]
+    coords = feature['geometry']['coordinates']  # [lon, lat, ele]
+
+    gpx_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    gpx_xml += '<gpx version="1.1" creator="BikeScout" xmlns="http://www.topografix.com/GPX/1/1">\n'
+
+    waypoints = ""
+
+    # --- A. WAYPOINT: CYCLING AMENITIES (Water & Repair) ---
+    for poi in amenities:
+        name = poi.get('name', 'Cycling POI')
+        # Accessing nested 'location' to prevent KeyError
+        loc = poi.get('location', {})
+        p_lat, p_lon = loc.get('lat'), loc.get('lon')
+
+        if p_lat and p_lon:
+            waypoints += f'  <wpt lat="{p_lat}" lon="{p_lon}">\n'
+            waypoints += f'    <name>{name}</name>\n'
+            waypoints += f'    <sym>Watering Hole</sym>\n'
+            waypoints += f'  </wpt>\n'
+
+    # --- B. WAYPOINT: SUMMIT ---
+    if coords and len(coords[0]) > 2:
+        peak = max(coords, key=lambda x: x[2])
+        waypoints += f'  <wpt lat="{peak[1]}" lon="{peak[0]}">\n'
+        waypoints += f'    <name>SUMMIT: {int(peak[2])}m</name>\n'
+        waypoints += f'    <sym>Summit</sym>\n'
+        waypoints += f'  </wpt>\n'
+
+    # --- C. WAYPOINT: STEEP CLIMBS (>10%) ---
+    # We iterate with a step to smooth elevation noise
+    for i in range(5, len(coords) - 10, 10):
+        p1, p2 = coords[i], coords[i+10]
+        # Distance calculation (meters)
+        d_lat = (p2[1] - p1[1]) * 111139
+        d_lon = (p2[0] - p1[0]) * 111139 * 0.7
+        dist = (d_lat**2 + d_lon**2)**0.5
+
+        if dist > 60:
+            grade = ((p2[2] - p1[2]) / dist) * 100
+            if grade > 10:
+                waypoints += f'  <wpt lat="{p1[1]}" lon="{p1[0]}">\n'
+                waypoints += f'    <name>WALL: {int(grade)}%</name>\n'
+                waypoints += f'    <sym>Danger Area</sym>\n'
+                waypoints += f'  </wpt>\n'
+                i += 30 # Avoid waypoint clutter on the same hill
+
+    # --- D. TRACK ---
+    track = '  <trk>\n    <name>BikeScout Tactical Route</name>\n    <trkseg>\n'
+    for lon, lat, ele in coords:
+        track += f'      <trkpt lat="{lat}" lon="{lon}"><ele>{ele}</ele></trkpt>\n'
+    track += '    </trkseg>\n  </trk>\n'
+
+    return gpx_xml + waypoints + track + '</gpx>'
 
 def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 10, profile: str = "cycling-mountain"):
     """
@@ -144,7 +189,7 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
                 "nearby_amenities": amenities[:5] # Return top 5 cycling POIs
             },
             "map_image_url": get_static_map_url(data), # Static preview map
-            "gpx_content": generate_gpx(data)           # Downloadable file for GPS devices
+            "gpx_content": generate_tactical_gpx(data, amenities)
         }
 
     except Exception as e:

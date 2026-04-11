@@ -3,10 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BikeScout | Global Tactical Cycling Intelligence</title>
+
+    <title>BikeScout | MCP Server for Tactical Cycling Intelligence</title>
+    <meta name="description" content="Predictive trail intelligence for MTB, Enduro and Gravel. Using Model Context Protocol (MCP) to analyze soil, mud risk, and terrain difficulty.">
+    <meta name="keywords" content="MCP Server, Model Context Protocol, MTB Intelligence, Gravel Scouting, Cycling Geodata, Mud Prediction, Trail Analysis, hifly81">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout">
+    <meta property="og:title" content="BikeScout | Tactical Cycling Intelligence">
+    <meta property="og:description" content="Stop guessing. Analyze soil drainage, technical grade and elevation with the first MCP-powered cycling scout.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1544197150-b99a580bb7a8?q=80&w=1000">
+
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "BikeScout",
+            "applicationCategory": "Geospatial Intelligence / Sports Technology",
+            "description": "Tactical MCP server for cycling route analysis, soil moisture prediction and technical difficulty assessment.",
+            "operatingSystem": "Cross-platform (MCP)",
+            "author": {
+                "@type": "Person",
+                "name": "hifly81",
+                "url": "https://github.com/hifly81"
+            }
+        }
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
     <style>
         body { font-family: 'Inter', sans-serif; padding-top: 80px; }
         .mono { font-family: 'JetBrains Mono', monospace; }
@@ -22,8 +50,14 @@
             clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
         }
         .btn-shred:hover { transform: skewX(-2deg) scale(1.05); }
+        .metric-card { transition: all 0.2s ease; border-width: 1px; }
+        .metric-card:hover { transform: translateY(-5px); border-color: #bef264; }
         #terminal-body { transition: opacity 0.2s ease-in-out; }
         .fade-out { opacity: 0; }
+
+        /* Tactical Map Crosshair */
+        .crosshair-h { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(190, 242, 100, 0.2); pointer-events: none; }
+        .crosshair-v { position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: rgba(190, 242, 100, 0.2); pointer-events: none; }
     </style>
 </head>
 <body class="bg-[#0b0f1a] text-slate-200">
@@ -51,10 +85,11 @@
 <header class="hero-mesh relative border-b border-slate-800 py-24 px-6 text-center">
     <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-[#0b0f1a]"></div>
     <div class="relative max-w-6xl mx-auto">
+        <div class="inline-block px-3 py-1 border border-[#bef264] text-[#bef264] text-xs font-bold mb-6 tracking-widest uppercase">System Status: Active</div>
         <h1 class="text-6xl md:text-8xl font-black mb-6 tracking-tighter italic uppercase text-white leading-none">Bike<span class="neon-text">Scout</span></h1>
-        <p class="text-xl md:text-2xl text-slate-400 max-w-4xl mx-auto mb-10">
-            Strategic geodata for <span class="text-white font-bold">MTB, Enduro, Gravel, Road and E-Bike</span> explorers.
-            From the Dolomites to the Andes, analyze your mission before you drop in.
+        <p class="text-xl md:text-2xl text-slate-400 max-w-4xl mx-auto mb-10 leading-relaxed">
+            The MCP Engine that turns raw geodata into Predictive Intel.<br>
+            Stop guessing the surface: analyze soil drainage, wind vectors, and technical grade before you drop in.
         </p>
         <div class="flex flex-col md:flex-row justify-center items-center gap-6">
             <a href="https://github.com/hifly81/bikescout" class="bg-neon text-black px-10 py-4 font-black uppercase italic btn-shred">Deploy MCP Server</a>
@@ -63,11 +98,34 @@
     </div>
 </header>
 
+<section class="max-w-6xl mx-auto -mt-12 px-6 relative z-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-[#161e2d] border-slate-700 p-6 metric-card shadow-2xl rounded-sm">
+        <div class="text-xs font-bold text-slate-500 uppercase mb-1">Elevation Intel</div>
+        <div class="text-3xl font-black italic mb-2">SRTM-V3</div>
+        <p class="text-[10px] text-slate-400 leading-tight italic uppercase tracking-wider">Precision vertical gain filtering with technical slope categorization for Road & MTB.</p>
+    </div>
+    <div class="bg-[#161e2d] border-slate-700 p-6 metric-card border-l-4 border-l-[#bef264] shadow-2xl rounded-sm">
+        <div class="text-xs font-bold text-slate-500 uppercase mb-1">Surface Analysis</div>
+        <div class="text-3xl font-black italic mb-2">S0-S5 STS</div>
+        <p class="text-[10px] text-slate-400 leading-tight italic uppercase tracking-wider">AI-driven technical grade parsing from raw OSM metadata and texture tags.</p>
+    </div>
+    <div class="bg-[#161e2d] border-slate-700 p-6 metric-card shadow-2xl rounded-sm">
+        <div class="text-xs font-bold text-slate-500 uppercase mb-1">Live Telemetry</div>
+        <div class="text-3xl font-black italic  mb-2 uppercase">WIND-V</div>
+        <p class="text-[10px] text-slate-400 leading-tight italic uppercase tracking-wider">Real-time wind vector cross-referencing with route exposure and terrain shielding.</p>
+    </div>
+    <div class="bg-[#161e2d] border-slate-700 p-6 metric-card shadow-2xl rounded-sm">
+        <div class="text-xs font-bold text-slate-500 uppercase mb-1">Predictive Mud</div>
+        <div class="text-3xl font-black italic mb-2">72H-RAIN</div>
+        <p class="text-[10px] text-slate-400 leading-tight italic uppercase tracking-wider">Proprietary logic mapping soil permeability against recent local precipitation.</p>
+    </div>
+</section>
+
 <section class="max-w-6xl mx-auto py-24 px-6">
     <div class="flex items-center justify-between mb-8">
         <div>
             <h2 class="text-3xl font-black uppercase italic leading-none text-white">Intelligence <br><span class="neon-text">Dashboard</span></h2>
-            <p class="text-slate-500 text-xs mono mt-1 uppercase">World-Scale Operations</p>
+            <p class="text-slate-500 text-xs mono mt-1 uppercase">World-Scale Operations: Road, Gravel, Enduro</p>
         </div>
         <div class="flex gap-2">
             <button onclick="prevSession()" class="w-12 h-12 border border-slate-700 hover:bg-neon hover:text-black transition-all flex items-center justify-center">
@@ -95,6 +153,70 @@
     <div class="flex justify-center mt-8 gap-3" id="indicators"></div>
 </section>
 
+<section class="max-w-6xl mx-auto py-24 px-6 border-t border-slate-900">
+    <div class="mb-16">
+        <h2 class="text-3xl font-black uppercase italic leading-none text-white mb-2">Protocol <span class="neon-text">Architecture</span></h2>
+        <p class="text-slate-500 text-xs mono uppercase">Bridging LLMs to Physical Terrain Reality</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-24">
+        <div class="space-y-4">
+            <div class="text-neon-text text-xl font-black italic underline underline-offset-8 mb-6 uppercase">01. Data Ingestion</div>
+            <p class="text-slate-400 text-sm leading-relaxed">The MCP server hooks into OpenStreetMap, SRTM-V3, and NASA Sentinel-2. It doesn't just read maps; it extracts ground roughness, vegetation density, and historical drainage patterns.</p>
+            <ul class="text-[10px] mono text-slate-500 space-y-2 uppercase tracking-wider">
+                <li><i class="fas fa-check text-neon-text mr-2"></i> GeoJSON Stream Parsing</li>
+                <li><i class="fas fa-check text-neon-text mr-2"></i> Satellite Moisture Index</li>
+            </ul>
+        </div>
+        <div class="space-y-4">
+            <div class="text-neon-text text-xl font-black italic underline underline-offset-8 mb-6 uppercase">02. AI Reasoning</div>
+            <p class="text-slate-400 text-sm leading-relaxed">Via Model Context Protocol, LLMs like Claude or GPT-4 query the BikeScout server to calculate if an S3-grade trail is rideable after 15mm of rain based on soil composition.</p>
+            <ul class="text-[10px] mono text-slate-500 space-y-2 uppercase tracking-wider">
+                <li><i class="fas fa-check text-neon-text mr-2"></i> Predictive Mud Logic</li>
+                <li><i class="fas fa-check text-neon-text mr-2"></i> Battery Range Prediction</li>
+            </ul>
+        </div>
+        <div class="space-y-4">
+            <div class="text-neon-text text-xl font-black italic underline underline-offset-8 mb-6 uppercase">03. Tactical Output</div>
+            <p class="text-slate-400 text-sm leading-relaxed">Get a full tactical briefing: recommended tire pressure, wind exposure vectors, and a "Go/No-Go" status tailored to your specific gear and real-time weather.</p>
+            <ul class="text-[10px] mono text-slate-500 space-y-2 uppercase tracking-wider">
+                <li><i class="fas fa-check text-neon-text mr-2"></i> Tire Pressure Calc</li>
+                <li><i class="fas fa-check text-neon-text mr-2"></i> Exposure Risk Map</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="bg-slate-900/50 border border-slate-800 p-8 rounded-lg relative overflow-hidden group">
+        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+            <i class="fas fa-microchip text-8xl text-neon-text"></i>
+        </div>
+        <div class="relative z-10">
+            <h4 class="text-white font-black italic uppercase text-lg mb-4">The MCP Advantage</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div>
+                    <span class="block text-2xl font-bold text-white leading-none">100%</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-bold mono">Local execution</span>
+                </div>
+                <div>
+                    <span class="block text-2xl font-bold text-white leading-none">Zero</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-bold mono">Hallucinations</span>
+                </div>
+                <div>
+                    <span class="block text-2xl font-bold text-white leading-none">OSM</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-bold mono">Deep Integration</span>
+                </div>
+                <div>
+                    <span class="block text-2xl font-bold text-white leading-none">REAL</span>
+                    <span class="text-[10px] text-slate-500 uppercase font-bold mono">Time Context</span>
+                </div>
+            </div>
+            <p class="mt-8 text-slate-400 text-xs italic border-t border-slate-800 pt-6">
+                "BikeScout isn't just a map provider. It's a tactical analyst that explains to AI exactly what's happening under your tires in any given second."
+            </p>
+        </div>
+    </div>
+</section>
+
 <footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
     BikeScout @ 2026// <span class="text-white">hifly81</span>
 </footer>
@@ -104,82 +226,82 @@
         {
             id: "SESSION_ITA_DOLOMITES",
             location: "📍 Cortina d'Ampezzo, Italy",
-            query: "Plan MTB Alpine traverse. Max elevation 2500m. Avoid S3+ technicality. Monitor rockfall risk.",
+            query: "Analyze MTB Sella Loop. Check rock exposure and drainage.",
             steps: ["Scanning UNESCO Heritage Zone...", "Elevation Grid: SRTM-V3", "Weather: 8°C at 2000m", "Filtering hiking-only paths..."],
             coords: "46.54N / 12.13E",
-            resTitle: "MTB: DOLOMITI HIGH TRAIL",
+            resTitle: "MTB: DOLOMITI TRAIL",
             sts: "S2 (Moderate)",
             mud: "LOW (Limestone)",
             surface: "Rocky/Gravel",
-            grad: "12% Avg / 26% Max",
             loop: "42.5 km",
             ascent: "1850m",
-            advice: "Pack thermal layers. High exposure on Cime di Fanis sector. Traction is excellent on dry dolomite.",
-            mapImg: "https://images.unsplash.com/photo-1533561025420-da3e9d709b48?auto=format&fit=crop&q=80&w=800"
+            advice: "Pack thermal layers. Traction is excellent on dry dolomite. High rockfall risk after freeze-thaw.",
+            // Zoom 12 - Area vasta del Gruppo del Sella
+            mapImg: "https://static-maps.yandex.ru/1.x/?ll=11.85,46.55&z=12&l=sat,skl&size=600,450"
         },
         {
             id: "SESSION_USA_MOAB",
             location: "📍 Moab, Utah, USA",
-            query: "Analyze 'The Whole Enchilada' descent. Check thermal sensation and sand accumulation after wind.",
+            query: "Analyze Slickrock thermal sensation and sand accumulation.",
             steps: ["Sourcing Sentinel-2 Imagery...", "Surface: Slickrock/Sand", "Temp: 34°C (Peak)", "Wind: SW 25km/h"],
             coords: "38.57N / 109.54W",
-            resTitle: "ENDURO: MOAB DESCENT",
+            resTitle: "ENDURO: MOAB TACTICAL",
             sts: "S3 (Technical)",
             mud: "ZERO (Arid)",
-            surface: "Sandstone/Loam",
-            grad: "-15% (Net)",
+            surface: "Sandstone",
             loop: "44.0 km",
             ascent: "2200m Down",
-            advice: "Critical heat risk. Carry 4L water minimum. Slickrock grip is infinite, but sand traps are deeper after wind.",
-            mapImg: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800"
+            advice: "Heat risk critical. Slickrock grip is infinite, but sand traps are deeper after wind events.",
+            // Zoom 11 - Visuale deserto Moab
+            mapImg: "https://static-maps.yandex.ru/1.x/?ll=-109.55,38.57&z=11&l=sat,skl&size=600,450"
         },
         {
             id: "SESSION_CHN_ZHANGJIAJIE",
             location: "📍 Hunan, China",
-            query: "Explore E-MTB vertical access. Check gradient limits on stone stairs and battery regen on descent.",
-            steps: ["Parsing Forbidden Zone metadata...", "Slope: Extreme (>40%)", "Grid: 10m High-Res", "Battery Calc: 650Wh required"],
+            query: "Explore E-MTB vertical access. Check gradient on stone stairs.",
+            steps: ["Slope: Extreme (>40%)", "Grid: 10m High-Res", "Battery Calc: 650Wh required"],
             coords: "29.31N / 110.47E",
-            resTitle: "E-MTB: AVATAR MOUNTAINS",
+            resTitle: "E-MTB: HUNAN VERTICAL",
             sts: "S4 (Extreme)",
             mud: "HIGH (Humidity)",
             surface: "Stone/Slippery",
-            grad: "35% (Stairs)",
             loop: "18.2 km",
             ascent: "1200m",
-            advice: "Wet sandstone is ice-like. Walk the stairs. Battery consumption will be 30% higher due to steep tech climbs.",
-            mapImg: "https://images.unsplash.com/photo-1523733593134-a8207ae9367d?auto=format&fit=crop&q=80&w=800"
+            advice: "Wet sandstone is ice-like. Walk the stairs. High battery consumption on tech climbs.",
+            // Zoom 13 - Pilastri di Zhangjiajie
+            mapImg: "https://static-maps.yandex.ru/1.x/?ll=110.47,29.31&z=13&l=sat,skl&size=600,450"
         },
         {
             id: "SESSION_AUS_DERBY",
             location: "📍 Derby, Tasmania, Australia",
-            query: "Analyze 'Blue Tier' flow. Soil moisture check. Drivetrain wear prediction.",
-            steps: ["Soil: Granitic Loam", "Rainfall: 15mm (Last 12h)", "Vegetation: Dense Ferns", "Telemetry: Low-Grip warning"],
+            query: "Analyze Blue Tier flow. Soil moisture check.",
+            steps: ["Soil: Granitic Loam", "Rainfall: 15mm (Last 12h)", "Telemetry: Low-Grip warning"],
             coords: "41.14S / 147.80E",
-            resTitle: "ENDURO: TASMANIAN FLOW",
+            resTitle: "ENDURO: DERBY FLOW",
             sts: "S1 (Flow)",
             mud: "LOW (Granite Base)",
-            surface: "Loam/Black Soil",
-            grad: "-8% (Constant)",
+            surface: "Loam/Dirt",
             loop: "15.0 km",
             ascent: "600m",
-            advice: "Perfect hero dirt today. Minimal mud risk despite rain. Fast rolling, maximize tire pressure.",
-            mapImg: "https://images.unsplash.com/photo-1506466010722-395aa2bef877?auto=format&fit=crop&q=80&w=800"
+            advice: "Perfect hero dirt. Minimal mud risk despite rain. Fast rolling, maximize tire pressure.",
+            // Zoom 12 - Foreste Tasmania
+            mapImg: "https://static-maps.yandex.ru/1.x/?ll=147.80,-41.14&z=12&l=sat,skl&size=600,450"
         },
         {
             id: "SESSION_ARG_PATAGONIA",
             location: "📍 Bariloche, Argentina",
-            query: "Gravel scouting: Paso Puyehué. Analyze wind vectors and loose volcanic ash depth.",
-            steps: ["Wind: W 45km/h (Headwind)", "Surface: Volcanic Ash", "Elevation: 1300m", "Grid: Remote Sector"],
+            query: "Gravel scouting: Paso Puyehué. Analyze volcanic ash depth.",
+            steps: ["Wind: W 45km/h", "Surface: Volcanic Ash", "Elevation: 1300m"],
             coords: "41.13S / 71.30W",
-            resTitle: "GRAVEL: PATAGONIA CROSS",
+            resTitle: "GRAVEL: PATAGONIA PASS",
             sts: "S1 (Gravel)",
-            mud: "NONE (Ash/Dirt)",
-            surface: "Loose Ash/Rock",
-            grad: "5.4% (Avg)",
+            mud: "NONE (Ash)",
+            surface: "Loose Ash",
             loop: "110.0 km",
             ascent: "1450m",
-            advice: "Severe headwind in the afternoon. Ash depth > 5cm in low spots. 50mm tires recommended.",
-            mapImg: "https://images.unsplash.com/photo-1517059224940-d4af9eec41b7?auto=format&fit=crop&q=80&w=800"
+            advice: "Severe headwind in PM. Ash depth > 5cm in low spots. 50mm tires recommended.",
+            // Zoom 10 - Distese Patagonia
+            mapImg: "https://static-maps.yandex.ru/1.x/?ll=-71.30,-41.13&z=10&l=sat,skl&size=600,450"
         }
     ];
 
@@ -194,7 +316,7 @@
         setTimeout(() => {
             sessionLabel.innerHTML = `SCANNING_ID: <span class="text-neon-text">${s.id}</span>`;
             body.innerHTML = `
-                <div class="lg:col-span-2 border-r border-slate-800 p-8 mono text-xs flex flex-col justify-between">
+                <div class="lg:col-span-2 border-r border-slate-800 p-8 mono text-xs flex flex-col justify-between bg-slate-900/20">
                     <div>
                         <div class="mb-4 text-neon-text font-bold italic underline underline-offset-4">${s.location}</div>
                         <div class="flex gap-3 mb-6">
@@ -215,26 +337,41 @@
                         <span class="text-neon-text">LATENCY: 12ms</span>
                     </div>
                 </div>
+
                 <div class="lg:col-span-3 p-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div class="space-y-6">
-                            <h3 class="text-3xl font-black uppercase italic text-white">${s.resTitle}</h3>
-                            <div class="grid grid-cols-1 gap-2 mono text-xs border-b border-slate-800 pb-6">
-                                <p><span class="text-slate-500 uppercase">STS Grade:</span> ${s.sts}</p>
+                            <h3 class="text-3xl font-black uppercase italic text-white leading-none">${s.resTitle}</h3>
+                            <div class="grid grid-cols-1 gap-2 mono text-xs border-b border-slate-800 pb-4">
+                                <p><span class="text-slate-500 uppercase">Grade:</span> ${s.sts}</p>
                                 <p><span class="text-slate-500 uppercase">Mud Risk:</span> ${s.mud}</p>
                                 <p><span class="text-slate-500 uppercase">Surface:</span> ${s.surface}</p>
-                                <p><span class="text-slate-500 uppercase">Loop:</span> ${s.loop}</p>
+                                <p><span class="text-slate-500 uppercase">Distance:</span> ${s.loop}</p>
                                 <p><span class="text-slate-500 uppercase">Ascent:</span> ${s.ascent}</p>
                             </div>
                             <div class="p-4 bg-slate-900 border-l-2 border-neon-text">
                                 <p class="text-[10px] mono uppercase text-slate-500 font-bold mb-1">Scout Advice</p>
-                                <p class="text-white text-sm italic">"${s.advice}"</p>
+                                <p class="text-white text-sm italic leading-tight">"${s.advice}"</p>
                             </div>
                         </div>
-                        <div class="relative bg-slate-800 rounded h-64 overflow-hidden shadow-inner">
-                            <img src="${s.mapImg}" class="absolute inset-0 w-full h-full object-cover grayscale brightness-50 contrast-125">
-                            <div class="absolute inset-0 bg-neon opacity-10 mix-blend-color"></div>
-                            <div class="absolute top-2 right-2 text-[10px] text-neon-text mono">HD_SCAN</div>
+
+                        <div class="relative bg-slate-800 rounded h-72 overflow-hidden shadow-inner border border-slate-700">
+                            <img src="${s.mapImg}" class="absolute inset-0 w-full h-full object-cover grayscale brightness-75 contrast-125 hover:grayscale-0 transition-all duration-700">
+
+                            <div class="crosshair-h"></div>
+                            <div class="crosshair-v"></div>
+                            <div class="absolute inset-0 pointer-events-none border-[15px] border-black/20"></div>
+
+                            <div class="absolute top-3 right-3 flex flex-col items-end">
+                                <span class="text-[8px] text-neon-text mono bg-black/80 px-1 mb-1 font-bold tracking-tighter">WIDE_FIELD_VIEW</span>
+                                <span class="text-[8px] text-white mono bg-red-600 px-1 font-black italic tracking-tighter animate-pulse">LIVE_INTEL</span>
+                            </div>
+
+                            <div class="absolute bottom-3 left-3">
+                                <div class="text-[9px] text-neon-text mono bg-black/80 px-2 py-1 border-l border-neon-text uppercase tracking-widest font-bold">
+                                    Terrain_Scan_Active
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -254,9 +391,11 @@
     window.nextSession = () => { currentIdx = (currentIdx + 1) % sessions.length; renderSession(); }
     window.prevSession = () => { currentIdx = (currentIdx - 1 + sessions.length) % sessions.length; renderSession(); }
     window.goToSession = (i) => { currentIdx = i; renderSession(); }
+
+    // Initial Render
     renderSession();
 
-    // Hamburger logic
+    // Mobile Menu logic
     const menuBtn = document.getElementById('menu-btn');
     const closeBtn = document.getElementById('close-btn');
     const mobileMenu = document.getElementById('mobile-menu');

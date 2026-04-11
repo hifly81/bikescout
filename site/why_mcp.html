@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>The Mud Engine & MCP Architecture | BikeScout Blog</title>
+    <meta name="description" content="Deep dive into BikeScout's predictive mud risk analysis and why MCP is the perfect architecture for tactical cycling intelligence.">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .bg-neon { background-color: #bef264; }
+        
+        /* Typography for Article */
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3.5rem; margin-bottom: 1.25rem; font-size: 1.75rem; line-height: 1.1; letter-spacing: -0.02em; }
+        .article-content h3 { color: #bef264; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 1rem; text-transform: uppercase; margin-top: 2rem; margin-bottom: 0.75rem; tracking: 0.1em; }
+        .article-content p { margin-bottom: 1.8rem; color: #94a3b8; font-size: 1.15rem; }
+        .article-content ul { margin-bottom: 2rem; list-style-type: none; padding-left: 0; }
+        .article-content li { color: #94a3b8; margin-bottom: 0.75rem; position: relative; padding-left: 1.5rem; }
+        .article-content li::before { content: ">"; position: absolute; left: 0; color: #bef264; font-weight: bold; font-family: 'JetBrains Mono'; }
+        
+        .code-block { background: #010409; border: 1px solid #1e293b; padding: 1.5rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: #e2e8f0; margin: 2rem 0; overflow-x: auto; }
+        .highlight { color: #bef264; font-weight: bold; }
+        
+        .hero-gradient {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(11, 15, 26, 1) 100%);
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="../index.html" class="hover:text-neon-text transition-colors">Mission</a>
+            <a href="blog.html" class="text-neon-text border-b-2 border-neon-text">Blog</a>
+            <a href="about.html" class="hover:text-neon-text transition-colors">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+</nav>
+
+<div class="w-full h-[40vh] bg-cover bg-center relative" style="background-image: url('https://images.unsplash.com/photo-1544197150-b99a580bb7a8?q=80&w=1920');">
+    <div class="absolute inset-0 bg-black/60 hero-gradient"></div>
+</div>
+
+<article class="max-w-3xl mx-auto py-12 px-6 -mt-32 relative z-10">
+    <header class="mb-16">
+        <div class="mono text-xs font-bold text-neon-text uppercase tracking-[0.4em] mb-4">Intel_Field_Report // 02</div>
+        <h1 class="text-5xl md:text-7xl font-black uppercase italic leading-[0.9] text-white mb-8">Beyond the Chatbot: <br><span class="neon-text">Tactical Architecture</span></h1>
+        
+        <div class="flex items-center gap-6 border-y border-slate-800 py-6">
+            <div class="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center border border-neon-text">
+                <i class="fas fa-user-ninja text-neon-text"></i>
+            </div>
+            <div>
+                <p class="text-white font-bold text-sm uppercase italic">hifly81</p>
+                <p class="text-slate-500 mono text-[10px] uppercase">Lead Scout // April 11, 2026</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="article-content">
+        <p>In the world of tactical cycling, information isn't just power—it's safety. One week into the development of <strong>BikeScout</strong>, we are moving beyond simple data aggregation. We are building a system that understands the physics of the ground under your tires.</p>
+
+        <h2>Why MCP for BikeScout?</h2>
+        <p>Traditional AI is "frozen" in its training data. It can tell you what a mountain is, but it can't tell you if the trail on that mountain is a swamp today. We chose the <strong>Model Context Protocol (MCP)</strong> because it acts as a real-time "brain extension."</p>
+        
+        <h3>Deterministic vs. Probabilistic</h3>
+        <p>LLMs are probabilistic—they guess. Physics is deterministic. By using MCP, the BikeScout server handles the hard math locally (slopes, rain accumulation, tire pressure) and provides the AI with a "Ground Truth" briefing. The AI then synthesizes this into human advice.</p>
+
+        <h2>The Mud Engine: 72H-RAIN Analysis</h2>
+        <p>Our current "Mud Risk" tool is the first step toward true predictive intelligence. It's not just about current rain; it's about cumulative saturation.</p>
+        
+        <div class="code-block">
+            <span class="text-slate-500"># Current implementation logic</span><br>
+            <span class="highlight">mud_index</span> = total_rain_72h * soil_sensitivity<br>
+            <span class="text-slate-400"># Clay: 1.2 | Gravel: 0.3 | Asphalt: 0.0</span>
+        </div>
+
+        <p>Is this simple? Yes. But it's effective. By cross-referencing rainfall volume with soil permeability (clay vs. sand), our engine predicts the "Mud Risk." We are already working to evolve this into a <strong>Geophysical Intelligence model</strong>, factoring in <em>Evapotranspiration</em> (how fast wind and sun dry the trail).</p>
+
+        <h2>Vertical Reality (SRTM-V3)</h2>
+        <p>Generalist apps "smooth" elevation, hiding 20% gradient spikes. BikeScout uses <strong>NASA SRTM-V3 30m data</strong>. If a trail has a 22% gradient on loose gravel, BikeScout flags it as a "Power Drain" for e-bikes or a "Hike-a-Bike" for gravel grinders. We don't just show a line; we show the effort.</p>
+
+        <h2>Dynamic Tire Intelligence</h2>
+        <p>The most recent push to our repository addresses the most critical rider decision: <strong>Tire Setup</strong>. We've moved away from static descriptors. Our new logic calculates suggested PSI/Bar by linking the <em>Mud Risk</em> and <em>Surface Type</em> to the bike's mechanical capabilities.</p>
+
+        <p class="italic text-white font-bold mt-12 border-l-4 border-neon-text pl-4">
+            "We aren't asking the AI to remember the trail; we are giving it eyes on the ground."
+        </p>
+
+        <h2 class="text-neon-text">Next Mission: Sentinel-2</h2>
+        <p>The roadmap is clear. We are currently researching the integration of <strong>NASA Sentinel-2 multispectral imagery</strong>. This will allow the MCP server to "see" moisture levels directly from space via NDMI (Moisture Index), validating our weather-based predictions with orbital ground truth.</p>
+
+        <p class="mt-8">Ready to shred. The mission is just beginning.</p>
+        
+        <div class="mt-16 flex flex-wrap gap-4">
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#MCP-Server</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Geodata</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#MTB-Intelligence</span>
+        </div>
+    </div>
+
+    <footer class="py-12 border-t border-slate-900 mt-20 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+        BikeScout @ 2026// <span class="text-white">hifly81</span>
+    </footer>
+</article>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    // Simple logic for the mobile menu
+    if (menuBtn && mobileMenu) {
+        menuBtn.onclick = () => mobileMenu.classList.remove('hidden');
+        closeBtn.onclick = () => mobileMenu.classList.add('hidden');
+    }
+</script>
+</body>
+</html>

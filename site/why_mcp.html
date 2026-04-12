@@ -89,15 +89,20 @@
 
         <p>Is this simple? Yes. But it's effective. By cross-referencing rainfall volume with soil permeability (clay vs. sand), our engine predicts the "Mud Risk." We are already working to evolve this into a <strong>Geophysical Intelligence model</strong>, factoring in <em>Evapotranspiration</em> (how fast wind and sun dry the trail).</p>
 
-        <h2>Vertical Reality (SRTM-V3)</h2>
-        <p>Generalist apps "smooth" elevation, hiding 20% gradient spikes. BikeScout uses <strong>NASA SRTM-V3 30m data</strong>. If a trail has a 22% gradient on loose gravel, BikeScout flags it as a "Power Drain" for e-bikes or a "Hike-a-Bike" for gravel grinders. We don't just show a line; we show the effort.</p>
+        <h2>Vertical Reality: Decoding the Effort</h2>
+<p>
+    Generalist apps tend to "smooth" elevation data to create clean-looking charts, but this process hides the 20% gradient spikes that actually break your legs or stall your motor. BikeScout is designed to close this "Elevation Truth Gap."
+</p>
 
-        <h2>Dynamic Tire Intelligence</h2>
-        <p>The most recent push to our repository addresses the most critical rider decision: <strong>Tire Setup</strong>. We've moved away from static descriptors. Our new logic calculates suggested PSI/Bar by linking the <em>Mud Risk</em> and <em>Surface Type</em> to the bike's mechanical capabilities.</p>
+<h3>Current Implementation: OSM Deep Parsing</h3>
+<p>
+    Right now, our engine performs **Deep Tag Analysis** on OpenStreetMap elevation metadata. Unlike standard trackers, we don't just look at the average climb; we filter for micro-gradients. If a trail hits a 22% ramp on loose gravel, BikeScout flags it as a <strong class="neon-text">"Power Drain"</strong> for e-bikes or a <strong class="neon-text">"Hike-a-Bike"</strong> sector for gravel grinders. We don't just show a line; we show the actual physical effort required.
+</p>
 
-        <p class="italic text-white font-bold mt-12 border-l-4 border-neon-text pl-4">
-            "We aren't asking the AI to remember the trail; we are giving it eyes on the ground."
-        </p>
+<h3>The Roadmap: NASA SRTM-V3 Integration</h3>
+<p>
+    To reach the next level of precision, we are working on integrating <strong>NASA SRTM-V3 30m Arc-Second data</strong> directly into the MCP server. This transition will move us from community-contributed tags to a global, satellite-validated radar grid. By cross-referencing this orbital data with our soil moisture analysis, we will soon be able to predict traction loss on steep gradients with unprecedented accuracy.
+</p>
 
         <h2 class="text-neon-text">Next Mission: Sentinel-2</h2>
         <p>The roadmap is clear. We are currently researching the integration of <strong>NASA Sentinel-2 multispectral imagery</strong>. This will allow the MCP server to "see" moisture levels directly from space via NDMI (Moisture Index), validating our weather-based predictions with orbital ground truth.</p>

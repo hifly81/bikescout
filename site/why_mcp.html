@@ -83,7 +83,7 @@
         
         <div class="code-block">
             <span class="text-slate-500"># Current implementation logic</span><br>
-            <span class="highlight">mud_index</span> = total_rain_72h * soil_sensitivity<br>
+            <span class="highlight">mud_index</span> = total_rain_72h  soil_sensitivity<br>
             <span class="text-slate-400"># Clay: 1.2 | Gravel: 0.3 | Asphalt: 0.0</span>
         </div>
 
@@ -96,7 +96,7 @@
 
 <h3>Current Implementation: OSM Deep Parsing</h3>
 <p>
-    Right now, our engine performs **Deep Tag Analysis** on OpenStreetMap elevation metadata. Unlike standard trackers, we don't just look at the average climb; we filter for micro-gradients. If a trail hits a 22% ramp on loose gravel, BikeScout flags it as a <strong class="neon-text">"Power Drain"</strong> for e-bikes or a <strong class="neon-text">"Hike-a-Bike"</strong> sector for gravel grinders. We don't just show a line; we show the actual physical effort required.
+    Right now, our engine performs Deep Tag Analysis on OpenStreetMap elevation metadata. Unlike standard trackers, we don't just look at the average climb; we filter for micro-gradients. If a trail hits a 22% ramp on loose gravel, BikeScout flags it as a <strong class="neon-text">"Power Drain"</strong> for e-bikes or a <strong class="neon-text">"Hike-a-Bike"</strong> sector for gravel grinders. We don't just show a line; we show the actual physical effort required.
 </p>
 
 <h3>The Roadmap: NASA SRTM-V3 Integration</h3>

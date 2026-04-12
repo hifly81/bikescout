@@ -55,12 +55,12 @@
     </div>
 </nav>
 
+    <article class="max-w-3xl mx-auto py-20 px-6">
 <header class="mb-12 border-b border-slate-800 pb-12">
         <h1 class="text-5xl md:text-7xl font-black uppercase italic leading-none text-white mb-6">Why Wout Van Aert broke the data at Paris-Roubaix 2026.</span></h1>
         <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Released: April 12, 2026</p>
     </header>
 
-<main class="max-w-3xl mx-auto py-20 px-6 relative z-10">
     <div class="article-content">
         <p>Today wasn't about software. It wasn't about marginal gains, wind tunnel simulations, or aerodynamic sensors. Today was about a man who looked at the "Hell of the North" and decided he was the one in charge. <strong>Wout Van Aert</strong> didn't just win Paris-Roubaix; he redefined what it means to be the strongest rider on the planet.</p>
 
@@ -97,11 +97,22 @@
         <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#Roubaix-Analysis</span>
         <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#Tactical-Scouting</span>
     </div>
-</main>
+
 
 <footer class="py-12 border-t border-slate-900 mt-20 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
         BikeScout @ 2026// <span class="text-white">hifly81</span>
     </footer>
+</article>
 
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    // Simple logic for the mobile menu
+    if (menuBtn && mobileMenu) {
+        menuBtn.onclick = () => mobileMenu.classList.remove('hidden');
+        closeBtn.onclick = () => mobileMenu.classList.add('hidden');
+    }
+</script>
 </body>
 </html>

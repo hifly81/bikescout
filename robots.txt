@@ -1,0 +1,15 @@
+# robots.txt for https://hifly81.github.io/bikescout/
+# Stop guessing. Start scouting.
+
+User-agent: *
+Allow: /
+Allow: /site/
+
+Disallow: /README.md
+Disallow: /LICENSE
+Disallow: /CONTRIBUTING.md
+Disallow: /CITATION.cff
+Disallow: /pyproject.toml
+Disallow: /src
+
+Sitemap: https://hifly81.github.io/bikescout/sitemap.xml

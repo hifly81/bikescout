@@ -4,3 +4,4 @@ src/bikescout/__pycache__/
 src/bikescout/tools/__pycache__/
 dist/
 scripts/
+demo/

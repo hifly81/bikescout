@@ -116,7 +116,15 @@ def poi_scout(lat: float = 41.7615, lon: float = 12.7118, radius_km: int = 5):
 @mcp.tool()
 def check_trail_soil_condition(lat: float = 41.7615, lon: float = 12.7118, surface_type: str = "dirt"):
     """
-    Analyzes rain history and soil type to predict mud levels.
+    Advanced predictive model for ground saturation and mud risk.
+    Uses the TAEL (Terrain-Aware Evaporation Lag) algorithm to cross-reference
+    72h precipitation data with real-time solar altitude and atmospheric drying efficiency.
+
+    Args:
+        lat: Latitude of the trail section.
+        lon: Longitude of the trail section.
+        surface_type: Detected surface (e.g., 'clay', 'dirt', 'gravel', 'sand').
+                      Crucial for calculating drainage coefficients.
     """
     return get_mud_risk_analysis(lat, lon, surface_type)
 

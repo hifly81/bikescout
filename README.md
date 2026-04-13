@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Version](https://img.shields.io/badge/Version-0.9.1-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-0.9.2-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![Downloads](https://pepy.tech/badge/global-chem)](https://pepy.tech/project/global-chem)
@@ -22,6 +22,7 @@
 * **Dynamic Routing & Surface Analysis**: Generates suggested loops (round trips) with a detailed **Percentage Breakdown** of surface types (asphalt, gravel, dirt, etc.).
 * **Bike Setup Compatibility**: A first-of-its-kind feature that checks if a route is suitable for your specific bike (**Road, Gravel, or MTB**) and **tire width**, providing instant safety warnings.
 * **Predictive Mud Risk Analysis**: A specialized model for off-roaders that cross-references **72h historical precipitation** with **soil geology** (e.g., clay vs. sand) to predict trail rideability.
+* **TAEL (Terrain-Aware Evaporation Lag)**: A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
 * **Smart POI Scouting (Pit-Stop Finder)**: Automatically locates cycling-specific amenities like **drinking water fountains**, **bicycle repair stations**, and **mountain shelters** within a 2km radius of your route.
 * **Smart Safety & Weather Forecast**: Cross-references location data with real-time weather to ensure you don't get caught in a storm.
 * **Pro-Cycling Gear Advice**: Provides specific technical advice on clothing and gear based on temperature, wind, and rain thresholds.
@@ -166,7 +167,7 @@ We recommend installing BikeScout in a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate 
-pip install -e .
+pip install bikescout
 ```
 
 Configure your OpenRouteService API Key:
@@ -507,7 +508,9 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
         "raw_rain_72h": "10.5mm",
         "avg_temp": "17.9°C",
         "avg_wind_speed": "19.2km/h",
-        "drying_efficiency": "1.14x"
+        "drying_efficiency": "1.14x",
+        "shadow_penalty_active": "Yes",
+        "solar_altitude": "-18.2°"
       },
       "tactical_analysis": {
         "adjusted_moisture_index": 9.2,
@@ -883,6 +886,7 @@ A predictive safety tool that cross-references geological surface data with hist
 * **Rain History Audit:** Automatically fetches cumulative rainfall from the last 72 hours using the Open-Meteo Archive API.
 * **Geological Sensitivity:** Differentiates how rain affects various terrains, calculating saturation levels for surfaces like clay, dirt, sand, and gravel.
 * **Mud Risk Score:** Provides a localized risk rating (Low/Medium/High) to help cyclists prevent drivetrain damage and avoid unrideable sections.
+* **TAEL (Terrain-Aware Evaporation Lag):** A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
 
 #### **Parameters:**
 | Parameter | Type | Default | Description |
@@ -896,16 +900,17 @@ A predictive safety tool that cross-references geological surface data with hist
 {
   "status": "Success",
   "environmental_context": {
-    "raw_rain_72h": "10.5mm",
+    "raw_rain_72h": "10.0mm",
     "avg_temp": "17.9°C",
-    "avg_wind_speed": "19.2km/h",
-    "drying_efficiency": "1.14x"
+    "drying_efficiency": "0.43x",
+    "shadow_penalty_active": "Yes",
+    "solar_altitude": "-18.2°"
   },
   "tactical_analysis": {
-    "adjusted_moisture_index": 9.2,
-    "mud_risk_score": "Medium",
+    "adjusted_moisture_index": 23.44,
+    "mud_risk_score": "Extreme",
     "surface_detected": "dirt",
-    "safety_advice": "Damp soil. Slick roots and loose corners possible."
+    "safety_advice": "Total saturation. Trail damage likely. Recommend Go/No-Go re-evaluation."
   }
 }
 ```

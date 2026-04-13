@@ -12,13 +12,12 @@
         <changefreq>weekly</changefreq>
         <priority>0.9</priority>
     </url>
-
     <url>
         <loc>https://hifly81.github.io/bikescout/site/blog.html</loc>
         <lastmod>2026-04-13</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.8</priority>
-    </url>
+   </url>
    <url>
         <loc>https://hifly81.github.io/bikescout/site/hello_bikers.html</loc>
         <lastmod>2026-04-13</lastmod>
@@ -39,6 +38,12 @@
     </url>
     <url>
         <loc>https://hifly81.github.io/bikescout/site/why_mcp.html</loc>
+        <lastmod>2026-04-13</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>
+    <url>
+        <loc>https://hifly81.github.io/bikescout/site/tael.html</loc>
         <lastmod>2026-04-13</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.8</priority>

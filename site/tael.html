@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BikeScout Blog | Shadow Lock: Defeating the Thermal Icebox</title>
+    <meta name="description" content="Introducing the TAEL algorithm: BikeScout's new predictive model for shadow-locked mud and solar evaporation.">
+    <meta name="keywords" content="Solar Persistence, Mud Prediction, Cycling Tech, MCP Server, hifly81, BikeScout, TAEL Algorithm">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout/blog/shadow-lock-tael">
+    <meta property="og:title" content="BikeScout | Shadow Lock: The TAEL Algorithm">
+    <meta property="og:description" content="Why trails stay wet even under the sun. Predicting the 'Thermal Icebox' effect with photonic intelligence.">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=1000">
+
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="../index.html" class="hover:text-neon-text transition-colors">Mission</a>
+            <a href="blog.html" class="text-neon-text border-b-2 border-neon-text">Blog</a>
+            <a href="about.html" class="hover:text-neon-text transition-colors">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+    <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
+        <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="about.html">About</a>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-5xl md:text-7xl font-black uppercase italic leading-none text-white mb-6">Introducing <br><span class="neon-text">TAEL (Terrain-Aware Evaporation Lag)</span> algorithm.</h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Released: April 14, 2026</p>
+    </header>
+
+    <div class="article-content">
+        <p>Weather apps are lying to you. They see 18°C and a clear sky and tell you the trail is dry. But as every local pro knows, the ground has a memory. Today, we introduce the <strong>TAEL (Terrain-Aware Evaporation Lag)</strong> algorithm, the first photonic intelligence model for tactical cycling.</p>
+
+        <p>The latest update to the <code>check_trail_soil_condition</code> tool now accounts for the "Shadow Lock" effect: the phenomenon where north-facing slopes and deep valley sectors remain saturated for days, regardless of the ambient temperature.</p>
+
+        <h2>The Challenge: The Thermal Icebox</h2>
+        <p>Traditional mud models only look at rainfall. BikeScout now looks at <strong>Energy</strong>. By integrating <code><a href="https://pysolar.readthedocs.io/en/latest/">pysolar</a></code>, we calculate the exact altitude of the sun relative to your trail's coordinates at the moment of the request.</p>
+        <p>If the solar altitude is below 20°, the drying efficiency of the atmosphere drops by up to 60%. This creates a "Thermal Icebox", a state where moisture is trapped in the soil texture because the photonic energy is insufficient to trigger evaporation.</p>
+
+        <h2>The Innovation: The TAEL Algorithm</h2>
+        <p>Our new <strong>TAEL</strong> model cross-references three critical data streams: 72-hour historical precipitation, geological drainage coefficients (Clay, Earth, Gravel), and real-time solar persistence.</p>
+        <p>The result is an <strong>Adjusted Moisture Index</strong>. When BikeScout detects a Shadow Lock, it applies a penalty to the drying efficiency, revealing the "invisible mud" that causes catastrophic traction loss on seemingly perfect days.</p>
+
+        <h2>The Goal: Precision Traction</h2>
+        <p>Knowing the trail is "damp" isn't enough. You need to know if the roots will act like ice. The <code>mud_risk_score</code> now factors in this evaporation lag, providing a technical briefing on tire choice and pressure (PSI) that respects the actual state of the terrain, not just the sky.</p>
+
+        <h2>The Future: Geospatial Dominance</h2>
+        <p>BikeScout is evolving from a data aggregator into a terrain-simulation engine. By understanding the relationship between solar angles and soil memory, we are giving riders the ultimate tactical advantage: the ability to see the mud before they even reach the trailhead.</p>
+
+        <p class="italic text-white font-bold mt-12 border-l-4 border-neon-text pl-4">
+            "The sun doesn't dry what it can't touch. Know your shadows."
+        </p>
+
+        <p class="mt-8">TAEL Logic is now integrated into the core server. Update your dependencies, restart your MCP instance, and run the telemetry.</p>
+
+        <div class="mt-16 flex flex-wrap gap-4">
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Shadow-Lock</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#TAEL-Algorithm</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Terrain-Intelligence</span>
+        </div>
+    </div>
+
+    <footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+        BikeScout @ 2026 // <span class="text-white">hifly81</span>
+    </footer>
+</article>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    menuBtn.onclick = () => mobileMenu.classList.remove('hidden');
+    closeBtn.onclick = () => mobileMenu.classList.add('hidden');
+</script>
+</body>
+</html>

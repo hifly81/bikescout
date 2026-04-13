@@ -8,6 +8,12 @@
 
 **BikeScout** is a specialized MCP server designed for cyclists and mountain bikers. It provides intelligent trail recommendations by combining real-world map data with advanced routing analysis.
 
+
+
+https://github.com/user-attachments/assets/f9547956-891a-4d81-9c54-30eb940b9b0e
+
+
+
 ## Key Features
 
 * **Real Trail Discovery**: Fetches actual trail names and surface types from **OpenStreetMap** (via Overpass API).

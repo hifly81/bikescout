@@ -1,0 +1,16 @@
+/* TEAM */
+Main Developer: hifly81
+GitHub: https://github.com/hifly81
+Location: Italy
+
+/* SITE */
+Last update: 2026/04/13
+Language: English
+Standards: HTML5, CSS3, Tailwind CSS
+Components: MCP (Model Context Protocol), Python, OpenStreetMap, Strava API
+
+/* TECHNOLOGY STACK */
+Platform: GitHub Pages
+Framework: Tailwind CSS
+Intelligence: Anthropic MCP, Google Gemini, OpenAI
+Data Sources: OpenStreetMap, Open-Meteo, Nominatim

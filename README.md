@@ -23,6 +23,7 @@
 * **Instant Map Previews**: Automatically generates a **Static Map (.png)** of the route to visualize the trail directly within the chat interface.
 * **Local Expert Knowledge**: Specialized regional prompts for world-class destinations like the **Dolomites (UNESCO)**, **Moab (USA)**, and **Castelli Romani**.
 * **Pro Climb Categorization**: Automatically identifies and names specific climbs (from **Category 4** to **Hors Catégorie**) using professional cycling standards based on length and average gradient.
+* **Post-Ride Tactical Analysis (Strava Integration)**: Fuses actual **Strava** activity logs with environmental intelligence. By decoding GPS polylines, it cross-references your past performance with historical **Mud Risk** and weather data to validate your gear choice and analyze how trail conditions impacted your speed and effort.
 
 ## Why BikeScout? (vs Generic Maps)
 
@@ -132,6 +133,23 @@ You have successfully deployed your tactical scout. Your AI is now ready to anal
 - **Python 3.10+**
 - **OpenRouteService API Key**: Get a free key at [openrouteservice.org](https://openrouteservice.org/).
 - **MCP Client**: Such as Claude Desktop.
+- **Strava Account (Optional)**: Required only for the **Post-Ride Tactical Analysis** feature.
+
+### How to obtain Strava API Credentials:
+To enable Strava integration, you need to create a developer application and generate a long-lived Refresh Token:
+
+1. **Create an App**: Go to the [Strava Settings API](https://www.strava.com/settings/api) and create an application (set "Localhost" as the Authorization Callback Domain).
+2. **Get Client ID & Secret**: Note down your `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET`.
+3. **Authorize and Get Code**: Paste the following URL in your browser (replace `YOUR_CLIENT_ID` with your actual ID):
+   `https://www.strava.com/oauth/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all`
+4. **Exchange Code for Refresh Token**: Click "Authorize", then copy the `code` parameter from the URL of the resulting blank page. Use this command in your terminal to get the final `STRAVA_REFRESH_TOKEN`:
+   ```bash
+   curl -X POST [https://www.strava.com/oauth/token](https://www.strava.com/oauth/token) \
+     -d client_id=YOUR_CLIENT_ID \
+     -d client_secret=YOUR_CLIENT_SECRET \
+     -d code=YOUR_CODE_FROM_URL \
+     -d grant_type=authorization_code
+   ```
 
 ## Installation
 
@@ -142,7 +160,7 @@ We recommend installing BikeScout in a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate 
-pip install bikescout
+pip install -e .
 ```
 
 Configure your OpenRouteService API Key:
@@ -188,7 +206,10 @@ Example:
        ],
       "env": {
         "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER/src", 
-        "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY"
+        "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY",
+        "STRAVA_CLIENT_ID": "YOUR_STRAVA_CLIENT_ID",
+        "STRAVA_CLIENT_SECRET": "YOUR_STRAVA_CLIENT_SECRET",
+        "STRAVA_REFRESH_TOKEN": "YOUR_STRAVA_REFRESH_TOKEN"
       }
     }
   }
@@ -234,7 +255,10 @@ git clone git@github.com:hifly81/bikescout.git <your_local_folder_path>
          ],
          "env": {
             "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER/src",
-            "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY"
+            "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY",
+            "STRAVA_CLIENT_ID": "YOUR_STRAVA_CLIENT_ID",
+            "STRAVA_CLIENT_SECRET": "YOUR_STRAVA_CLIENT_SECRET",
+            "STRAVA_REFRESH_TOKEN": "YOUR_STRAVA_REFRESH_TOKEN"
          }
       }
    }
@@ -281,78 +305,10 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 * *"Give me the **safety checklist** and calculate the **tire pressure** for a **90kg rider** on **2.3" tubeless tires** for a muddy ride."*
 * *"What is the terrain breakdown for a **10km ride** in **Taichung**? I need to know if I'll encounter any 'Grade 5' technical segments."*
 
-## Example Responses
-
-Below is an example of the detailed information **BikeScout** can provide:
-
-I found an MTB loop near **Frascati, Italy**. Here are the details:
-
-### 📊 Route Details
-* 📍 **Distance:** 11.26 km
-* ⛰️ **Total Ascent:** 856 meters
-* 🏷️ **Difficulty:** Expert (Challenging distance or very steep climbs)
-* 🛤️ **Included Trails:** *Viale Moderno, Via dei Sepolcri*
-* 🔗 **Map:** View on Google Maps
-* 🔗 **Route Map Image:** mtb_route_map.png
-
-#### Key Route Characteristics
-- **Technical Terrain**: Mountain bike trails with technical sections
-- **Elevation Profile**: Significant descent from Rocca di Papa (703m) to Albano Laziale (542m)
-- **Trail Surfaces**: Mix of gravel, dirt, and forest paths
-- **Scenery**: Beautiful views of the Alban Hills and Roman countryside
-
-#### Equipment Checklist
-- **Bike**: Full-suspension MTB recommended for technical terrain
-- **Helmet**: Mandatory safety equipment
-- **Hydration**: At least 2L of water
-- **Nutrition**: Energy bars/gels for the 15km distance
-- **Repair Kit**: Spare tube, pump, multi-tool
-- **Clothing**: Layered clothing for changing elevations
-- **Navigation**: GPS device or smartphone with the GPX file loaded
-
-#### Safety Notes
-- This is an expert-level route with technical sections
-- Significant elevation changes require good fitness level
-- Some sections may be steep and challenging
-- Ride within your skill limits
-- Let someone know your planned route and expected return time
-
-#### 🌤️ Weather Forecast (Next 4 hours)
-| Time | Temp | Rain | Wind |
-| :--- | :--- | :--- | :--- |
-| **10:00 AM** | 13.7°C | 0% | 6.4 km/h |
-| **11:00 AM** | 15.2°C | 0% | 7.5 km/h |
-| **12:00 PM** | 16.4°C | 0% | 8.7 km/h |
-| **01:00 PM** | 17.6°C | 0% | 9.7 km/h |
-
-#### Route Highlights
-
-- Starts and ends at Lake Albano
-- Mix of paved roads (50.8%) and gravel/unknown surfaces (49.2%)
-- Challenging climbs with rewarding views
-- Scenic loops around the volcanic lake
-
-#### 🍽️ Restaurant Recommendations
-
-After your ride, refuel at these highly-rated spots near Lake Albano:
-
-__Top Recommendations:__
-
-1. __Ristorante Bucci__ - Upscale dining with lake views
-2. __Al Porticciolo__ - Traditional Italian cuisine
-3. __Terraces overlooking Lake Castel Gandolfo__ - Scenic dining experience
-4. __Ricciotti Trattoria__ - Authentic Roman trattoria
-
-> ✅ **Advice:** Perfect for riding! The route is challenging (856m of climbing over 11km) but offers great scenic views over the Colli Albani area.
-
-#### 🚵‍♂️ BikeScout Terrain Analysis
-The route composition is as follows:
-
-* 🪨 **Gravel/Dirt:** 65% (Ideal for MTB or Gravel bikes)
-* 🛣️ **Asphalt:** 25% (Connecting sections)
-* 🌿 **Grass/Trail:** 10%
-
-> 💡 **Technical Advice:** Given the high percentage of gravel and loose stones, we recommend using tires with a minimum width of **40mm** and slightly lower tire pressure to improve grip and comfort.
+### Post-Ride Analysis & Terrain Truth
+* *"Analyze my Strava ride from 2026-04-12. Compare my average speed with the Mud Risk at that time and tell me if the terrain conditions were the reason for my slow pace."*
+* *"Check my ride from last Sunday on Strava. Cross-reference the GPS path with the 72h rain history to see if the 'High' mud risk I encountered was accurately predicted."*
+* *"Get my activity from Strava for [Date]. Based on the surface types detected and the weather context of that day, was my tire pressure setup (1.8 bar) optimal or should I have gone lower?"*
 
 ---
 
@@ -944,6 +900,45 @@ A predictive safety tool that cross-references geological surface data with hist
 }
 ```
 
+### `analyze_strava_activity`
+A post-ride tactical diagnostic tool that fuses actual Strava GPS telemetry with historical environmental data to validate trail conditions and performance.
+
+#### **Functionality:**
+* **Satellite Data Retrieval:** Connects to the Strava API to fetch precise activity logs, including distance, elevation, and speed metrics.
+* **Environmental Fusion:** Automatically triggers the **Mud Risk** and **Weather** modules for the specific time and location of the ride.
+* **Surface-Aware Validation:** Detects the activity type (MTB vs. Road) to apply the correct soil sensitivity coefficients to the moisture analysis.
+
+#### **Parameters:**
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `activity_date` | `string` | **Required** | Date of the ride in `YYYY-MM-DD` format. |
+
+#### **Example Output (JSON):**
+
+```json
+{
+  "status": "Success",
+  "mission_briefing": {
+    "name": "Afternoon Mountain Bike Session",
+    "distance_km": 41.26,
+    "elevation_gain_m": 709.3,
+    "avg_speed_kmh": 15.0
+  },
+  "environmental_validation": {
+    "mud_risk": "Low",
+    "moisture_index": 9.01,
+    "weather_advice": "❌ NOT RECOMMENDED: High risk of heavy rain or dangerous wind gusts.",
+    "conditions_at_start": {
+      "temp": 17.1,
+      "rain_prob": 53,
+      "wind_speed": 32.0
+    }
+  },
+  "tactical_notes": "Analysis based on asphalt surface coefficients. GPS data validated."
+}
+```
+
 ---
 
 ## 🤝 Contributing
@@ -989,4 +984,5 @@ BikeScout aggregates data from several open providers. Users of this server must
 * **Geospatial & Geocoding Data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Data is available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Geocoding service powered by [Nominatim](https://nominatim.org/).
 * **Weather Forecasts:** Powered by [Open-Meteo](https://open-meteo.com/). Data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 * **Elevation Data:** SRTM (NASA) processed via OpenRouteService.
-* **Static Maps:** Static map images generated via OpenStreetMap contributors and rendered through public static map instances.
+* **Static Maps:** Map previews are generated using Static Maps via Fly.dev, utilizing OpenStreetMap data.
+* **Post-ride analysis**: Provided by Strava. Post-ride analysis and GPS telemetry are accessed via the [Strava API](https://developers.strava.com/docs/reference).

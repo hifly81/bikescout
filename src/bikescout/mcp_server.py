@@ -7,6 +7,7 @@ from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.geocoding import get_coordinates
 from bikescout.tools.poi import get_poi_scout
 from bikescout.tools.mud import get_mud_risk_analysis
+from bikescout.tools.strava import get_strava_activity
 from bikescout.prompts import BikeScoutPrompts
 from bikescout.resources import BikeScoutResources
 
@@ -16,6 +17,9 @@ mcp = FastMCP("BikeScout")
 load_dotenv()
 
 ORS_API_KEY = os.getenv("ORS_API_KEY")
+STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
+STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
+STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
 
 if not ORS_API_KEY:
     print("Error: ORS_API_KEY is not set.", file=sys.stderr)
@@ -113,6 +117,26 @@ def check_trail_soil_condition(lat: float = 41.7615, lon: float = 12.7118, surfa
     Analyzes rain history and soil type to predict mud levels.
     """
     return get_mud_risk_analysis(lat, lon, surface_type)
+
+@mcp.tool()
+def analyze_strava_activity(activity_date: str):
+    """
+    Analyzes a past Strava activity by date (format: YYYY-MM-DD).
+    Extracts real GPS data to provide a tactical post-ride report,
+    including surface breakdown and historical mud validation.
+    """
+    if not all([STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN]):
+        return {
+            "status": "Error",
+            "message": "Strava credentials missing. Please set STRAVA_CLIENT_ID, CLIENT_SECRET and REFRESH_TOKEN."
+        }
+
+    return get_strava_activity(
+        activity_date,
+        STRAVA_CLIENT_ID,
+        STRAVA_CLIENT_SECRET,
+        STRAVA_REFRESH_TOKEN
+    )
 
 # --- PROMPTS SECTION ---
 

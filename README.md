@@ -73,6 +73,59 @@ Stay updated with the latest tactical cycling intelligence, mission reports, and
 * **Tactical Blog:** [https://hifly81.github.io/bikescout/site/blog.html](https://hifly81.github.io/bikescout/site/blog.html)
 ---
 
+## Quickstart: Deploy BikeScout in 3 Minutes
+
+You don't need to be a developer to give your AI "eyes" on the trail. If you can copy-paste, you can deploy **BikeScout**. Follow this mission briefing to turn Claude into your personal tactical cycling scout.
+
+### 1. The Essentials 
+* **Claude Desktop:** The "Command Center." [Download it here](https://claude.ai/download).
+* **Python:** The engine. [Download it here](https://www.python.org/downloads/) (Make sure to check **"Add Python to PATH"** during setup).
+
+### 2. Get Your Intel Keys 
+BikeScout pulls high-precision data from professional sources. You need these FREE keys:
+1. **OpenRouteService:** [Sign up here](https://openrouteservice.org/) for trail and surface data.
+
+### 3. Tactical Deployment 
+1. **Download the Lab:** Download this repository as a ZIP and extract it to a folder (e.g., `C:\BikeScout` or `/Users/YourName/BikeScout`).
+2. **Prepare the Environment:** Open your terminal in the BikeScout folder and run these two commands to create your isolated "lab":
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+pip install bikescout
+```
+3. **Open Claude Config:**
+    * In Claude Desktop, click the **Settings icon** (bottom left) -> **Developer** -> **Edit Config**.
+4. **Plug it in:** Copy the block below and paste it into the file. **Replace the placeholders** with your actual keys and the path where you saved the folder:
+
+```json
+{
+  "mcpServers": {
+    "bikescout": {
+      "command": "PATH/TO/YOUR/FOLDER/venv/bin/python3",
+      "args": [
+        "-u",
+        "-m",
+        "bikescout.mcp_server"
+      ],
+      "env": {
+        "PYTHONPATH": "PATH/TO/YOUR/FOLDER/src",
+        "ORS_API_KEY": "YOUR_ORS_API_KEY_HERE"
+      }
+    }
+  }
+}
+```
+
+### 4. Initiate First Mission
+Restart Claude Desktop. Look for the **🔌 (Plug icon)**—that means BikeScout is online.
+
+**Try your first command:**
+> "I'm planning a 30km MTB loop in the Alps. Check the mud risk for the last 72 hours and tell me if I should run my mud tires or my fast-rolling ones."
+
+You have successfully deployed your tactical scout. Your AI is now ready to analyze the terrain. 🚲💨
+
+---
+
 
 ## Prerequisites
 

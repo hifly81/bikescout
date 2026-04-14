@@ -18,6 +18,8 @@ prompts_manager = BikeScoutPrompts()
 
 load_dotenv()
 
+BIKESCOUT_PROTOCOL_VERSION = "1.0"
+
 ORS_API_KEY = os.getenv("ORS_API_KEY")
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
@@ -38,7 +40,8 @@ def geocode_location(location_name: str):
     Finds latitude and longitude for any place name (city, mountain pass, address).
     Use this BEFORE other tools if you only have a location name and not coordinates.
     """
-    return get_coordinates(location_name)
+    data = get_coordinates(location_name)
+    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
 def trail_scout(lat: float = 41.7615, lon: float = 12.7118, radius_km: int = 10, profile: str = "cycling-mountain", rider_weight_kg: float = 80.0):
@@ -47,7 +50,8 @@ def trail_scout(lat: float = 41.7615, lon: float = 12.7118, radius_km: int = 10,
     Returns route data, difficulty, a GPX file, and a STATIC MAP IMAGE
     that can be displayed directly in the chat.
     """
-    return get_complete_trail_scout(ORS_API_KEY, lat, lon, radius_km, profile, rider_weight_kg)
+    data = get_complete_trail_scout(ORS_API_KEY, lat, lon, radius_km, profile, rider_weight_kg)
+    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
 def check_trail_weather(lat: float = 41.7615, lon: float = 12.7118):
@@ -56,7 +60,8 @@ def check_trail_weather(lat: float = 41.7615, lon: float = 12.7118):
     Provides temperature, rain risk, and wind speed analysis for the next 4 hours,
     including technical safety advice on gear and riding conditions.
     """
-    return get_weather_forecast(lat, lon)
+    data = get_weather_forecast(lat, lon)
+    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
 def analyze_route_surfaces(
@@ -86,7 +91,7 @@ def analyze_route_surfaces(
         points: Complexity of the loop shape (3=triangle, 10=circular).
         seed: Random seed to generate different route variations.
     """
-    return get_surface_analyzer(
+    data = get_surface_analyzer(
         ORS_API_KEY,
         lat,
         lon,
@@ -97,8 +102,9 @@ def analyze_route_surfaces(
         points,
         seed,
         surface_preference,
-        rider_weight_kg
-    )
+        rider_weight_kg)
+    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
+
 
 @mcp.tool()
 def poi_scout(lat: float = 41.7615, lon: float = 12.7118, radius_km: int = 5):
@@ -111,7 +117,8 @@ def poi_scout(lat: float = 41.7615, lon: float = 12.7118, radius_km: int = 5):
         lon: Longitude of the center point.
         radius_km: Search radius in kilometers (max 5km recommended for precision).
     """
-    return get_poi_scout(ORS_API_KEY, lat, lon, radius_km)
+    data = get_poi_scout(ORS_API_KEY, lat, lon, radius_km)
+    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
 def check_trail_soil_condition(lat: float = 41.7615, lon: float = 12.7118, surface_type: str = "dirt"):
@@ -126,7 +133,8 @@ def check_trail_soil_condition(lat: float = 41.7615, lon: float = 12.7118, surfa
         surface_type: Detected surface (e.g., 'clay', 'dirt', 'gravel', 'sand').
                       Crucial for calculating drainage coefficients.
     """
-    return get_mud_risk_analysis(lat, lon, surface_type)
+    data = get_mud_risk_analysis(lat, lon, surface_type)
+    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
 def analyze_strava_activity(activity_date: str):
@@ -141,12 +149,13 @@ def analyze_strava_activity(activity_date: str):
             "message": "Strava credentials missing. Please set STRAVA_CLIENT_ID, CLIENT_SECRET and REFRESH_TOKEN."
         }
 
-    return get_strava_activity(
+    data = get_strava_activity(
         activity_date,
         STRAVA_CLIENT_ID,
         STRAVA_CLIENT_SECRET,
         STRAVA_REFRESH_TOKEN
     )
+    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 # --- PROMPTS SECTION ---
 

@@ -44,13 +44,22 @@ def geocode_location(location_name: str):
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
-def trail_scout(lat: float = 41.7615, lon: float = 12.7118, radius_km: int = 10, profile: str = "cycling-mountain", rider_weight_kg: float = 80.0):
+def trail_scout(
+        lat: float = 41.7615,
+        lon: float = 12.7118,
+        radius_km: int = 10,
+        profile: str = "cycling-mountain",
+        rider_weight_kg: float = 80.0,
+        include_gpx: bool = True,
+        include_map: bool = False,
+        output_level: str = "standard"  # "summary" | "standard" | "full"
+):
     """
     Advanced trail discovery.
     Returns route data, difficulty, a GPX file, and a STATIC MAP IMAGE
     that can be displayed directly in the chat.
     """
-    data = get_complete_trail_scout(ORS_API_KEY, lat, lon, radius_km, profile, rider_weight_kg)
+    data = get_complete_trail_scout(ORS_API_KEY, lat, lon, radius_km, profile, rider_weight_kg, include_gpx, include_map, output_level)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()

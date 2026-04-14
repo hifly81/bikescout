@@ -4,11 +4,10 @@ import polyline
 from urllib.parse import urlencode, quote
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Configuration: Get your key from stadiamaps.com
 STADIA_API_KEY = os.getenv("STADIA_API_KEY", "")
+STADIA_OUTDOORS_URL = "https://tiles.stadiamaps.com/static/outdoors"
 
 def get_static_map_url(geojson_data: dict) -> str:
     """
@@ -16,7 +15,6 @@ def get_static_map_url(geojson_data: dict) -> str:
     Uses Encoded Polylines and strict character formatting to ensure path visibility.
     """
 
-    # 1. API Key Guard
     if not STADIA_API_KEY:
         return "Can't generate static map. Add Stadia API Key to the configuration"
 
@@ -60,7 +58,7 @@ def get_static_map_url(geojson_data: dict) -> str:
 
         # 6. Final URL Construction (Manual string building for the path)
         # We MUST keep | and : unencoded for the server to draw the line
-        base_url = "https://tiles.stadiamaps.com/static/outdoors"
+        base_url = STADIA_OUTDOORS_URL
 
         # Standard parameters
         params = {

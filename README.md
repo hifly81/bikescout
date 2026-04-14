@@ -408,13 +408,16 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
       - Hydration & Service: Precisely locates water fountains and repair shops found during the POI scouting.
 
 #### **Parameters:**
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `lat` | `float` | Required | Latitude of the starting point (e.g., `45.81`). |
-| `lon` | `float` | Required | Longitude of the starting point (e.g., `9.08`). |
-| `radius_km` | `int` | `10` | The target total length of the loop in kilometers. |
+| Parameter | Type | Default            | Description |
+| :--- | :--- |:-------------------| :--- |
+| `lat` | `float` | Required           | Latitude of the starting point (e.g., `45.81`). |
+| `lon` | `float` | Required           | Longitude of the starting point (e.g., `9.08`). |
+| `radius_km` | `int` | `10`               | The target total length of the loop in kilometers. |
 | `profile` | `string`| `cycling-mountain` | Routing profile: `cycling-mountain`, `cycling-road`, or `cycling-regular`. |
-| `rider_weight_kg` | `float` | `80.0` | **Total rider weight.** Used to calculate technical compatibility and tire setup recommendations. |
+| `rider_weight_kg` | `float` | `80.0`             | **Total rider weight.** Used to calculate technical compatibility and tire setup recommendations. |
+| `include_gpx` | `bool` | `True`             | Whether to include the raw XML GPX content. Set to `False` to prevent payload/token limit issues. |
+| `include_map` | `bool` | `False`            | Whether to generate the Static Map URL via **Stadia Maps** (OpenStreetMap data). |
+| `output_level` | `string` | `standard`         | Verbosity level: `summary` (essential stats), `standard` (default briefing), or `full` (complete technical breakdown and amenities). |
 
 #### **Tool Output Example (JSON):**
 ```json

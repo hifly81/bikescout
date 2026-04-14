@@ -36,21 +36,30 @@ def calculate_detailed_difficulty(dist_km: float, ascent_m: float) -> str:
 
 def generate_tactical_gpx(geojson_data, amenities=[]):
     """
-    Generates a GPX with embedded tactical waypoints for navigation units.
-    Includes Summits, Steep Climbs (>10%), and Cycling Amenities.
+    Generates a GPX with tactical waypoints and optimized track segments.
+    Features: Cooldown for steep climbs, Summit detection, and Point Decimation.
     """
     feature = geojson_data['features'][0]
     coords = feature['geometry']['coordinates']  # [lon, lat, ele]
+
+    # --- OPTIMIZATION: POINT DECIMATION ---
+    # MCP limit safety: if track is too dense, we downsample to stay under payload limits.
+    # We target a max of ~1500 points for the track segment.
+    MAX_TRACK_POINTS = 1500
+    step = 1
+    if len(coords) > MAX_TRACK_POINTS:
+        step = len(coords) // MAX_TRACK_POINTS
+
+    optimized_coords = coords[::step]
 
     gpx_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     gpx_xml += '<gpx version="1.1" creator="BikeScout" xmlns="http://www.topografix.com/GPX/1/1">\n'
 
     waypoints = ""
 
-    # --- A. WAYPOINT: CYCLING AMENITIES (Water & Repair) ---
+    # --- A. WAYPOINT: CYCLING AMENITIES ---
     for poi in amenities:
         name = poi.get('name', 'Cycling POI')
-        # Accessing nested 'location' to prevent KeyError
         loc = poi.get('location', {})
         p_lat, p_lon = loc.get('lat'), loc.get('lon')
 
@@ -68,11 +77,19 @@ def generate_tactical_gpx(geojson_data, amenities=[]):
         waypoints += f'    <sym>Summit</sym>\n'
         waypoints += f'  </wpt>\n'
 
-    # --- C. WAYPOINT: STEEP CLIMBS (>10%) ---
-    # We iterate with a step to smooth elevation noise
+    # --- C. WAYPOINT: STEEP CLIMBS (COOLDOWN LOGIC) ---
+    # We use a last_wall_index to prevent "WALL" clutter.
+    # i += 30 in a for loop doesn't work in Python, so we use a state check.
+    last_wall_index = -50
+
     for i in range(5, len(coords) - 10, 10):
+        # Cooldown: skip if we placed a WALL in the last 40 coordinate points
+        if i < last_wall_index + 40:
+            continue
+
         p1, p2 = coords[i], coords[i+10]
-        # Distance calculation (meters)
+
+        # Fast distance approx (meters)
         d_lat = (p2[1] - p1[1]) * 111139
         d_lon = (p2[0] - p1[0]) * 111139 * 0.7
         dist = (d_lat**2 + d_lon**2)**0.5
@@ -84,20 +101,31 @@ def generate_tactical_gpx(geojson_data, amenities=[]):
                 waypoints += f'    <name>WALL: {int(grade)}%</name>\n'
                 waypoints += f'    <sym>Danger Area</sym>\n'
                 waypoints += f'  </wpt>\n'
-                i += 30 # Avoid waypoint clutter on the same hill
+                last_wall_index = i # Trigger cooldown
 
-    # --- D. TRACK ---
+    # --- D. TRACK (USING OPTIMIZED COORDS) ---
     track = '  <trk>\n    <name>BikeScout Tactical Route</name>\n    <trkseg>\n'
-    for lon, lat, ele in coords:
+    for lon, lat, ele in optimized_coords:
         track += f'      <trkpt lat="{lat}" lon="{lon}"><ele>{ele}</ele></trkpt>\n'
     track += '    </trkseg>\n  </trk>\n'
 
     return gpx_xml + waypoints + track + '</gpx>'
 
-def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 10, profile: str = "cycling-mountain", rider_weight_kg: float = 80.0):
+def get_complete_trail_scout(
+        api_key,
+        lat: float,
+        lon: float,
+        radius_km: int = 10,
+        profile: str = "cycling-mountain",
+        rider_weight_kg: float = 80.0,
+        include_gpx: bool = True,
+        include_map: bool = False,
+        output_level: str = "standard"  # "summary" | "standard" | "full"
+):
     """
     The Master Orchestrator: Finds a specific trail and enriches it with
     Surface Analysis, Weather, Cycling POIs, and Mud Risk.
+
     """
     # --- 1. CONFIGURATION & HEADERS ---
     headers = {
@@ -106,7 +134,6 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
         'Content-Type': 'application/json'
     }
 
-    # Payload for the primary route discovery (Round Trip)
     routing_payload = {
         "coordinates": [[lon, lat]],
         "options": {"round_trip": {"length": radius_km * 1000, "seed": 42}},
@@ -116,7 +143,6 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
 
     try:
         # --- 2. EXECUTE PRIMARY ROUTING ---
-        # We fetch the actual geometry and basic metrics first
         endpoint = f"{ORS_BASE_URL}/{profile}/geojson"
         response = requests.post(endpoint, json=routing_payload, headers=headers, timeout=15)
         response.raise_for_status()
@@ -126,75 +152,82 @@ def get_complete_trail_scout(api_key, lat: float, lon: float, radius_km: int = 1
         props = feature['properties']
         summary = props.get('summary', {})
 
-        # Core metrics
         dist_km = round(summary.get('distance', 0) / 1000, 2)
         ascent_m = round(props.get('ascent', 0), 0)
 
-        # Extract dominant surface ID directly from primary route for accurate Mud Analysis
-        # This acts as a fallback if the specialized analyzer fails
+        # Extract dominant surface
         raw_surface_extras = props.get('extras', {}).get('surface', {}).get('summary', [])
-        dominant_id = raw_surface_extras[0]['value'] if raw_surface_extras else 10 # Default to dirt
+        dominant_id = raw_surface_extras[0]['value'] if raw_surface_extras else 10
         dominant_surface_name = _map_surface_id(dominant_id)
 
-        # --- 3. CALL: SURFACE ANALYZER (Advanced Setup Check) ---
-        # Note: We pass points=3 (integer) instead of a list of coordinates.
-        # This prevents the 'Parameter options has incorrect format' error in the ORS API.
-        try:
-            surface_report = get_surface_analyzer(
-                api_key=api_key,
-                lat=lat,
-                lon=lon,
-                radius_km=radius_km,
-                profile=profile,
-                bike_type="mountain" if "mountain" in profile else "gravel",
-                tire_size_option="wide",
-                points=3,                 # Integer representing the number of waypoints
-                seed=42,
-                surface_preference="neutral",
-                rider_weight_kg=rider_weight_kg
-            )
-        except Exception as e:
-            surface_report = {"status": "Error", "message": f"Surface Analysis skipped: {str(e)}"}
+        # --- 3. CALL: SURFACE ANALYZER ---
+        # Only perform deep surface analysis if level is not summary
+        surface_report = {}
+        if output_level != "summary":
+            try:
+                surface_report = get_surface_analyzer(
+                    api_key=api_key, lat=lat, lon=lon, radius_km=radius_km,
+                    profile=profile, bike_type="mountain" if "mountain" in profile else "gravel",
+                    tire_size_option="wide", points=3, seed=42,
+                    surface_preference="neutral", rider_weight_kg=rider_weight_kg
+                )
+            except Exception as e:
+                surface_report = {"status": "Error", "message": str(e)}
 
-        # --- 4. CALL: WEATHER FORECAST ---
-        # Retrieves real-time conditions for the starting coordinates
+        # --- 4. CALL: WEATHER & MUD ---
         weather_report = get_weather_forecast(lat, lon)
-
-        # --- 5. CALL: POI SCOUT (Logistics) ---
-        # Finds water, repair stations, and shelters within 2km
-        try:
-            poi_res = get_poi_scout(api_key, lat, lon, radius_km=2.0)
-            amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
-        except:
-            amenities = []
-
-        # --- 6. CALL: MUD RISK ANALYSIS ---
-        # Uses 72h rain history + the dominant surface found in Step 2
         mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface_name)
 
-        # --- 7. FINAL CONSOLIDATED RESPONSE ---
-        return {
+        # --- 5. CALL: POI SCOUT (Logistics) ---
+        amenities = []
+        if output_level == "full":
+            try:
+                poi_res = get_poi_scout(api_key, lat, lon, radius_km=2.0)
+                amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
+            except:
+                amenities = []
+
+        # --- 6. FINAL CONSOLIDATED RESPONSE CONSTRUCTION ---
+
+        # Build Tactical Briefing (Shared across levels)
+        tactical_info = {
+            "distance_km": dist_km,
+            "ascent_m": ascent_m,
+            "difficulty": calculate_detailed_difficulty(dist_km, ascent_m),
+        }
+
+        # Add Surface Analysis if requested
+        if output_level != "summary":
+            tactical_info["surface_analysis"] = surface_report
+
+        response_payload = {
             "status": "Success",
-            "info": {
-                "distance_km": dist_km,
-                "ascent_m": ascent_m,
-                "difficulty": calculate_detailed_difficulty(dist_km, ascent_m),
-                "surface_analysis": surface_report
-            },
+            "info": tactical_info,
             "conditions": {
                 "weather": weather_report.get('next_4_hours', []) if isinstance(weather_report, dict) else [],
                 "mud_risk": mud_analysis,
                 "safety_advice": weather_report.get('safety_advice', "") if isinstance(weather_report, dict) else ""
-            },
-            "logistics": {
-                "nearby_amenities": amenities[:5] # Return top 5 cycling POIs
-            },
-            "map_image_url": get_static_map_url(data), # Static preview map
-            "gpx_content": generate_tactical_gpx(data, amenities)
+            }
         }
 
+        # Include logistics only in Full or Standard
+        if output_level != "summary":
+            response_payload["logistics"] = {
+                "nearby_amenities": amenities[:5] if amenities else "Available in Full report"
+            }
+
+        # HEAVY PAYLOAD MANAGEMENT
+        # Static Map: Generate only if requested to save header space / processing
+        if include_map:
+            response_payload["map_image_url"] = get_static_map_url(data)
+
+        # GPX Content: Generate only if requested (heaviest part)
+        if include_gpx:
+            response_payload["gpx_content"] = generate_tactical_gpx(data, amenities)
+
+        return response_payload
+
     except Exception as e:
-        # Catch-all for routing failures or API timeouts
         return {"status": "Error", "message": f"Master Orchestrator failed: {str(e)}"}
 
 def _map_surface_id(s_id):

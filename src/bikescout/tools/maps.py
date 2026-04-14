@@ -1,60 +1,81 @@
-import json
+import math
+import os
+import polyline
+from urllib.parse import urlencode, quote
+from dotenv import load_dotenv
 
-FLY_DEV_URL="https://static-maps.fly.dev/staticmap"
+load_dotenv()
+
+STADIA_API_KEY = os.getenv("STADIA_API_KEY", "")
+STADIA_OUTDOORS_URL = "https://tiles.stadiamaps.com/static/outdoors"
 
 def get_static_map_url(geojson_data: dict) -> str:
     """
-    Generates a static map image URL using OpenStreetMap data.
-    It samples the route coordinates to stay within URL length limits.
-
-    Args:
-        geojson_data (dict): The GeoJSON response from OpenRouteService containing the route.
-
-    Returns:
-        str: A URL pointing to a static PNG image of the route.
+    Generates a professional static map URL using Stadia Maps.
+    Uses Encoded Polylines and strict character formatting to ensure path visibility.
     """
+
+    if not STADIA_API_KEY:
+        return "Can't generate static map. Add Stadia API Key to the configuration"
+
     try:
-        # Check if features exist in the provided GeoJSON
+        # 2. Data Validation
         if not geojson_data or 'features' not in geojson_data:
             return None
 
-        # Extract coordinates from the GeoJSON feature
-        # ORS format for coordinates is [longitude, latitude, (optional) elevation]
+        # Extract [lon, lat] coordinates
         all_coords = geojson_data['features'][0]['geometry']['coordinates']
-
-        # URL length management: limit path to ~45 points to avoid '414 Request-URI Too Large'
-        # We calculate the sampling step to evenly distribute points along the route
-        max_points = 45
-        total_points = len(all_coords)
-
-        if total_points == 0:
+        if not all_coords:
             return None
 
-        step = max(1, total_points // max_points)
-        sampled_coords = all_coords[::step]
+        # 3. Dynamic Bounding Box & Center Calculation
+        lons = [p[0] for p in all_coords]
+        lats = [p[1] for p in all_coords]
+        min_lon, max_lon = min(lons), max(lons)
+        min_lat, max_lat = min(lats), max(lats)
 
-        # Ensure the last coordinate is always included for a complete path
-        if sampled_coords[-1] != all_coords[-1]:
-            sampled_coords.append(all_coords[-1])
+        center_lon = (min_lon + max_lon) / 2
+        center_lat = (min_lat + max_lat) / 2
 
-        # Format coordinates for the static map provider (Format: latitude,longitude)
-        path_segments = [f"{p[1]},{p[0]}" for p in sampled_coords]
-        path_str = "|".join(path_segments)
+        # 4. Dynamic Zoom Calculation
+        delta = max(max_lon - min_lon, max_lat - min_lat)
+        if delta > 0:
+            # -1 padding ensures the route doesn't touch the image edges
+            zoom = max(1, min(14, round(math.log2(360 / delta) - 1)))
+        else:
+            zoom = 14
 
-        # Construct the URL using a public OpenStreetMap static map service (fly.dev instance)
-        # Parameters:
-        # - size: dimensions of the image
-        # - path: weight, color, and coordinates of the polyline
-        # - maptype: mapnik (standard OSM style)
-        base_url = FLY_DEV_URL
-        map_url = (
-            f"{base_url}?size=600x400&path=weight:3|color:red|{path_str}"
-            f"&maptype=mapnik"
-        )
+        # 5. Path Compression using Polyline
+        # Sampling points to keep the string short and clean
+        step = max(1, len(all_coords) // 40)
+        sampled_points = [(p[1], p[0]) for p in all_coords[::step]]
 
-        return map_url
+        # Ensure the path is closed/complete
+        if sampled_points[-1] != (all_coords[-1][1], all_coords[-1][0]):
+            sampled_points.append((all_coords[-1][1], all_coords[-1][0]))
+
+        encoded_polyline = polyline.encode(sampled_points)
+
+        # 6. Final URL Construction (Manual string building for the path)
+        # We MUST keep | and : unencoded for the server to draw the line
+        base_url = STADIA_OUTDOORS_URL
+
+        # Standard parameters
+        params = {
+            "center": f"{center_lat},{center_lon}",
+            "zoom": zoom,
+            "size": "600x400@2x",
+            "api_key": STADIA_API_KEY
+        }
+
+        query_string = urlencode(params)
+
+        # We manually append the path.
+        # The polyline string itself IS encoded, but the delimiters | and : ARE NOT.
+        path_string = f"path=color:0xff0000ff|weight:4|enc:{encoded_polyline}"
+
+        return f"{base_url}?{query_string}&{path_string}"
 
     except Exception as e:
-        # Log the error for debugging (stdout will be visible in MCP logs)
-        print(f"Error generating static map: {e}")
-        return None
+        print(f"Stadia Generation Error: {e}")
+        return f"Stadia Generation Error: {str(e)}"

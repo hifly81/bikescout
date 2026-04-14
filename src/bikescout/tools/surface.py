@@ -1,5 +1,6 @@
 import requests
 from bikescout.tools.mud import get_mud_risk_analysis
+from bikescout.tools.geophysic import haversine_distance
 
 
 def _get_tire_setup(bike_type: str, tire_size_option: str, mud_index: float = 0.0, surface_type: str = "mixed", rider_weight_kg: float = 80.0):
@@ -206,14 +207,12 @@ def _build_ors_options(surface_preference):
 
     return options
 
-
 def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_size_option, points, seed, surface_preference, rider_weight_kg):
     """
     Main entry point for route analysis.
-    Integrate TAEL Mud Risk Model and dynamic surface sensing.
+    Integrated with Geodesic Accuracy (Haversine) and TAEL Mud Risk Model.
     """
 
-    # 1. API Setup and fallback logic
     attempts = [
         (profile, ["surface", "waytype", "tracktype"]),
         (profile, ["surface", "waytype"]),
@@ -243,17 +242,27 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
             response.raise_for_status()
             data = response.json()
 
-            # 2. Extract Core Data
-            props = data['features'][0]['properties']
-            total_dist_m = props['summary']['distance']
+            # --- 2. Extract Geometry & Core Data ---
+            feature = data['features'][0]
+            props = feature['properties']
+            geometry = feature['geometry']['coordinates'] # List of [lon, lat, ele]
             extras = props.get('extras', {})
 
-            # 3. Surface & Mud Analysis (INTEGRATED TAEL MODEL)
+            # --- 2b. GEODESIC ACCURACY UPGRADE ---
+            # Instead of using props['summary']['distance'], we calculate the real distance
+            # summing segments with Haversine to avoid latitude distortion.
+            real_dist_m = 0
+            for i in range(len(geometry) - 1):
+                p1 = geometry[i]
+                p2 = geometry[i+1]
+                # ORS uses [lon, lat], haversine needs (lat1, lon1, lat2, lon2)
+                real_dist_m += haversine_distance(p1[1], p1[0], p2[1], p2[0])
+
+            # --- 3. Surface & Mud Analysis (INTEGRATED TAEL MODEL) ---
             surface_map = {0: "Unknown", 1: "Asphalt", 2: "Unpaved", 3: "Paved", 4: "Cobblestone",
                            5: "Gravel", 6: "Fine Gravel", 11: "Grass", 12: "Compact", 14: "Concrete"}
 
             dominant_surface = _extract_dominant_surface(extras.get('surface', {}), surface_map)
-
             mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface)
 
             if mud_analysis["status"] == "Success":
@@ -267,7 +276,7 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
                 safety_advice = "Weather data unavailable. Proceed with caution."
                 env_context = {}
 
-            # 4. Refactored Tire Intelligence Call
+            # --- 4. Tire Intelligence ---
             tire_mm, tire_display = _get_tire_setup(
                 bike_type=bike_type,
                 tire_size_option=tire_size_option,
@@ -276,23 +285,23 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
                 rider_weight_kg=rider_weight_kg
             )
 
-            # 5. Process Elevation and Climbs
+            # --- 5. Process Elevation and Climbs (Using REAL Geodesic Distance) ---
             clean_ascent = _sanitize_elevation(props.get('ascent', 0))
-            climb_cat, avg_grad = _categorize_climb(clean_ascent, total_dist_m, current_profile)
+            climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
 
-            # 6. Process Compatibility & Technical Specs
+            # --- 6. Process Compatibility & Technical Specs ---
             breakdown, warnings, compatible = _analyze_compatibility(bike_type, tire_mm, extras, surface_map)
             tech_specs = _analyze_technical_difficulty(extras)
 
             if mud_index > 10:
                 warnings.append(f"MUD ALERT: {safety_advice}")
 
-            # 7. Final Tactical Briefing Response
+            # --- 7. Final Tactical Briefing Response ---
             return {
                 "status": "Success",
                 "profile_used": current_profile,
                 "tactical_briefing": {
-                    "distance_km": round(total_dist_m / 1000, 2),
+                    "distance_km": round(real_dist_m / 1000, 2), # Now geodesic accurate
                     "elevation_gain_m": clean_ascent,
                     "climb_category": climb_cat,
                     "avg_gradient_est": f"{round(avg_grad, 1)}%",

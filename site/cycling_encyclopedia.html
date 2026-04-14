@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BikeScout | Encyclopedia of Cycling Intelligence</title>
+    <meta name="description" content="The master directory of BikeScout's tactical algorithms. Explore the science behind TAEL, Geodesic Accuracy, and Shadow Persistence.">
+    <meta name="keywords" content="Cycling Intelligence, MTB Algorithms, Geodesic Distance, TAEL Model, Shadow Persistence, Geospatial AI, hifly81, BikeScout">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout/encyclopedia">
+    <meta property="og:title" content="BikeScout | Encyclopedia of Cycling Intelligence">
+    <meta property="og:description" content="Decoding the trail with photonic and geospatial intelligence. The complete index of our tactical models.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1544133782-b646fe87dec9?q=80&w=1000">
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YTC60Z790M"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; }
+        .neon-text { color: #bef264; }
+        .neon-border { border-color: #bef264; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .concept-card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            transition: all 0.3s ease;
+        }
+        .concept-card:hover {
+            border-color: #bef264;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px -15px rgba(190, 242, 100, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="blog.html" class="hover:text-neon-text transition-colors">Blog</a>
+            <a href="cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="about.html" class="text-neon-text">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+    <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
+        <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html" class="text-neon-text">About</a>
+    </div>
+</nav>
+
+<main class="max-w-6xl mx-auto py-20 px-6">
+    <header class="mb-20 text-center">
+        <h1 class="text-6xl md:text-8xl font-black uppercase italic leading-none text-white mb-6">
+            BikeScout <br><span class="neon-text">Encyclopedia</span>
+        </h1>
+        <p class="text-slate-400 text-xl max-w-2xl mx-auto">
+            Deep-dive into the geospatial algorithms and photonic models powering the next generation of cycling intelligence.
+        </p>
+    </header>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+        <a href="tael_enc.html" class="concept-card p-8 rounded-lg flex flex-col h-full">
+            <div class="mb-6">
+                <i class="fas fa-droplet text-3xl neon-text"></i>
+            </div>
+            <h2 class="text-2xl font-black uppercase italic text-white mb-4">TAEL Model</h2>
+            <p class="text-slate-400 mb-6 flex-grow">
+                Terrain-Aware Evaporation Lag. Predicting soil saturation through precipitation memory and drainage coefficients.
+            </p>
+            <span class="mono text-[10px] uppercase tracking-widest text-neon-text font-bold">Read Protocol →</span>
+        </a>
+
+        <a href="geodesic_accuracy_enc.html" class="concept-card p-8 rounded-lg flex flex-col h-full">
+            <div class="mb-6">
+                <i class="fas fa-earth-europe text-3xl neon-text"></i>
+            </div>
+            <h2 class="text-2xl font-black uppercase italic text-white mb-4">Geodesic Accuracy</h2>
+            <p class="text-slate-400 mb-6 flex-grow">
+                Defeating map distortion. Using the Haversine formula to ensure 1:1 precision in distance and gradient telemetry.
+            </p>
+            <span class="mono text-[10px] uppercase tracking-widest text-neon-text font-bold">Explore Geometry →</span>
+        </a>
+
+        <a href="shadow_persistence_enc.html" class="concept-card p-8 rounded-lg flex flex-col h-full">
+            <div class="mb-6">
+                <i class="fas fa-moon text-3xl neon-text"></i>
+            </div>
+            <h2 class="text-2xl font-black uppercase italic text-white mb-4">Shadow Persistence</h2>
+            <p class="text-slate-400 mb-6 flex-grow">
+                Identifying Thermal Iceboxes. Analyzing solar azimuth and slope aspect to reveal invisible trail hazards.
+            </p>
+            <span class="mono text-[10px] uppercase tracking-widest text-neon-text font-bold">Analyze Shadows →</span>
+        </a>
+
+        <a href="dst_enc.html" class="concept-card p-8 rounded-lg flex flex-col h-full">
+            <div class="mb-6">
+                <i class="fas fa-shield-virus text-3xl neon-text"></i>
+            </div>
+            <h2 class="text-2xl font-black uppercase italic text-white mb-4">Safety Thresholds</h2>
+            <p class="text-slate-400 mb-6 flex-grow">
+                Transforming raw weather telemetry into tactical gear and safety advice using multi-factor DST logic.
+            </p>
+            <span class="mono text-[10px] uppercase tracking-widest text-neon-text font-bold">Check Thresholds →</span>
+        </a>
+
+    </div>
+
+    <section class="mt-32 p-12 bg-slate-900/50 rounded-2xl border border-slate-800 text-center">
+        <h3 class="text-3xl font-black uppercase italic text-white mb-6">Built for the <span class="neon-text">MCP Protocol</span></h3>
+        <p class="text-slate-400 max-w-xl mx-auto mb-8">
+            BikeScout concepts are designed to be ingested by LLMs, providing a standardized bridge between raw geospatial data and human-like tactical briefings.
+        </p>
+        <a href="https://github.com/bikescout/bikescout" class="mono text-xs font-bold uppercase tracking-widest bg-white text-black px-8 py-4 rounded-full hover:bg-neon-text transition-all">
+            View on GitHub <i class="fab fa-github ml-2"></i>
+        </a>
+    </section>
+
+    <footer class="mt-32 py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+        BikeScout @ 2026 // <span class="text-white">hifly81</span>
+    </footer>
+</main>
+
+<script>
+    // Simple Mobile Menu logic if needed
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BikeScout Encyclopedia | TAEL Model: Terrain-Aware Evaporation Lag</title>
+    <meta name="description" content="Discover the TAEL Model: BikeScout's proprietary algorithm for predicting soil moisture and mud risk using photonic energy and drainage coefficients.">
+    <meta name="keywords" content="TAEL Model, Mud Prediction, Soil Moisture Algorithm, Cycling Tech, Evaporation Lag, hifly81, BikeScout">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout/encyclopedia/tael-model">
+    <meta property="og:title" content="BikeScout Encyclopedia | The TAEL Model">
+    <meta property="og:description" content="Why trails stay muddy days after the rain. Measuring the 'memory' of the soil with TAEL.">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1599059021750-82716ae2b661?q=80&w=1000">
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YTC60Z790M"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
+        .tech-box { background: #0f172a; border: 1px solid #1e293b; border-left: 4px solid #bef264; padding: 1.5rem; margin: 2rem 0; }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="blog.html" class="hover:text-neon-text transition-colors">Blog</a>
+            <a href="cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="about.html" class="text-neon-text">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+    <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
+        <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html" class="text-neon-text">About</a>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-5xl md:text-7xl font-black uppercase italic leading-none text-white mb-6">TAEL <br><span class="neon-text">Model</span></h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Terrain-Aware Evaporation Lag</p>
+    </header>
+
+    <div class="article-content">
+        <p>The <strong>TAEL (Terrain-Aware Evaporation Lag)</strong> Model is BikeScout’s proprietary algorithm designed to solve the "Post-Rain Paradox": why do trails remain saturated even after hours of direct sunlight? Unlike basic weather apps, TAEL treats the soil as a dynamic capacitor that stores and releases moisture at different rates.</p>
+
+        <h2>The Core Logic</h2>
+        <p>TAEL operates on the principle that evaporation is not instantaneous. It calculates a "Lag Factor" based on three variables: <strong>Cumulative Precipitation (72h)</strong>, <strong>Soil Drainage Class</strong> (Clay, Loam, Sand), and <strong>Photonic Energy flux</strong>.</p>
+
+        <div class="tech-box">
+            <span class="mono text-neon-text font-bold">// TAEL MOISTURE INDEX FORMULA</span><br>
+            <span class="mono text-slate-400">Index = (Precip_72h * Drainage_Coeff) / (Temp_Efficiency + Solar_Persistence)</span>
+        </div>
+
+        <h2>Drainage Coefficients</h2>
+        <p>Different surfaces have different "memories". TAEL assigns specific weights to soil types detected via MCP surface sensing:</p>
+        <ul>
+            <li><strong>Clay/Compact:</strong> High retention, slow lag (Mud risk remains high for 48h+).</li>
+            <li><strong>Gravel/Fine Gravel:</strong> Low retention, fast lag (Quick recovery).</li>
+            <li><strong>Forest Loam:</strong> Variable lag based on organic saturation.</li>
+        </ul>
+
+        <h2>Tactical Advantage</h2>
+        <p>The TAEL Model provides a <code>mud_risk_score</code> from 1 to 100. This is used by the AI to suggest tire tread patterns and pressure. If TAEL predicts a "Saturation Lock", the briefing will recommend higher-profile knobs and lower PSI, even if the current sky is clear.</p>
+
+        <p class="italic text-white font-bold mt-12 border-l-4 border-neon-text pl-4">
+            "Don't look at the sky to see if the trail is dry. Look at the TAEL."
+        </p>
+
+        <div class="mt-16 flex flex-wrap gap-4">
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Soil-Science</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Predictive-Modeling</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#TAEL</span>
+        </div>
+    </div>
+</article>
+</body>
+</html>

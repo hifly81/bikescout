@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BikeScout Encyclopedia | Geodesic Accuracy & Haversine Grade Calculation</title>
+    <meta name="description" content="Understanding Geodesic Accuracy in cycling: How BikeScout uses the Haversine formula to eliminate latitude distortion in trail slope and distance analysis.">
+    <meta name="keywords" content="Geodesic Accuracy, Haversine Formula, Cycling Slope Calculation, Wall Percentage, MTB Tech, MCP Server, hifly81, BikeScout">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout/encyclopedia/geodesic-accuracy">
+    <meta property="og:title" content="BikeScout Encyclopedia | Geodesic Accuracy: Beyond Flat Maps">
+    <meta property="og:description" content="Why your cycling app is lying about distance and slope. Mastering the curvature of the Earth for tactical trail intel.">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1502134249126-9f3755a50d78?q=80&w=1000">
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YTC60Z790M"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
+        .formula-card { background: #1a202c; border-left: 4px solid #bef264; padding: 1.5rem; margin: 2rem 0; font-family: 'JetBrains Mono', monospace; color: #bef264; font-size: 0.875rem; overflow-x: auto; }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="blog.html" class="hover:text-neon-text transition-colors">Blog</a>
+            <a href="cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="about.html" class="text-neon-text">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+    <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
+        <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html" class="text-neon-text">About</a>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-5xl md:text-7xl font-black uppercase italic leading-none text-white mb-6">Geodesic <br><span class="neon-text">Accuracy</span></h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Core Concept: Geospatial Intelligence</p>
+    </header>
+
+    <div class="article-content">
+        <p>In the world of tactical cycling, distance is not a straight line on a flat map. Most consumer-grade cycling apps treat the Earth as a plane (Euclidean geometry), which leads to significant errors in distance and slope calculation. <strong>Geodesic Accuracy</strong> is the practice of measuring distance over the Earth's ellipsoidal surface.</p>
+
+        <p>BikeScout implements 100% Geodesic Accuracy to ensure that when we report a 15% gradient "Wall", it is physically accurate, whether you are riding at the Equator or the high latitudes of the Dolomites.</p>
+
+        <h2>The Problem: Meridian Distortion</h2>
+        <p>The distance between degrees of longitude shrinks as you move away from the Equator. At 45°N (common in the Alps or Oregon), a degree of longitude is roughly 30% shorter than at the Equator. If your routing engine uses fixed multipliers, your total distance will be wrong, and your slope calculations will be purely fictional.</p>
+
+
+
+        <h2>The Solution: The Haversine Formula</h2>
+        <p>To defeat this distortion, BikeScout ignores the summary data provided by standard APIs and recalculates every single coordinate segment using the <strong>Haversine Formula</strong>. This calculates the great-circle distance between two points on a sphere given their longitudes and latitudes.</p>
+
+        <div class="formula-card">
+            a = sin²(Δφ/2) + cos φ1 ⋅ cos φ2 ⋅ sin²(Δλ/2)<br>
+            c = 2 ⋅ atan2( √a, √(1−a) )<br>
+            d = R ⋅ c
+        </div>
+
+        <h2>Tactical Impact: The "Wall %" Credibility</h2>
+        <p>Gradient (Slope) is the ratio between <strong>Vertical Gain</strong> and <strong>Horizontal Distance</strong>. By using Geodesic distance as our horizontal baseline, BikeScout eliminates the "flattening" effect of map projections. This is why our <code>climb_category</code> and <code>avg_gradient</code> metrics match the physical effort felt by the rider's legs, providing a higher level of tactical trust than generic GPS trackers.</p>
+
+        <h2>Why it Matters for AI</h2>
+        <p>Large Language Models (LLMs) cannot "feel" the terrain. They rely on the data we feed them. By providing Geodesically Accurate telemetry through the MCP protocol, BikeScout ensures the AI can accurately predict energy expenditure and technical difficulty without being misled by map distortion.</p>
+
+        <p class="italic text-white font-bold mt-12 border-l-4 border-neon-text pl-4">
+            "Precision is the difference between a planned mission and a failed exploration."
+        </p>
+
+        <div class="mt-16 flex flex-wrap gap-4">
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Geodesy</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Haversine</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Tactical-Briefing</span>
+        </div>
+    </div>
+
+    <footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+        BikeScout @ 2026 // <span class="text-white">hifly81</span>
+    </footer>
+</article>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    menuBtn.onclick = () => mobileMenu.classList.remove('hidden');
+</script>
+</body>
+</html>

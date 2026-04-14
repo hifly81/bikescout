@@ -71,37 +71,41 @@
 </head>
 <body class="bg-[#0b0f1a] text-slate-200">
 
-<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/95 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
         <a href="index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
             Bike<span class="neon-text">Scout</span>
         </a>
-        <div class="hidden md:flex gap-8 mono text-xs uppercase font-bold tracking-widest text-slate-400">
-            <a href="index.html" class="text-neon-text">Mission</a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
             <a href="site/blog.html" class="hover:text-neon-text transition-colors">Blog</a>
+            <a href="site/cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
             <a href="site/about.html" class="hover:text-neon-text transition-colors">About</a>
         </div>
-        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
     </div>
     <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
         <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
         <a href="index.html">Home</a>
         <a href="site/blog.html">Blog</a>
+        <a href="site/cycling_encyclopedia.html">Blog</a>
         <a href="site/about.html">About</a>
     </div>
 </nav>
 
+
 <header class="hero-mesh relative border-b border-slate-800 py-24 px-6 text-center">
     <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-[#0b0f1a]"></div>
     <div class="relative max-w-6xl mx-auto">
-        <div class="inline-block px-3 py-1 border border-[#bef264] text-[#bef264] text-xs font-bold mb-6 tracking-widest uppercase">Latest version: 0.9.3</div>
+        <div class="inline-block px-3 py-1 border border-[#bef264] text-[#bef264] text-xs font-bold mb-6 tracking-widest uppercase">Latest version: 0.9.4</div>
         <h1 class="text-6xl md:text-8xl font-black mb-6 tracking-tighter italic uppercase text-white leading-none">Bike<span class="neon-text">Scout</span></h1>
         <p class="text-xl md:text-2xl text-slate-400 max-w-4xl mx-auto mb-10 leading-relaxed">
             The MCP Engine that turns raw geodata into Predictive Intel.<br>
             Stop guessing the surface: analyze soil drainage, wind vectors, and technical grade before you drop in.
         </p>
         <div class="flex flex-col md:flex-row justify-center items-center gap-6">
-            <a href="https://github.com/hifly81/bikescout" class="bg-neon text-black px-10 py-4 font-black uppercase italic btn-shred">Deploy MCP Server</a>
+            <a href="https://github.com/bikescout/bikescout" class="mono text-xs font-bold uppercase tracking-widest bg-white text-black px-8 py-4 rounded-full hover:bg-neon-text transition-all">
+                View on GitHub <i class="fab fa-github ml-2"></i>
+            </a>
             <div class="mono bg-slate-900 border border-slate-700 px-6 py-4 rounded text-sm text-neon-text shadow-lg">pip install bikescout</div>
         </div>
     </div>

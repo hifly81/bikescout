@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Version](https://img.shields.io/badge/Version-0.9.3-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-0.9.4-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![hifly81/bikescout](https://glama.ai/mcp/servers/hifly81/bikescout/badges/score.svg)](https://glama.ai/mcp/servers/hifly81/bikescout)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
@@ -80,6 +80,7 @@ BikeScout isn't just an isolated script; it's a native extension for next-genera
 Stay updated with the latest tactical cycling intelligence, mission reports, and MCP ecosystem news.
 * **Official Website:** [https://hifly81.github.io/bikescout](https://hifly81.github.io/bikescout)
 * **Tactical Blog:** [https://hifly81.github.io/bikescout/site/blog.html](https://hifly81.github.io/bikescout/site/blog.html)
+* **Tactical Encyclopedia:** [https://hifly81.github.io/bikescout/site/encyclopedia.html](https://hifly81.github.io/bikescout/site/encyclopedia.html) — *Deep dive into TAEL, ASI, and Geodesic protocols.*
 ---
 
 ## Quickstart: Deploy BikeScout in 3 Minutes

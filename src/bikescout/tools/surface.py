@@ -1,4 +1,5 @@
 import requests
+from bikescout.tools.mud import get_mud_risk_analysis
 
 
 def _get_tire_setup(bike_type: str, tire_size_option: str, mud_index: float = 0.0, surface_type: str = "mixed", rider_weight_kg: float = 80.0):
@@ -209,7 +210,7 @@ def _build_ors_options(surface_preference):
 def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_size_option, points, seed, surface_preference, rider_weight_kg):
     """
     Main entry point for route analysis.
-    Refactored to integrate Tactical Tire Intelligence and dynamic surface sensing.
+    Integrate TAEL Mud Risk Model and dynamic surface sensing.
     """
 
     # 1. API Setup and fallback logic
@@ -247,21 +248,26 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
             total_dist_m = props['summary']['distance']
             extras = props.get('extras', {})
 
-            # 3. Surface & Mud Analysis (Tactical Data)
-            # In a real scenario, mud_index would come from a weather/soil API call
-            # For now, we derive it from tracktype/surface if "soft" or "unpaved" is dominant
+            # 3. Surface & Mud Analysis (INTEGRATED TAEL MODEL)
             surface_map = {0: "Unknown", 1: "Asphalt", 2: "Unpaved", 3: "Paved", 4: "Cobblestone",
                            5: "Gravel", 6: "Fine Gravel", 11: "Grass", 12: "Compact", 14: "Concrete"}
 
-            # Extract dominant surface to inform the tire engine
             dominant_surface = _extract_dominant_surface(extras.get('surface', {}), surface_map)
 
-            # Mock Mud Index logic: if surface is grass/unpaved and we have "soft" weather data
-            # This should be replaced by your weather provider logic
-            mud_index = 0.8 if dominant_surface in ["Grass", "Unpaved"] else 0.1
+            mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface)
+
+            if mud_analysis["status"] == "Success":
+                mud_index = mud_analysis["tactical_analysis"]["adjusted_moisture_index"]
+                mud_risk_label = mud_analysis["tactical_analysis"]["mud_risk_score"]
+                safety_advice = mud_analysis["tactical_analysis"]["safety_advice"]
+                env_context = mud_analysis["environmental_context"]
+            else:
+                mud_index = 0.5
+                mud_risk_label = "Unknown (Telemetry Failure)"
+                safety_advice = "Weather data unavailable. Proceed with caution."
+                env_context = {}
 
             # 4. Refactored Tire Intelligence Call
-            # Now uses the new dynamic logic with weight and environment awareness
             tire_mm, tire_display = _get_tire_setup(
                 bike_type=bike_type,
                 tire_size_option=tire_size_option,
@@ -278,6 +284,9 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
             breakdown, warnings, compatible = _analyze_compatibility(bike_type, tire_mm, extras, surface_map)
             tech_specs = _analyze_technical_difficulty(extras)
 
+            if mud_index > 10:
+                warnings.append(f"MUD ALERT: {safety_advice}")
+
             # 7. Final Tactical Briefing Response
             return {
                 "status": "Success",
@@ -288,7 +297,12 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
                     "climb_category": climb_cat,
                     "avg_gradient_est": f"{round(avg_grad, 1)}%",
                     "technical_difficulty": tech_specs,
-                    "mud_risk_index": mud_index
+                    "mud_risk": {
+                        "score": mud_index,
+                        "label": mud_risk_label,
+                        "details": safety_advice,
+                        "environmental_factors": env_context
+                    }
                 },
                 "mechanical_setup": {
                     "compatible": compatible,

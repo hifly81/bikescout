@@ -641,6 +641,8 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
 * **Safety & Technical Grading:** Analyzes OSM tracktype (Grades 1-5) to distinguish between smooth gravel and rough, technical MTB trails.
 * **Surface-Aware Routing:** Fine-tunes the route generation based on user preferences like "avoid unpaved" or "prefer trails."
 * **Tactical Tire Intelligence:** Calculates optimal tire recommendations and pressure baseline by cross-referencing **Rider Weight**, bike type, and dominant surface composition.
+* **Mud Risk Score:** Provides a localized risk rating (Low/Medium/High) to help cyclists prevent drivetrain damage and avoid unrideable sections.
+* **TAEL (Terrain-Aware Evaporation Lag):** A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
 
 #### **Parameters:**
 
@@ -680,7 +682,18 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
       "trail_visibility": "Excellent",
       "technical_notes": "Technical grading based on OSM mountain standards."
     },
-    "mud_risk_index": 0.1
+    "mud_risk": {
+      "score": 10.26,
+      "label": "Medium",
+      "details": "Damp sections. Expect reduced traction on off-camber roots.",
+      "environmental_factors": {
+        "raw_rain_72h": "11.9mm",
+        "avg_temp": "17.6°C",
+        "drying_efficiency": "1.16x",
+        "shadow_penalty_active": "No",
+        "solar_altitude": "46.3°"
+      }
+    }
   },
   "mechanical_setup": {
     "compatible": true,
@@ -725,6 +738,66 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
 **Example Output (JSON) for Road:**
 ```json
 {
+  "payload_version": "1.0",
+  "status": "Success",
+  "profile_used": "cycling-road",
+  "tactical_briefing": {
+    "distance_km": 81.18,
+    "elevation_gain_m": 1055,
+    "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+    "avg_gradient_est": "2.9%",
+    "technical_difficulty": {
+      "mtb_scale": "Standard / Unclassified",
+      "trail_visibility": "Excellent",
+      "technical_notes": "Technical grading based on OSM mountain standards."
+    },
+    "mud_risk": {
+      "score": 10.26,
+      "label": "Medium",
+      "details": "Damp sections. Expect reduced traction on off-camber roots.",
+      "environmental_factors": {
+        "raw_rain_72h": "11.9mm",
+        "avg_temp": "17.6°C",
+        "drying_efficiency": "1.16x",
+        "shadow_penalty_active": "No",
+        "solar_altitude": "47.0°"
+      }
+    }
+  },
+  "mechanical_setup": {
+    "compatible": true,
+    "bike_category": "ROAD",
+    "setup_details": "700c wheels | 71.4 PSI (4.92 Bar) [Mud Flotation Setup]",
+    "rider_weight_baseline": "80.0kg"
+  },
+  "surface_breakdown": [
+    {
+      "type": "Paved",
+      "percentage": "59.1%"
+    },
+    {
+      "type": "Unknown",
+      "percentage": "40.2%"
+    },
+    {
+      "type": "Asphalt",
+      "percentage": "0.4%"
+    },
+    {
+      "type": "Concrete",
+      "percentage": "0.3%"
+    }
+  ],
+  "safety_warnings": [
+    "MUD ALERT: Damp sections. Expect reduced traction on off-camber roots."
+  ]
+}
+```
+
+**Example Output (JSON) for Gravel:**
+```json
+{
+  "payload_version": "1.0",
   "status": "Success",
   "profile_used": "cycling-road",
   "tactical_briefing": {
@@ -737,12 +810,23 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
       "trail_visibility": "Excellent",
       "technical_notes": "Technical grading based on OSM mountain standards."
     },
-    "mud_risk_index": 0.1
+    "mud_risk": {
+      "score": 10.26,
+      "label": "Medium",
+      "details": "Damp sections. Expect reduced traction on off-camber roots.",
+      "environmental_factors": {
+        "raw_rain_72h": "11.9mm",
+        "avg_temp": "17.6°C",
+        "drying_efficiency": "1.16x",
+        "shadow_penalty_active": "No",
+        "solar_altitude": "47.2°"
+      }
+    }
   },
   "mechanical_setup": {
     "compatible": true,
-    "bike_category": "ROAD",
-    "setup_details": "700c wheels | 87.0 PSI (6.0 Bar) [Efficiency Setup]",
+    "bike_category": "GRAVEL",
+    "setup_details": "700c wheels | 28.9 PSI (1.99 Bar) [Mud Flotation Setup]",
     "rider_weight_baseline": "80.0kg"
   },
   "surface_breakdown": [
@@ -763,65 +847,8 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
       "percentage": "0.6%"
     }
   ],
-  "safety_warnings": []
-}
-```
-
-**Example Output (JSON) for Gravel:**
-```json
-{
-  "status": "Success",
-  "profile_used": "cycling-mountain",
-  "tactical_briefing": {
-    "distance_km": 27.31,
-    "elevation_gain_m": 885,
-    "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
-    "avg_gradient_est": "10.8%",
-    "technical_difficulty": {
-      "mtb_scale": "Standard / Unclassified",
-      "trail_visibility": "Excellent",
-      "technical_notes": "Technical grading based on OSM mountain standards."
-    },
-    "mud_risk_index": 0.1
-  },
-  "mechanical_setup": {
-    "compatible": true,
-    "bike_category": "Gravel",
-    "setup_details": "700c wheels | 34.0 PSI (2.34 Bar) [Standard Setup]",
-    "rider_weight_baseline": "80.0kg"
-  },
-  "surface_breakdown": [
-    {
-      "type": "Unknown",
-      "percentage": "42.0%"
-    },
-    {
-      "type": "Paved",
-      "percentage": "28.2%"
-    },
-    {
-      "type": "Compact",
-      "percentage": "23.9%"
-    },
-    {
-      "type": "Grass",
-      "percentage": "3.1%"
-    },
-    {
-      "type": "Concrete",
-      "percentage": "1.2%"
-    },
-    {
-      "type": "Unpaved",
-      "percentage": "1.1%"
-    },
-    {
-      "type": "Asphalt",
-      "percentage": "0.4%"
-    }
-  ],
   "safety_warnings": [
-    "Comfort warning: 3.1% is Grass."
+    "MUD ALERT: Damp sections. Expect reduced traction on off-camber roots."
   ]
 }
 ```

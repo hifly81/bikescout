@@ -36,21 +36,30 @@ def calculate_detailed_difficulty(dist_km: float, ascent_m: float) -> str:
 
 def generate_tactical_gpx(geojson_data, amenities=[]):
     """
-    Generates a GPX with embedded tactical waypoints for navigation units.
-    Includes Summits, Steep Climbs (>10%), and Cycling Amenities.
+    Generates a GPX with tactical waypoints and optimized track segments.
+    Features: Cooldown for steep climbs, Summit detection, and Point Decimation.
     """
     feature = geojson_data['features'][0]
     coords = feature['geometry']['coordinates']  # [lon, lat, ele]
+
+    # --- OPTIMIZATION: POINT DECIMATION ---
+    # MCP limit safety: if track is too dense, we downsample to stay under payload limits.
+    # We target a max of ~1500 points for the track segment.
+    MAX_TRACK_POINTS = 1500
+    step = 1
+    if len(coords) > MAX_TRACK_POINTS:
+        step = len(coords) // MAX_TRACK_POINTS
+
+    optimized_coords = coords[::step]
 
     gpx_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
     gpx_xml += '<gpx version="1.1" creator="BikeScout" xmlns="http://www.topografix.com/GPX/1/1">\n'
 
     waypoints = ""
 
-    # --- A. WAYPOINT: CYCLING AMENITIES (Water & Repair) ---
+    # --- A. WAYPOINT: CYCLING AMENITIES ---
     for poi in amenities:
         name = poi.get('name', 'Cycling POI')
-        # Accessing nested 'location' to prevent KeyError
         loc = poi.get('location', {})
         p_lat, p_lon = loc.get('lat'), loc.get('lon')
 
@@ -68,11 +77,19 @@ def generate_tactical_gpx(geojson_data, amenities=[]):
         waypoints += f'    <sym>Summit</sym>\n'
         waypoints += f'  </wpt>\n'
 
-    # --- C. WAYPOINT: STEEP CLIMBS (>10%) ---
-    # We iterate with a step to smooth elevation noise
+    # --- C. WAYPOINT: STEEP CLIMBS (COOLDOWN LOGIC) ---
+    # We use a last_wall_index to prevent "WALL" clutter.
+    # i += 30 in a for loop doesn't work in Python, so we use a state check.
+    last_wall_index = -50
+
     for i in range(5, len(coords) - 10, 10):
+        # Cooldown: skip if we placed a WALL in the last 40 coordinate points
+        if i < last_wall_index + 40:
+            continue
+
         p1, p2 = coords[i], coords[i+10]
-        # Distance calculation (meters)
+
+        # Fast distance approx (meters)
         d_lat = (p2[1] - p1[1]) * 111139
         d_lon = (p2[0] - p1[0]) * 111139 * 0.7
         dist = (d_lat**2 + d_lon**2)**0.5
@@ -84,11 +101,11 @@ def generate_tactical_gpx(geojson_data, amenities=[]):
                 waypoints += f'    <name>WALL: {int(grade)}%</name>\n'
                 waypoints += f'    <sym>Danger Area</sym>\n'
                 waypoints += f'  </wpt>\n'
-                i += 30 # Avoid waypoint clutter on the same hill
+                last_wall_index = i # Trigger cooldown
 
-    # --- D. TRACK ---
+    # --- D. TRACK (USING OPTIMIZED COORDS) ---
     track = '  <trk>\n    <name>BikeScout Tactical Route</name>\n    <trkseg>\n'
-    for lon, lat, ele in coords:
+    for lon, lat, ele in optimized_coords:
         track += f'      <trkpt lat="{lat}" lon="{lon}"><ele>{ele}</ele></trkpt>\n'
     track += '    </trkseg>\n  </trk>\n'
 

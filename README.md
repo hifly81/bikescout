@@ -6,13 +6,9 @@
 [![hifly81/bikescout](https://glama.ai/mcp/servers/hifly81/bikescout/badges/score.svg)](https://glama.ai/mcp/servers/hifly81/bikescout)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
----
-
 BikeScout is a specialized MCP server for MTB, Road, E-Bike, and Gravel mission planning.
 It transforms raw map data into Tactical Intelligence, predicting terrain conditions and trail hazards.
 The system provides precise setup advice, tailoring your equipment to the demands of the specific route, identifying technical challenges and environmental risks before you even leave the garage.
----
-
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/cd984f3d-0ba8-4590-9645-99f2b5e980b6" width="100%" controls autoplay muted loop>
@@ -171,21 +167,9 @@ To enable Strava integration, you need to create a developer application and gen
 
 BikeScout is available on [PyPI](https://pypi.org/project/bikescout/). You can install it directly using `pip` or `uv`.
 
-We recommend installing BikeScout in a virtual environment:
+## MCP Client Integration
 
-```bash
-python -m venv venv
-source venv/bin/activate 
-pip install bikescout
-```
-
-Configure your OpenRouteService API Key:
-
-```bash
-export ORS_API_KEY=YOUR_OPENROUTE_SERVICE_API_KEY
-```
-
-## Configuration for Claude Desktop
+To integrate **BikeScout** with your preferred MCP client (Claude Desktop, Cline, Roo Code, etc.), add the following configuration to your settings file:
 
 - Clone the repo in a local folder:
    ```bash
@@ -233,58 +217,6 @@ Example:
 }
 ```
 
-## Using BikeScout with VS Code
-
-If your goal is to test the BikeScout server while you are coding, you don't actually need the Claude Desktop app. You can use VS Code along with the Cline (formerly Claude Dev) or Continue extensions.
-
-- Install the Extension:
-
-   Go to the VS Code Marketplace and install the **Cline** extension (or Continue). These extensions act as a "bridge" between the AI and your local machine.
-
-- Clone the repo in a local folder:
-```bash
-git clone git@github.com:hifly81/bikescout.git <your_local_folder_path>
-```
-
-- Create a Python Virtual Env from the local folder:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install bikescout
-   ```
-- Open MCP Settings:
-
-   In the extension settings (usually a gear icon or a specific "MCP" tab within the extension's side panel), look for the section titled "Configure MCP Servers".
-
-- Add the JSON Configuration:
-
-   Paste the following JSON configuration into the settings file (make sure to update the path to your actual directory):
-
-```json
-{
-   "mcpServers": {
-      "bikescout": {
-         "command": "PATH/TO/YOUR/BIKESCOUT_FOLDER/venv/bin/python3",
-         "args": [
-            "-u",
-            "-m",
-            "bikescout.mcp_server"
-         ],
-         "env": {
-            "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER/src",
-            "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY",
-            "STRAVA_CLIENT_ID": "YOUR_STRAVA_CLIENT_ID",
-            "STRAVA_CLIENT_SECRET": "YOUR_STRAVA_CLIENT_SECRET",
-            "STRAVA_REFRESH_TOKEN": "YOUR_STRAVA_REFRESH_TOKEN",
-            "STADIA_API_KEY": "YOUR_STADIA_API_KEY"
-         }
-      }
-   }
-}
-```
-- Start Scouting
-   Once saved, you can chat with the AI directly within VS Code. It will automatically detect BikeScout as a "tool." You can then ask: _"Find me a scenic 30km MTB route starting from my current coordinates."_ The AI will execute the Python script, fetch the data from OpenStreetMap and OpenRouteService, and present the results right in your chat window.
-
 ## Debugging and Testing
 
 You can test **BikeScout** using the [MCP Inspector](https://github.com/modelcontextprotocol/inspector), a web-based tool for testing MCP servers.
@@ -294,6 +226,12 @@ To launch the inspector and interact with the tools manually, run the following 
 
 ```bash
 export ORS_API_KEY=YOUR_OPENROUTE_SERVICE_API_KEY
+## Optional API Key
+export STRAVA_CLIENT_ID=YOUR_STRAVA_CLIENT_ID
+export STRAVA_CLIENT_SECRET=YOUR_STRAVA_CLIENT_SECRET
+export STRAVA_REFRESH_TOKEN=YOUR_STRAVA_REFRESH_TOKEN
+export STADIA_API_KEY=YOUR_STADIA_API_KEY
+
 PYTHONPATH=./src npx @modelcontextprotocol/inspector ./venv/bin/python3 -m bikescout.mcp_server
 ```
 

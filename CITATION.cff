@@ -5,8 +5,8 @@ authors:
     given-names: "BikeScout Creator"
     orcid: "https://orcid.org/0009-0009-1778-241X"
 title: "BikeScout: Tactical Cycling Intelligence MCP Server"
-version: 0.9.5
-date-released: 2026-04-15
+version: 1.0.0
+date-released: 2026-04-22
 url: "https://github.com/hifly81/bikescout"
 repository-code: "https://github.com/hifly81/bikescout"
 license: Apache 2

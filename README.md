@@ -230,7 +230,7 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ---
 
-## Pre-Confiugured Prompts
+## Pre-Configured Prompts
 
 BikeScout includes pre-configured **AI Prompts**. These prompts provide local context, gear tips, and cultural insights.
 

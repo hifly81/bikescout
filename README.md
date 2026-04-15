@@ -7,19 +7,18 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 **BikeScout** is a specialized **MCP server** for **MTB, Road, E-Bike, and Gravel** mission planning.
-<br>It transforms raw map data into **Tactical Intelligence**, predicting terrain conditions and trail hazards.
-<br>The system provides **precise setup advice**, tailoring your equipment to the demands of the specific route.
-<br>Identify technical challenges and environmental risks before you even leave the garage.
-<br>**Plan with certainty and scout the terrain before you ride.**
+It transforms raw map data into **Tactical Intelligence**, predicting terrain conditions and trail hazards.
+The system provides **precise setup advice**, tailoring your equipment to the demands of the specific route.
+Identify technical challenges and environmental risks before you even leave the garage.
 ---
 
-
-**Plan with certainty. Scout before you ride.**
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/cd984f3d-0ba8-4590-9645-99f2b5e980b6" width="100%" controls autoplay muted loop>
   </video>
 </div>
+
+---
 
 ## Key Features
 

@@ -35,29 +35,36 @@
 </head>
 <body class="bg-[#0b0f1a] text-slate-200">
 
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html">About</a>
+    </div>
+</div>
+
 <nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
         <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
             Bike<span class="neon-text">Scout</span>
         </a>
         <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
-            <a href="blog.html" class="hover:text-neon-text transition-colors">Blog</a>
+            <a href="blog.html" class="text-neon-text">Blog</a>
             <a href="cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
-            <a href="about.html" class="text-neon-text">About</a>
+            <a href="about.html" class="hover:text-neon-text transition-colors">About</a>
         </div>
         <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
     </div>
-    <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
-        <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
-        <a href="../index.html">Home</a>
-        <a href="blog.html">Blog</a>
-        <a href="cycling_encyclopedia.html">Encyclopedia</a>
-        <a href="about.html" class="text-neon-text">About</a>
-    </div>
 </nav>
+
 <article class="max-w-3xl mx-auto py-20 px-6">
     <header class="mb-12 border-b border-slate-800 pb-12">
-        <h1 class="text-5xl md:text-7xl font-black uppercase italic leading-none text-white mb-6">STRAVA <br><span class="neon-text">Recon.</span></h1>
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">STRAVA <br><span class="neon-text">Recon.</span></h1>
         <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Released: April 13, 2026</p>
     </header>
 
@@ -93,17 +100,35 @@
         </div>
     </div>
 
-    <footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
-        BikeScout @ 2026// <span class="text-white">hifly81</span>
-    </footer>
 </article>
 
+<footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+    BikeScout @ 2026// <span class="text-white">hifly81</span>
+</footer>
+
 <script>
+    // Mobile Menu logic
     const menuBtn = document.getElementById('menu-btn');
     const closeBtn = document.getElementById('close-btn');
     const mobileMenu = document.getElementById('mobile-menu');
-    menuBtn.onclick = () => mobileMenu.classList.remove('hidden');
-    closeBtn.onclick = () => mobileMenu.classList.add('hidden');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+
+
+    mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+    });
 </script>
 </body>
 </html>

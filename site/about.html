@@ -36,6 +36,19 @@
 </head>
 <body class="bg-dark-blue text-slate-200">
 
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html">About</a>
+    </div>
+</div>
+
 <nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
         <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
@@ -47,13 +60,6 @@
             <a href="about.html" class="text-neon-text">About</a>
         </div>
         <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
-    </div>
-    <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
-        <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
-        <a href="../index.html">Home</a>
-        <a href="blog.html">Blog</a>
-        <a href="cycling_encyclopedia.html">Encyclopedia</a>
-        <a href="about.html" class="text-neon-text">About</a>
     </div>
 </nav>
 
@@ -123,11 +129,28 @@
 </footer>
 
 <script>
+    // Mobile Menu logic
     const menuBtn = document.getElementById('menu-btn');
     const closeBtn = document.getElementById('close-btn');
     const mobileMenu = document.getElementById('mobile-menu');
-    menuBtn.onclick = () => mobileMenu.classList.remove('hidden');
-    closeBtn.onclick = () => mobileMenu.classList.add('hidden');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+
+
+    mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+    });
 </script>
 </body>
 </html>

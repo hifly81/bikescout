@@ -30,7 +30,21 @@
         .neon-text { color: #bef264; }
     </style>
 </head>
+
 <body class="bg-[#0b0f1a] text-slate-200">
+
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html">About</a>
+    </div>
+</div>
 
 <nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
@@ -44,18 +58,13 @@
         </div>
         <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
     </div>
-    <div id="mobile-menu" class="hidden fixed inset-0 bg-black z-[60] flex flex-col items-center justify-center gap-8 text-2xl font-black uppercase italic text-white">
-        <button id="close-btn" class="absolute top-6 right-6 text-3xl"><i class="fas fa-times"></i></button>
-        <a href="../index.html">Home</a>
-        <a href="blog.html" class="text-neon-text">Blog</a>
-        <a href="cycling_encyclopedia.html">Encyclopedia</a>
-        <a href="about.html">About</a>
-    </div>
 </nav>
 
 <section class="max-w-6xl mx-auto py-20 px-6">
     <header class="mb-16">
-        <h1 class="text-6xl font-black uppercase italic text-white">BikeScout <span class="neon-text">Blog</span></h1>
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">
+            BikeScout <span class="neon-text">Blog</span>
+        </h1>
         <p class="text-slate-500 mono text-sm mt-4 uppercase tracking-widest">Logs, updates, and tactical cycling insights.</p>
     </header>
 
@@ -63,42 +72,39 @@
 
         <article class="border-l-2 border-slate-800 pl-8 group hover:border-[#bef264] transition-all">
             <time class="text-[10px] font-bold text-neon-text uppercase tracking-widest">April 14, 2026</time>
-            <h2 class="text-4xl font-black uppercase italic my-4 group-hover:text-white transition-colors">Introducing TAEL (Terrain-Aware Evaporation Lag) algorithm.</h2>
+            <h2 class="text-2xl font-black text-white uppercase italic mb-4">Introducing TAEL (Terrain-Aware Evaporation Lag) algorithm.</h2>
             <p class="text-slate-400 text-lg mb-6 leading-relaxed">Weather apps are lying to you. They see 18°C and a clear sky and tell you the trail is dry. But as every local pro knows, the ground has a memory.</p>
             <a href="tael.html" class="inline-block text-white font-bold text-xs uppercase tracking-widest border-b-2 border-[#bef264] pb-1 hover:brightness-110 transition-all">Read Full Story →</a>
         </article>
 
         <article class="border-l-2 border-slate-800 pl-8 group hover:border-[#bef264] transition-all">
             <time class="text-[10px] font-bold text-neon-text uppercase tracking-widest">April 13, 2026</time>
-            <h2 class="text-4xl font-black uppercase italic my-4 group-hover:text-white transition-colors">Strava Recon.</h2>
+            <h2 class="text-2xl font-black text-white uppercase italic mb-4">Strava Recon.</h2>
             <p class="text-slate-400 text-lg mb-6 leading-relaxed">Until today, BikeScout was a tactical navigator, a tool for the "before." It told you where to go and what to expect. But intelligence is useless without a feedback loop. Today, we are closing that loop with full Strava Integration.</p>
             <a href="strava_feat.html" class="inline-block text-white font-bold text-xs uppercase tracking-widest border-b-2 border-[#bef264] pb-1 hover:brightness-110 transition-all">Read Full Story →</a>
         </article>
 
          <article class="border-l-2 border-slate-800 pl-8 group hover:border-[#bef264] transition-all">
             <time class="text-[10px] font-bold text-neon-text uppercase tracking-widest">April 12, 2026</time>
-            <h2 class="text-4xl font-black uppercase italic my-4 group-hover:text-white transition-colors">Why Wout Van Aert broke the data at Paris-Roubaix 2026.</h2>
+            <h2 class="text-2xl font-black text-white uppercase italic mb-4">Why Wout Van Aert broke the data at Paris-Roubaix 2026.</h2>
             <p class="text-slate-400 text-lg mb-6 leading-relaxed">Today wasn't about software. It wasn't about marginal gains, wind tunnel simulations, or aerodynamic sensors. Today was about a man who looked at the "Hell of the North" and decided he was the one in charge.</p>
             <a href="roubaix_2026.html" class="inline-block text-white font-bold text-xs uppercase tracking-widest border-b-2 border-[#bef264] pb-1 hover:brightness-110 transition-all">Read Full Story →</a>
         </article>
         
       <article class="border-l-2 border-slate-800 pl-8 group hover:border-[#bef264] transition-all">
             <time class="text-[10px] font-bold text-neon-text uppercase tracking-widest">April 11, 2026</time>
-            <h2 class="text-4xl font-black uppercase italic my-4 group-hover:text-white transition-colors">Why MCP is the Ultimate Architecture for Tactical Cycling Intelligence</h2>
+            <h2 class="text-2xl font-black text-white uppercase italic mb-4">Why MCP is the Ultimate Architecture for Tactical Cycling Intelligence</h2>
             <p class="text-slate-400 text-lg mb-6 leading-relaxed">  In the era of Generative AI, everyone is trying to build "Chatbots for X." But when "X" is a high-stakes sport like mountain biking or gravel scouting, a standard chatbot isn't just insufficient, it's dangerous.</p>
             <a href="why_mcp.html" class="inline-block text-white font-bold text-xs uppercase tracking-widest border-b-2 border-[#bef264] pb-1 hover:brightness-110 transition-all">Read Full Story →</a>
         </article>
         
         <article class="border-l-2 border-slate-800 pl-8 group hover:border-[#bef264] transition-all">
             <time class="text-[10px] font-bold text-neon-text uppercase tracking-widest">April 11, 2026</time>
-            <h2 class="text-4xl font-black uppercase italic my-4 group-hover:text-white transition-colors">Hello Bikers!</h2>
+            <h2 class="text-2xl font-black text-white uppercase italic mb-4">Hello Bikers!</h2>
             <p class="text-slate-400 text-lg mb-6 leading-relaxed">One week ago, BikeScout was born. Here is why we are rethinking how off-road data should be analyzed for the modern rider.</p>
             <a href="hello_bikers.html" class="inline-block text-white font-bold text-xs uppercase tracking-widest border-b-2 border-[#bef264] pb-1 hover:brightness-110 transition-all">Read Full Story →</a>
         </article>
-
-        <div class="border-t border-slate-900 pt-8 italic text-slate-600 mono text-xs uppercase">
-            Waiting for next telemetry update...
-        </div>
+        
     </div>
 </section>
 
@@ -107,11 +113,28 @@
 </footer>
 
 <script>
+    // Mobile Menu logic
     const menuBtn = document.getElementById('menu-btn');
     const closeBtn = document.getElementById('close-btn');
     const mobileMenu = document.getElementById('mobile-menu');
-    menuBtn.onclick = () => mobileMenu.classList.remove('hidden');
-    closeBtn.onclick = () => mobileMenu.classList.add('hidden');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+
+
+    mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+    });
 </script>
 </body>
 </html>

@@ -5,10 +5,16 @@
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![hifly81/bikescout](https://glama.ai/mcp/servers/hifly81/bikescout/badges/score.svg)](https://glama.ai/mcp/servers/hifly81/bikescout)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![Downloads](https://pepy.tech/badge/global-chem)](https://pepy.tech/project/global-chem)
 
-**BikeScout** is a specialized MCP server designed for cyclists and mountain bikers. It provides intelligent trail recommendations by combining real-world map data with advanced routing analysis.
+**BikeScout** is a specialized **MCP server** for **MTB, Road, E-Bike, and Gravel** mission planning.
+<br>It transforms raw map data into **Tactical Intelligence**, predicting terrain conditions and trail hazards.
+<br>The system provides **precise setup advice**, tailoring your equipment to the demands of the specific route.
+<br>Identify technical challenges and environmental risks before you even leave the garage.
+<br>**Plan with certainty and scout the terrain before you ride.**
+---
 
+
+**Plan with certainty. Scout before you ride.**
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/cd984f3d-0ba8-4590-9645-99f2b5e980b6" width="100%" controls autoplay muted loop>

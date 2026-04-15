@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BikeScout Encyclopedia | ASI: Actionable Setup Intelligence</title>
+    <meta name="description" content="Mastering ASI (Actionable Setup Intelligence): How BikeScout calculates dynamic tire pressure and mechanical setups based on rider weight and terrain.">
+    <meta name="keywords" content="ASI Setup, Tire Pressure Logic, MTB PSI, Gravel Setup, Actionable Intelligence, Tactical Cycling, hifly81, BikeScout">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout/encyclopedia/asi-setup">
+    <meta property="og:title" content="BikeScout Encyclopedia | ASI Setup Intelligence">
+    <meta property="og:description" content="Stop guessing your tire pressure. Learn how BikeScout uses environmental telemetry to optimize your mechanical setup.">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1544133782-b646fe87dec9?q=80&w=1000">
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YTC60Z790M"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
+        .formula-card { background: #1a202c; border-left: 4px solid #bef264; padding: 1.5rem; margin: 2rem 0; font-family: 'JetBrains Mono', monospace; color: #bef264; font-size: 0.875rem; overflow-x: auto; }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html">About</a>
+    </div>
+</div>
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="blog.html" class="hover:text-neon-text transition-colors">Blog</a>
+            <a href="cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="about.html" class="hover:text-neon-text transition-colors">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">ASI <br><span class="neon-text">Setup Intelligence</span></h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Core Concept: Mechanical Optimization</p>
+    </header>
+
+    <div class="article-content">
+        <p><strong>Actionable Setup Intelligence (ASI)</strong> is the BikeScout framework that bridges the gap between raw environmental data and mechanical execution. It eliminates "pressure guesswork" by calculating the optimal tire pressure (PSI/Bar) based on a multi-factor logic of rider weight, surface type, and moisture levels.</p>
+
+        <p>In tactical cycling, the interface between the tire and the ground is the most critical variable for mission success. ASI ensures this interface is optimized for either <strong>Efficiency</strong>, <strong>Compliance</strong>, or <strong>Flotation</strong>.</p>
+
+        <h2>The Baseline: Weight Normalization</h2>
+        <p>Every ASI calculation starts with a baseline normalized at 85kg. Using a heuristic linear adjustment, the system increases or decreases the target pressure by 1 PSI for every 5kg of deviation from the baseline. This ensures that a lightweight climber and a heavy-duty enduro rider receive tailored data for the same trail.</p>
+
+        <div class="formula-card">
+            Weight_Adjustment = (Rider_Weight - 85.0) / 5.0 <br>
+            Adjusted_PSI = Base_PSI + Weight_Adjustment
+        </div>
+
+
+
+        <h2>The Tactical Strategy Logic</h2>
+        <p>ASI doesn't just calculate numbers; it selects a <strong>Strategy</strong>. Depending on the data ingested from the <em>TAEL Model</em> and <em>Surface Analyzer</em>, the system applies specific offsets:</p>
+
+        <ul>
+            <li><strong>Mud Flotation:</strong> Triggered when the Mud Index > 0.6. The system applies a 15% reduction in pressure to increase the tire's footprint and prevent "sinking".</li>
+            <li><strong>Compliance:</strong> Triggered on technical terrain (rocks, roots). It applies a -2.0 PSI offset to improve vibration damping and mechanical grip.</li>
+            <li><strong>Efficiency:</strong> Triggered on smooth or paved surfaces. It applies a +3.0 PSI offset to minimize rolling resistance.</li>
+        </ul>
+
+        <h2>Cross-System Integration</h2>
+        <p>ASI is not an isolated tool. It is the final output of the BikeScout intelligence chain. It takes the "Dark Side" analysis from <strong>Shadow Persistence</strong> and the soil saturation data from <strong>TAEL</strong> to warn the rider if their current equipment (e.g., road tires on a 40% mud route) is a safety risk.</p>
+
+        <h2>Mechanical Briefing Output</h2>
+        <p>The result is a standardized <em>Tactical Display String</em>. Instead of a generic "check your tires," the rider receives: <br>
+            <code class="mono text-neon-text bg-slate-900 px-2 py-1 rounded text-sm">29" wheels | 22.5 PSI (1.55 Bar) [Mud Flotation Setup]</code>.</p>
+
+        <p class="italic text-white font-bold mt-12 border-l-4 border-neon-text pl-4">
+            "The correct setup is a force multiplier. ASI ensures your bike is an asset, not a liability."
+        </p>
+
+        <div class="mt-16 flex flex-wrap gap-4">
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Actionable-Intel</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Tire-Physics</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Setup-Optimization</span>
+        </div>
+    </div>
+
+</article>
+
+<footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+    BikeScout @ 2026 // <span class="text-white">hifly81</span>
+</footer>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+
+    mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+    });
+</script>
+</body>
+</html>

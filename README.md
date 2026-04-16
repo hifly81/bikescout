@@ -261,6 +261,34 @@ In your AI client, you can ask:
 
 **BikeScout** exposes specialized tools to the MCP host. Currently, the server provides a comprehensive scouting tool, with more modules planned for future releases.
 
+### **Object Schemas**
+
+#### **Rider Profile (`rider`)**
+
+Used for tire pressure and difficulty scaling.
+
+| Field | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `weight_kg` | `float` | `80.0` | Total weight (rider + gear) for PSI and energy calculations. |
+| `fitness_level` | `string` | `intermediate` | Affects difficulty grading. Options: `beginner`, `intermediate`, `advanced`, `pro`. |
+
+#### **Bike Setup (`bike`)**
+| Field | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `bike_type` | `string` | `MTB` | Geometry profile. Options: `Road`, `Gravel`, `MTB`, `Enduro`. |
+| `tire_size` | `string` | `29` | Diameter/Standard. Options: `26`, `27.5`, `29`, `700c`, `650b`. |
+| `is_ebike` | `bool` | `false` | If true, triggers battery consumption and motor-assist logic. |
+| `battery_wh` | `int` | `null` | Battery capacity in Watt-hours (required if `is_ebike` is true). |
+
+#### **Mission Constraints (`mission`)**
+| Field | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `radius_km` | `int` | `10` | Total target distance for the loop. |
+| `profile` | `string` | `cycling-mountain` | ORS Routing profile. |
+| `surface_preference` | `string` | `neutral` | Options: `neutral`, `avoid_unpaved`, `prefer_trails`. |
+| `points` | `int` | `3` | Complexity of the loop (higher = more circular). |
+| `seed` | `int` | `42` | Randomizer seed to reproduce specific route variations. |
+
 ### `geocode_location`
 This tool acts as the intelligent "entry point" for all natural language queries. It translates place names into geographical coordinates, enabling a seamless experience where users don't need to provide raw GPS data.
 
@@ -304,22 +332,16 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
       - Hydration & Service: Precisely locates water fountains and repair shops found during the POI scouting.
 
 #### **Parameters:**
-| Parameter | Type | Default            | Description |
-| :--- | :--- |:-------------------| :--- |
-| `lat` | `float` | Required           | Latitude of the starting point (e.g., `45.81`). |
-| `lon` | `float` | Required           | Longitude of the starting point (e.g., `9.08`). |
-| `radius_km` | `int` | `10`               | The target total length of the loop in kilometers. |
-| `profile` | `string`| `cycling-mountain` | Routing profile: `cycling-mountain`, `cycling-road`, or `cycling-regular`. |
-| `rider_weight_kg` | `float` | `80.0`             | **Total rider weight.** Used to calculate technical compatibility and tire setup recommendations. |
-| `bike_type` | `str` | `MTB` | User's bike (Options: `Road`, `Gravel`, `MTB`, `E-MTB`, `Enduro`). |
-| `tire_size_option` | `str` | `29` | Standard wheel sizes (MTB: `26`, `27.5`, `29` | Road/Gravel: `700c`, `650b`). |
-| `rider_weight_kg` | `float` | `80.0` | **Total rider weight.** Used to calculate technical compatibility and tire setup recommendations. |
-| `points` | `int` | `3` | Complexity of the loop shape (3 = triangle, 10 = circular). |
-| `seed` | `int` | `42` | Random seed. Change it to discover a different route variation in the same area. |
-| `surface_pref`| `str` | `neutral` | Routing preference (Options: `neutral`, `avoid_unpaved`, `prefer_trails`). |
-| `include_gpx` | `bool` | `True`             | Whether to include the raw XML GPX content. Set to `False` to prevent payload/token limit issues. |
-| `include_map` | `bool` | `False`            | Whether to generate the Static Map URL via **Stadia Maps** (OpenStreetMap data). |
-| `output_level` | `string` | `standard`         | Verbosity level: `summary` (essential stats), `standard` (default briefing), or `full` (complete technical breakdown and amenities). |
+| Parameter | Type | Default | Description                                             |
+| :--- | :--- | :--- |:--------------------------------------------------------|
+| `lat` | `float` | Required | Latitude of the starting point (e.g., `45.81`).         |
+| `lon` | `float` | Required | Longitude of the starting point (e.g., `9.08`).         |
+| **`rider`** | `object` | Required | [Rider Profile](#rider-profile-rider).                  |
+| **`bike`** | `object` | Required | [Bike Setup](#bike-setup-bike).                         |
+| **`mission`** | `object` | Required | [Mission Constraints](#mission-constraints-mission).    |
+| `include_gpx` | `bool` | `True` | Whether to include the raw XML GPX content.             |
+| `include_map` | `bool` | `False` | Whether to generate the Static Map URL via Stadia Maps. |
+| `output_level` | `string` | `standard` | Verbosity level: `summary`, `standard`, or `full`.      |
 
 #### **Tool Output Example (JSON):**
 ```json
@@ -592,14 +614,9 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
 | :--- | :--- | :--- | :--- |
 | `lat` | `float` | Required | Latitude of the starting point. |
 | `lon` | `float` | Required | Longitude of the starting point. |
-| `radius_km` | `int` | `10` | The total target distance of the loop (Round Trip). |
-| `profile` | `str` | `cycling-mountain` | ORS routing profile (e.g., `cycling-road`, `cycling-mountain`). |
-| `bike_type` | `str` | `MTB` | User's bike (Options: `Road`, `Gravel`, `MTB`, `E-MTB`, `Enduro`). |
-| `tire_size_option` | `str` | `29` | Standard wheel sizes (MTB: `26`, `27.5`, `29` | Road/Gravel: `700c`, `650b`). |
-| `rider_weight_kg` | `float` | `80.0` | **Total rider weight.** Used to calculate technical compatibility and tire setup recommendations. |
-| `points` | `int` | `3` | Complexity of the loop shape (3 = triangle, 10 = circular). |
-| `seed` | `int` | `42` | Random seed. Change it to discover a different route variation in the same area. |
-| `surface_pref`| `str` | `neutral` | Routing preference (Options: `neutral`, `avoid_unpaved`, `prefer_trails`). |
+| **`rider`** | `object` | Required | [Rider Profile](#rider-profile-rider).                  |
+| **`bike`** | `object` | Required | [Bike Setup](#bike-setup-bike).                         |
+| **`mission`** | `object` | Required | [Mission Constraints](#mission-constraints-mission).    |
 
 #### **Technical Insights:**
 
@@ -943,17 +960,10 @@ Contributions are what make the open-source community such an amazing place to l
    - Push to the Branch (`git checkout origin feature/AmazingFeature`).
    - Open a Pull Request.
 
-### Development Roadmap
-We are currently looking for help with:
-- [ ] **POI Integration**: Adding water fountains, bike repair stations, and cafés to the route summary.
-- [ ] **Advanced Surface Analysis**: Better mapping of trail technicality grades (S0-S5).
-- [ ] **Frontend Mockups**: Visualizing how BikeScout looks in different MCP clients.
-
 ### Coding Standards
 - Please follow [PEP 8](https://peps.python.org/pep-0008/) for Python code.
 - Ensure all new tools are documented in the `README.md`.
 - Keep comments in English for international collaboration.
-
 
 *By contributing, you agree that your contributions will be licensed under the project's Apache-2.0 License.*
 

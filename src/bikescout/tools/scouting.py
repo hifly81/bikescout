@@ -4,6 +4,7 @@ from bikescout.tools.weather import get_weather_forecast
 from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.poi import get_poi_scout
 from bikescout.tools.mud import get_mud_risk_analysis
+from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 ORS_BASE_URL = "https://api.openrouteservice.org/v2/directions"
@@ -115,14 +116,9 @@ def get_complete_trail_scout(
         api_key,
         lat: float,
         lon: float,
-        radius_km: int = 10,
-        profile: str = "cycling-mountain",
-        rider_weight_kg: float = 80.0,
-        bike_type: str = "MTB",
-        tire_size_option: str = "29",
-        points: int = 3,
-        seed: int = 42,
-        surface_preference: str = "neutral",
+        rider: RiderProfile,
+        bike: BikeSetup,
+        mission: MissionConstraints,
         include_gpx: bool = True,
         include_map: bool = False,
         output_level: str = "standard"  # "summary" | "standard" | "full"
@@ -141,14 +137,14 @@ def get_complete_trail_scout(
 
     routing_payload = {
         "coordinates": [[lon, lat]],
-        "options": {"round_trip": {"length": radius_km * 1000, "seed": 42}},
+        "options": {"round_trip": {"length": mission.radius_km * 1000, "seed": 42}},
         "elevation": "true",
         "extra_info": ["surface", "steepness"]
     }
 
     try:
         # --- 2. EXECUTE PRIMARY ROUTING ---
-        endpoint = f"{ORS_BASE_URL}/{profile}/geojson"
+        endpoint = f"{ORS_BASE_URL}/{mission.profile}/geojson"
         response = requests.post(endpoint, json=routing_payload, headers=headers, timeout=15)
         response.raise_for_status()
         data = response.json()
@@ -170,12 +166,7 @@ def get_complete_trail_scout(
         surface_report = {}
         if output_level != "summary":
             try:
-                surface_report = get_surface_analyzer(
-                    api_key=api_key, lat=lat, lon=lon, radius_km=radius_km,
-                    profile=profile, bike_type=bike_type,
-                    tire_size_option=tire_size_option, points=points, seed=seed,
-                    surface_preference=surface_preference, rider_weight_kg=rider_weight_kg
-                )
+                surface_report = get_surface_analyzer(api_key, lat, lon, rider, bike, mission)
             except Exception as e:
                 surface_report = {"status": "Error", "message": str(e)}
 
@@ -187,7 +178,7 @@ def get_complete_trail_scout(
         amenities = []
         if output_level == "full":
             try:
-                poi_res = get_poi_scout(api_key, lat, lon, radius_km)
+                poi_res = get_poi_scout(api_key, lat, lon, mission.radius_km)
                 amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
             except:
                 amenities = []
@@ -221,7 +212,6 @@ def get_complete_trail_scout(
                 "nearby_amenities": amenities[:5] if amenities else "Available in Full report"
             }
 
-        # HEAVY PAYLOAD MANAGEMENT
         # Static Map: Generate only if requested to save header space / processing
         if include_map:
             response_payload["map_image_url"] = get_static_map_url(data)

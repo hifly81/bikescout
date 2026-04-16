@@ -1,6 +1,7 @@
 import requests
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.geophysic import haversine_distance
+from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints
 
 
 def _get_tire_setup(bike_type: str, tire_size_option: str, mud_index: float = 0.0, surface_type: str = "mixed", rider_weight_kg: float = 80.0):
@@ -207,15 +208,15 @@ def _build_ors_options(surface_preference):
 
     return options
 
-def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_size_option, points, seed, surface_preference, rider_weight_kg):
+def get_surface_analyzer(api_key, lat, lon, rider, bike, mission):
     """
     Main entry point for route analysis.
     Integrated with Geodesic Accuracy (Haversine) and TAEL Mud Risk Model.
     """
 
     attempts = [
-        (profile, ["surface", "waytype", "tracktype"]),
-        (profile, ["surface", "waytype"]),
+        (mission.profile, ["surface", "waytype", "tracktype"]),
+        (mission.profile, ["surface", "waytype"]),
         ("cycling-regular", ["surface", "waytype"])
     ]
 
@@ -227,8 +228,8 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
             "coordinates": [[lon, lat]],
             "elevation": True,
             "options": {
-                "round_trip": {"length": radius_km * 1000, "points": points, "seed": seed},
-                **_build_ors_options(surface_preference)
+                "round_trip": {"length": mission.radius_km * 1000, "points": mission.complexity, "seed": mission.seed},
+                **_build_ors_options(mission.surface_preference)
             },
             "extra_info": current_extras
         }
@@ -278,11 +279,11 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
 
             # --- 4. Tire Intelligence ---
             tire_mm, tire_display = _get_tire_setup(
-                bike_type=bike_type,
-                tire_size_option=tire_size_option,
+                bike_type=bike.bike_type,
+                tire_size_option=bike.tire_size,
                 mud_index=mud_index,
                 surface_type=dominant_surface,
-                rider_weight_kg=rider_weight_kg
+                rider_weight_kg=rider.weight_kg
             )
 
             # --- 5. Process Elevation and Climbs (Using REAL Geodesic Distance) ---
@@ -290,7 +291,7 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
             climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
 
             # --- 6. Process Compatibility & Technical Specs ---
-            breakdown, warnings, compatible = _analyze_compatibility(bike_type, tire_mm, extras, surface_map)
+            breakdown, warnings, compatible = _analyze_compatibility(bike.bike_type, tire_mm, extras, surface_map)
             tech_specs = _analyze_technical_difficulty(extras)
 
             if mud_index > 10:
@@ -315,9 +316,9 @@ def get_surface_analyzer(api_key, lat, lon, radius_km, profile, bike_type, tire_
                 },
                 "mechanical_setup": {
                     "compatible": compatible,
-                    "bike_category": bike_type,
+                    "bike_category": bike.bike_type,
                     "setup_details": tire_display,
-                    "rider_weight_baseline": f"{rider_weight_kg}kg"
+                    "rider_weight_baseline": f"{rider.weight_kg}kg"
                 },
                 "surface_breakdown": breakdown,
                 "safety_warnings": warnings

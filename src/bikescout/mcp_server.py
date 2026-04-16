@@ -2,6 +2,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints
 from bikescout.tools.scouting import get_complete_trail_scout
 from bikescout.tools.weather import get_weather_forecast
 from bikescout.tools.surface import get_surface_analyzer
@@ -46,16 +47,11 @@ def geocode_location(location_name: str):
 
 @mcp.tool()
 def trail_scout(
+        rider: RiderProfile,
+        bike: BikeSetup,
+        mission: MissionConstraints,
         lat: float = 41.7615,
         lon: float = 12.7118,
-        radius_km: int = 10,
-        profile: str = "cycling-mountain",
-        rider_weight_kg: float = 80.0,
-        bike_type: str = "MTB",
-        tire_size_option: str = "29",
-        points: int = 3,
-        seed: int = 42,
-        surface_preference: str = "neutral",
         include_gpx: bool = True,
         include_map: bool = False,
         output_level: str = "standard"  # "summary" | "standard" | "full"
@@ -66,7 +62,7 @@ def trail_scout(
     that can be displayed directly in the chat.
     """
     data = get_complete_trail_scout(
-        ORS_API_KEY, lat, lon, radius_km, profile, rider_weight_kg, bike_type, tire_size_option, points, seed, surface_preference, include_gpx, include_map, output_level)
+        ORS_API_KEY, lat, lon, rider, bike, mission, include_gpx, include_map, output_level)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
@@ -97,44 +93,24 @@ def ride_window_planner(
 
 @mcp.tool()
 def analyze_route_surfaces(
+    rider: RiderProfile,
+    bike: BikeSetup,
+    mission: MissionConstraints,
     lat: float = 41.7615,
-    lon: float = 12.7118,
-    radius_km: int = 10,
-    profile: str = "cycling-mountain",
-    bike_type: str = "MTB",
-    tire_size_option: str = "29",
-    points: int = 3,
-    seed: int = 42,
-    surface_preference: str = "neutral",
-    rider_weight_kg: float = 80.0
+    lon: float = 12.7118
 ):
     """
     Analyzes the route surface, technical difficulty, categorize climbs,
     and provides dynamic mechanical setup (PSI/Bar) based on terrain and weight.
-
-    Args:
-        lat: Latitude of the starting point.
-        lon: Longitude of the starting point.
-        radius_km: Total target distance for the round-trip loop.
-        profile: ORS profile (cycling-mountain, cycling-road, cycling-regular).
-        bike_type: Type of bike (MTB, Road, Gravel, E-MTB).
-        tire_size_option: Wheel size ('26', '27.5', '29', '700c', '650b').
-        rider_weight_kg: Rider weight in kg to normalize tire pressure (default 85kg).
-        points: Complexity of the loop shape (3=triangle, 10=circular).
-        seed: Random seed to generate different route variations.
     """
     data = get_surface_analyzer(
         ORS_API_KEY,
         lat,
         lon,
-        radius_km,
-        profile,
-        bike_type,
-        tire_size_option,
-        points,
-        seed,
-        surface_preference,
-        rider_weight_kg)
+        rider,
+        bike,
+        mission
+    )
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 
@@ -158,12 +134,6 @@ def check_trail_soil_condition(lat: float = 41.7615, lon: float = 12.7118, surfa
     Advanced predictive model for ground saturation and mud risk.
     Uses the TAEL (Terrain-Aware Evaporation Lag) algorithm to cross-reference
     72h precipitation data with real-time solar altitude and atmospheric drying efficiency.
-
-    Args:
-        lat: Latitude of the trail section.
-        lon: Longitude of the trail section.
-        surface_type: Detected surface (e.g., 'clay', 'dirt', 'gravel', 'sand').
-                      Crucial for calculating drainage coefficients.
     """
     data = get_mud_risk_analysis(lat, lon, surface_type)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}

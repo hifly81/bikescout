@@ -524,13 +524,13 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
       }
     ]
   },
-  "gpx_export_path": "/home/hifly/.bikescout/gpx/tactical_route_39382d.gpx",
+  "gpx_export_path": "/home/test/.bikescout/gpx/tactical_route_39382d.gpx",
   "gpx_stats": {
     "total_points": 396,
     "optimized_points": 396,
     "waypoints_count": 4
   },
-  "elevation_profile_path": "/home/hifly/.bikescout/altimetry/bs_altimetry_01c3ec.png",
+  "elevation_profile_path": "/home/test/.bikescout/altimetry/bs_altimetry_01c3ec.png",
   "elevation_summary": "Visual sparkline generated and cached."
 }
 ```

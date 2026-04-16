@@ -1,6 +1,7 @@
 import requests
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.geophysic import haversine_distance
+from bikescout.tools.bike_setup import analyze_compatibility
 from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints
 
 
@@ -163,31 +164,6 @@ def _analyze_technical_difficulty(extras: dict):
         "technical_notes": "Technical grading based on OSM mountain standards."
     }
 
-def _analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_map: dict):
-    """
-    Checks if the bike setup is compatible with the detected surfaces.
-    """
-    breakdown = []
-    warnings = []
-    is_compatible = True
-
-    if 'surface' in extras:
-        for item in extras['surface']['summary']:
-            name = surface_map.get(item['value'], "Other")
-            percentage = round(item['amount'], 1)
-
-            if bike_type.lower() == "road":
-                if name in ["Gravel", "Unpaved", "Pebbles", "Grass", "Other"]:
-                    is_compatible = False
-                    warnings.append(f"Safety risk: {percentage}% of the route is {name}.")
-            elif bike_type.lower() == "gravel":
-                if name in ["Pebbles", "Grass", "Other"]:
-                    warnings.append(f"Comfort warning: {percentage}% is {name}.")
-
-            breakdown.append({"type": name, "percentage": f"{percentage}%"})
-
-    return breakdown, warnings, is_compatible
-
 def _build_ors_options(surface_preference):
     """
     Translates user surface preferences into ORS API options.
@@ -291,7 +267,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission):
             climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
 
             # --- 6. Process Compatibility & Technical Specs ---
-            breakdown, warnings, compatible = _analyze_compatibility(bike.bike_type, tire_mm, extras, surface_map)
+            breakdown, warnings, compatible = analyze_compatibility(bike.bike_type, tire_mm, extras, surface_map)
             tech_specs = _analyze_technical_difficulty(extras)
 
             if mud_index > 10:

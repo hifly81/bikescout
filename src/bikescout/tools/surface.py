@@ -1,4 +1,5 @@
 import requests
+import numpy as np
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.geophysic import haversine_distance
 from bikescout.tools.bike_setup import analyze_compatibility
@@ -6,15 +7,27 @@ from bikescout.tools.bike_setup import get_tire_setup
 from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints
 
 
-def _sanitize_elevation(raw_ascent: float):
+def _sanitize_elevation_profile(geometry, window_size=7, threshold=0.5):
     """
-    Filters satellite SRTM noise. Applies progressive reduction based on ascent intensity.
+    Filters satellite SRTM noise using a Simple Moving Average and Hysteresis.
+    Ensures that flat roads don't accumulate 'phantom' elevation gain.
     """
-    if raw_ascent > 2000:
-        return round(raw_ascent * 0.60, 0)  # 40% reduction for high noise
-    if raw_ascent > 1000:
-        return round(raw_ascent * 0.70, 0)  # 30% reduction
-    return round(raw_ascent * 0.85, 0)      # 15% reduction for light hills
+    elevations = [p[2] for p in geometry if len(p) > 2]
+    if len(elevations) < window_size:
+        return 0.0
+
+    # Apply SMA smoothing
+    weights = np.ones(window_size) / window_size
+    smoothed = np.convolve(elevations, weights, mode='valid')
+
+    total_ascent = 0.0
+    for i in range(1, len(smoothed)):
+        diff = smoothed[i] - smoothed[i-1]
+        # Only count ascent if change exceeds 0.5m (Hysteresis)
+        if diff > threshold:
+            total_ascent += diff
+
+    return round(total_ascent, 0)
 
 def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
     """
@@ -138,10 +151,14 @@ def _build_ors_options(surface_preference):
 
     return options
 
+import requests
+import numpy as np
+
 def get_surface_analyzer(api_key, lat, lon, rider, bike, mission):
     """
     Main entry point for route analysis.
-    Integrated with Geodesic Accuracy (Haversine) and TAEL Mud Risk Model.
+    Upgraded with Tactical SMA Elevation Smoothing, Geodesic Accuracy,
+    and TAEL Mud Risk Model.
     """
 
     attempts = [
@@ -158,7 +175,11 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission):
             "coordinates": [[lon, lat]],
             "elevation": True,
             "options": {
-                "round_trip": {"length": mission.radius_km * 1000, "points": mission.complexity, "seed": mission.seed},
+                "round_trip": {
+                    "length": mission.radius_km * 1000,
+                    "points": mission.complexity,
+                    "seed": mission.seed
+                },
                 **_build_ors_options(mission.surface_preference)
             },
             "extra_info": current_extras
@@ -173,23 +194,26 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission):
             response.raise_for_status()
             data = response.json()
 
-            # --- 2. Extract Geometry & Core Data ---
+            # --- 1. Extract Geometry & Tactical Smoothing ---
             feature = data['features'][0]
             props = feature['properties']
             geometry = feature['geometry']['coordinates'] # List of [lon, lat, ele]
             extras = props.get('extras', {})
 
-            # --- 2b. GEODESIC ACCURACY UPGRADE ---
-            # Instead of using props['summary']['distance'], we calculate the real distance
-            # summing segments with Haversine to avoid latitude distortion.
+            # --- 2. SMA Elevation Sanitization ---
+            clean_ascent = _sanitize_elevation_profile(
+                geometry=geometry,
+                window_size=7,
+                threshold=0.5
+            )
+
+            # --- 2b. Geodesic Accuracy Calculation (Haversine) ---
             real_dist_m = 0
             for i in range(len(geometry) - 1):
-                p1 = geometry[i]
-                p2 = geometry[i+1]
-                # ORS uses [lon, lat], haversine needs (lat1, lon1, lat2, lon2)
+                p1, p2 = geometry[i], geometry[i+1]
                 real_dist_m += haversine_distance(p1[1], p1[0], p2[1], p2[0])
 
-            # --- 3. Surface & Mud Analysis (INTEGRATED TAEL MODEL) ---
+            # --- 3. Surface & Mud Analysis (TAEL Model) ---
             surface_map = {0: "Unknown", 1: "Asphalt", 2: "Unpaved", 3: "Paved", 4: "Cobblestone",
                            5: "Gravel", 6: "Fine Gravel", 11: "Grass", 12: "Compact", 14: "Concrete"}
 
@@ -202,12 +226,10 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission):
                 safety_advice = mud_analysis["tactical_analysis"]["safety_advice"]
                 env_context = mud_analysis["environmental_context"]
             else:
-                mud_index = 0.5
-                mud_risk_label = "Unknown (Telemetry Failure)"
-                safety_advice = "Weather data unavailable. Proceed with caution."
-                env_context = {}
+                mud_index, mud_risk_label = 0.5, "Unknown (Telemetry Failure)"
+                safety_advice, env_context = "Weather data unavailable.", {}
 
-            # --- 4. Tire Intelligence ---
+            # --- 4. Tactical Tire Intelligence ---
             tire_mm, tire_display = get_tire_setup(
                 bike_type=bike.bike_type,
                 tire_size_option=bike.tire_size,
@@ -216,29 +238,26 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission):
                 rider_weight_kg=rider.weight_kg
             )
 
-            # --- 5. Process Elevation and Climbs (Using REAL Geodesic Distance) ---
-            clean_ascent = _sanitize_elevation(props.get('ascent', 0))
+            # --- 5. Categorization & Technical Specs ---
             climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
-
-            # --- 6. Process Compatibility & Technical Specs ---
             breakdown, warnings, compatible = analyze_compatibility(bike.bike_type, tire_mm, extras, surface_map)
             tech_specs = _analyze_technical_difficulty(extras, rider.fitness_level)
 
-            if mud_index > 10:
+            if mud_index > 0.7: # Threshold for critical mud warning
                 warnings.append(f"MUD ALERT: {safety_advice}")
 
-            # --- 7. Final Tactical Briefing Response ---
+            # --- 6. Final Tactical Briefing Response ---
             return {
                 "status": "Success",
                 "profile_used": current_profile,
                 "tactical_briefing": {
-                    "distance_km": round(real_dist_m / 1000, 2), # Now geodesic accurate
+                    "distance_km": round(real_dist_m / 1000, 2),
                     "elevation_gain_m": clean_ascent,
                     "climb_category": climb_cat,
                     "avg_gradient_est": f"{round(avg_grad, 1)}%",
                     "technical_difficulty": tech_specs,
                     "mud_risk": {
-                        "score": mud_index,
+                        "score": round(mud_index, 2),
                         "label": mud_risk_label,
                         "details": safety_advice,
                         "environmental_factors": env_context

@@ -69,22 +69,22 @@
     </header>
 
     <div class="article-content">
-        <p>Exactly one week ago, the first lines of code for BikeScout were pushed. It didn't start as a commercial product, but as a survival tool for riders who are tired of being lied to by their GPS apps.</p>
+        <p>Exactly one week ago, the first lines of code for BikeScout were pushed. It didn't start as a commercial product, but as a tool for riders who are tired of being lied to by their GPS apps.</p>
 
         <p>We’ve all been there: your routing app promises a "smooth gravel road," but 5km in, you find yourself waist-deep in sticky clay or carrying your bike over an unrideable rock garden. This is the Geospatial Truth Gap, and BikeScout is here to close it.</p>
 
         <h2>The Challenge: Surface Intelligence</h2>
         <p>Standard maps classify roads by hierarchy (Primary, Secondary, Path). This works for cars, but it’s useless for cyclists. For us, a "path" could be a manicured forest road or a vertical S4-grade descent.</p>
-        <p>BikeScout solves this by performing Deep Tag Parsing. We extract every metadata detail from OpenStreetMap, surface<, smoothness, tracktype, and width
+        <p>BikeScout solves this by performing Deep Tag Parsing. We extract every metadata detail from OpenStreetMap, surface, smoothness, tracktype, and width.
         <h2>The Challenge: The Mud Variable</h2>
         <p>A trail is a living thing. Its condition changes with the sky. Most apps ignore weather history, but BikeScout integrates a 72-Hour Rain Analysis. By cross-referencing rainfall volume with soil permeability (clay vs. sand), our engine predicts the "Mud Risk." If the intelligence says Critical, you better bring a fender or change your route.</p>
 
         <h2>The Challenge: Real-World Elevation</h2>
-        <p>GPS noise often creates "phantom" vertical gain. BikeScout uses SRTM-V3 30m Arc-Second data with custom smoothing filters. We provide the actual effort required, categorizing climbs based on UCI standards so you can pace your ride perfectly.</p>
+        <p>GPS data is inherently noisy. Standard GPX tracks are often riddled with micro-oscillations that create "phantom" vertical gains, those jagged profile lines that make a steady climb look like a saw blade. BikeScout doesn't try to "invent" smoothing where it isn't needed; it uses Tactical Decimation to reveal the true effort of the route.</p>
 
         <h2>One Week In: The Future</h2>
         <p>We are just getting started. BikeScout is currently an MCP Server, meaning it acts as the "brain" that any AI can use to help you plan your missions. In just seven days, we’ve moved from a concept to a functional intelligence tool.</p>
-        
+
 
         <div class="mt-16 flex flex-wrap gap-4">
             <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#MCP-Server</span>

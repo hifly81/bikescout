@@ -17,6 +17,10 @@ The system provides precise setup advice, tailoring your equipment to the demand
   </video>
 </div>
 
+**Love BikeScout?** ⭐ Star this repo to support the development of the first open-source tactical cycling engine.
+
+**Found a bug?** Open an Issue. Want to add a local skill? PRs are welcome!
+
 ---
 
 ## Example Queries
@@ -55,23 +59,29 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ## Key Features
 
-* **Real Trail Discovery**: Fetches actual trail names and surface types from **OpenStreetMap** (via Overpass API).
-* **Technical Metrics**: Calculates precise distance in kilometers and total elevation gain (ascent).
-* **Difficulty & Technical Grading**: Evaluates trails as Beginner, Moderate, or Expert and analyzes **OSM Tracktypes** (Grade 1-5) to distinguish between smooth gravel and rugged MTB paths.
-* **Dynamic Routing & Surface Analysis**: Generates suggested loops (round trips) with a detailed **Percentage Breakdown** of surface types (asphalt, gravel, dirt, etc.).
-* **Bike Setup Compatibility**: A first-of-its-kind feature that checks if a route is suitable for your specific bike (**Road, Gravel, or MTB**) and **tire width**, providing instant safety warnings.
-* **Predictive Mud Risk Analysis**: A specialized model for off-roaders that cross-references **72h historical precipitation** with **soil geology** (e.g., clay vs. sand) to predict trail rideability.
-* **TAEL (Terrain-Aware Evaporation Lag)**: A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
-* **Smart POI Scouting (Pit-Stop Finder)**: Automatically locates cycling-specific amenities like **drinking water fountains**, **bicycle repair stations**, and **mountain shelters** within a 2km radius of your route.
-* **Smart Safety & Weather Forecast**: Cross-references location data with real-time weather to ensure you don't get caught in a storm.
-* **Pro-Cycling Gear Advice**: Provides specific technical advice on clothing and gear based on temperature, wind, and rain thresholds.
-* **Seamless Location Search**: No GPS coordinates required. Use natural language (e.g., *"Find a ride in Albano Laziale"*) via integrated Nominatim Geocoding.
-* **Tactical Ride Window Planner (Go/No-Go)**: A high-value decision engine that calculates the optimal time to start your ride. It analyzes consecutive hourly slots and cross-references them with atmospheric hazards and soil memory to provide a color-coded tactical verdict.
-* **Instant Map Previews**: Automatically generates a **Static Map (.png)** of the route to visualize the trail directly within the chat interface.
-* **Generates a high-resolution visual analysis of the route's elevation profile**:. Unlike simple line charts, this tool produces a tactical graphical representation that integrates color-coded slope data, allowing for an immediate assessment of vertical difficulties.
-* **Local Expert Knowledge**: Specialized regional prompts for world-class destinations like the **Dolomites (UNESCO)**, **Moab (USA)**, and **Castelli Romani**.
-* **Pro Climb Categorization**: Automatically identifies and names specific climbs (from **Category 4** to **Hors Catégorie**) using professional cycling standards based on length and average gradient.
-* **Post-Ride Tactical Analysis (Strava Integration)**: Fuses actual **Strava** activity logs with environmental intelligence. By decoding GPS polylines, it cross-references your past performance with historical **Mud Risk** and weather data to validate your gear choice and analyze how trail conditions impacted your speed and effort.
+🗺️ Terrain & Surface Intelligence
+- **Real Trail Discovery**: Fetches actual trail names and surface data directly from OpenStreetMap (via Overpass API).
+- **Surface Breakdown**: Generates a detailed percentage breakdown of the entire route (asphalt, gravel, dirt, etc.).
+- **Technical Grading**: Analyzes OSM Tracktypes (Grade 1-5) to distinguish between smooth fire roads and rugged, technical MTB paths.
+- **Bike Compatibility Check**: A first-of-its-kind feature that validates if a route suits your specific bike (Road, Gravel, MTB) and tire width, issuing instant safety warnings.
+
+🌡️ Predictive Environmental Modeling
+- **TAEL Algorithm**: Our flagship Terrain-Aware Evaporation Lag model that predicts "Shadow-Lock" mud on north-facing slopes by analyzing real-time solar altitude and soil memory.
+- **Predictive Mud Risk**: Advanced rideability analysis based on geological soil composition (Clay vs. Sand) and 72-hour precipitation history.
+- **Tactical Ride Window**: A "Go/No-Go" decision engine that identifies the optimal start time by cross-referencing atmospheric hazards with terrain saturation.
+- **Smart Safety Weather**: Hyper-local 4-hour forecasts with expert-level gear and layering advice based on temperature, wind, and rain thresholds.
+
+📈 High-Fidelity Navigation & Altimetry
+- **Wall-Sense Technology**: Automatically detects gradients >10% and injects active <wpt> alerts into your GPX file to warn you on your head unit before you hit the "wall."
+- **Tactical GPX Export**: Produces optimized GPX files (max 1,500 points) to eliminate GPS signal noise while strictly preserving critical elevation spikes.
+- **Visual Elevation Profiling**: Generates high-resolution graphical sparklines with chromatic difficulty scaling, cached locally to save AI context window.
+- **Pro Climb Categorization**: Automatically identifies and ranks climbs using professional UCI standards (from Category 4 to Hors Catégorie).
+
+🧠 Mission Logistics & Intelligence
+- **Smart POI Scouting**: Scans a 2km radius along the route for drinking water, bicycle repair stations, and mountain shelters.
+- **E-MTB Energy Management**: Calculates estimated battery consumption (Wh) based on rider weight, assist mode (Eco/Boost), and terrain-specific rolling resistance.
+- **Local Expert Skills**: Specialized "Local Wisdom" knowledge bases for world-class destinations like The Dolomites, Moab, and Finale Ligure.
+- **Post-Ride Analysis**: Fuses Strava activity logs with environmental intelligence to analyze how mud and weather conditions impacted your actual performance.
 
 ## Why BikeScout? (vs Generic Maps)
 

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BikeScout Blog | Wall-Sense: Beyond the 10% Barrier</title>
+    <meta name="description" content="Introducing Wall-Sense: How BikeScout's high-fidelity altimetry identifies vertical traps before they break your legs.">
+    <meta name="keywords" content="Altimetry, Gradient Analysis, Cycling Tech, MCP Server, hifly81, BikeScout, Wall-Sense">
+
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout/blog/wall-sense-altimetry">
+    <meta property="og:title" content="BikeScout | Wall-Sense: Mastering Verticality">
+    <meta property="og:description" content="Why 10% isn't just a number. Predicting anaerobic failure with tactical sparklines.">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1000">
+
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="blog.html">Blog</a>
+        <a href="cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="about.html">About</a>
+    </div>
+</div>
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="blog.html" class="text-neon-text">Blog</a>
+            <a href="cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="about.html" class="hover:text-neon-text transition-colors">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">Vertical Awareness: <br><span class="neon-text">The "Wall-Sense" Engine</span></h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Released: April 17, 2026</p>
+    </header>
+
+    <div class="article-content">
+        <p>A 10% gradient is a number. A 200-meter wall of volcanic mud at 18% is a tactical crisis. Most routing engines smooth out the pain, averaging the incline over miles. <strong>BikeScout doesn't smooth. It amplifies.</strong></p>
+
+        <p>Today we announce the deployment of the <strong>High-Fidelity Altimetry Engine</strong>. By bypassing standard payload constraints and moving to a localized caching system, BikeScout can now render pixel-perfect vertical profiles that highlight anaerobic trap zones.</p>
+
+        <h2>The Problem: The "Average" Trap</h2>
+        <p>Standard GPX viewers often hide the "Wall". They tell you a climb is 6% average, but they miss the 15% ramp hidden behind the forest curve. For a cyclist, this lack of data leads to poor pacing, incorrect gear ratios, and total energy depletion.</p>
+
+        <h2>The Solution: High-Resolution Sparklines</h2>
+        <p>The updated <code>get_elevation_profile_image</code> tool now generates tactical sparklines with chromatic scaling:
+        <ul class="list-disc list-inside mb-4 text-slate-400">
+            <li><strong class="text-green-400">Green:</strong> Efficiency Zones (<3%)</li>
+            <li><strong class="text-yellow-400">Yellow:</strong> Power Thresholds (4-9%)</li>
+            <li><strong class="text-red-500">Red:</strong> The "Wall" (>10%)</li>
+        </ul>
+        </p>
+        <p>By saving these reports directly to the user's home directory (<code>~/.bikescout/altimetry/</code>), we maintain total visual fidelity without compromising the performance of the MCP server.</p>
+
+        <h2>Tactical Export: Waypoint Injection</h2>
+        <p>Knowledge is useless without execution. Our <strong>Wall-Sense</strong> logic now injects tactical waypoints directly into your GPX file. When your GPS screams "WALL: 14%", it's not guessing, it's reading the precise elevation delta calculated by BikeScout's latest decimation algorithm.</p>
+
+        <h2>Gear for the Vertical</h2>
+        <p>The <code>mud_risk_score</code> and <code>climb_intensity</code> now work in synergy. If the TAEL algorithm detects Shadow-Locked mud on a Red Zone Wall, BikeScout will advise a significant drop in tire pressure or a route bypass. This isn't just navigation; it's survival intelligence.</p>
+
+
+
+        <div class="mt-16 flex flex-wrap gap-4">
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Wall-Sense</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Gradient-Intelligence</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#MCP-Update</span>
+        </div>
+    </div>
+</article>
+
+<footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+    BikeScout @ 2026 // <span class="text-white">hifly81</span>
+</footer>
+
+<script>
+    // Mobile Menu logic
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+</script>
+</body>
+</html>

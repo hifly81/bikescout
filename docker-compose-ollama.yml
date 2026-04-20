@@ -1,0 +1,69 @@
+services:
+  ollama:
+    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
+    container_name: ollama
+    privileged: true
+    pull_policy: always
+    tty: true
+    restart: unless-stopped
+    ports:
+      - 11434:11434
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=11.0.2
+      - OLLAMA_VULKAN=1
+    volumes:
+      - ollama:/root/.ollama
+    networks:
+      - bikescout_net
+  mcpo:
+    container_name: mcpo
+    image: ghcr.io/open-webui/mcpo:main
+    restart: unless-stopped
+    volumes:
+      - ./:/app/mcp_servers/bikescout_project
+      - ./mcp_config.json:/app/config/config.json
+    ports:
+      - 8000:8000
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=11.0.2
+      - OLLAMA_VULKAN=1
+      - ORS_API_KEY=${ORS_API_KEY}
+      - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
+      - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
+      - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
+      - STADIA_API_KEY=${STADIA_API_KEY}
+    entrypoint: >
+      sh -c "cd /app/mcp_servers/bikescout_project &&
+             rm -rf venv && 
+             python3 -m venv venv && 
+             ./venv/bin/pip install -e . && 
+             cd /app &&
+             exec mcpo --config /app/config/config.json --hot-reload"
+    networks:
+      - bikescout_net
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    ports:
+      - 3000:8080
+    volumes:
+      - open-webui:/app/backend/data
+    environment:
+      - 'OLLAMA_BASE_URL=http://ollama:11434'
+      - 'WEBUI_SECRET_KEY=aaassasasasasasas11221@@@'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - bikescout_net
+
+networks:
+  bikescout_net:
+    driver: bridge
+
+volumes:
+  ollama:
+  open-webui:

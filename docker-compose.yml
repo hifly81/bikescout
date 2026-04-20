@@ -1,0 +1,31 @@
+services:
+  bikescout:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - ORS_API_KEY=${ORS_API_KEY}
+      - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
+      - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
+      - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
+      - STADIA_API_KEY=${STADIA_API_KEY}
+    networks:
+      - mcp_network
+
+  openclaw:
+    image: openclaw/openclaw:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - LLM_PROVIDER=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MCP_SERVERS=bikescout:8000
+    depends_on:
+      - bikescout
+    networks:
+      - mcp_network
+
+networks:
+  mcp_network:
+    driver: bridge

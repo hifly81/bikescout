@@ -400,5 +400,8 @@ def register_dynamic_prompts(mcp_instance, manager):
 register_dynamic_prompts(mcp, prompts_manager)
 
 
+def main():
+    mcp.run(transport='stdio')
+
 if __name__ == "__main__":
-    mcp.run()
+    main()

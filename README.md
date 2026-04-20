@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Version](https://img.shields.io/badge/Version-1.0.2-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-1.0.3-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![hifly81/bikescout](https://glama.ai/mcp/servers/hifly81/bikescout/badges/score.svg)](https://glama.ai/mcp/servers/hifly81/bikescout)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
@@ -69,60 +69,40 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ---
 
-## Quickstart: Deploy BikeScout in 3 Minutes
+## Quickstart: Deploy and Use BikeScout 
 
-You don't need to be a developer to give your AI "eyes" on the trail. If you can copy-paste, you can deploy **BikeScout**. Follow this mission briefing to turn Claude into your personal tactical cycling scout.
+### Using Docker and OpenClaw
 
-### 1. The Essentials 
-* **Claude Desktop:** The "Command Center." [Download it here](https://claude.ai/download).
-* **Python:** The engine. [Download it here](https://www.python.org/downloads/) (Make sure to check **"Add Python to PATH"** during setup).
+Pre Requirements:
 
-### 2. Get Your Intel Keys 
-BikeScout pulls high-precision data from professional sources. You need these FREE keys:
-1. **OpenRouteService:** [Sign up here](https://openrouteservice.org/) for trail and surface data.
+* **Docker Desktop:** [Download it here](https://www.docker.com/products/docker-desktop/).
+* **OpenRouteService Key:** [Sign up here](https://openrouteservice.org/) for trail and surface data.
+* **LLM Key:** An API key from OpenAI (GPT-4o) or Anthropic (Claude 3.5) to power the reasoning engine.
 
-### 3. Tactical Deployment 
-1. **Download the Lab:** Download this repository as a ZIP and extract it to a folder (e.g., `C:\BikeScout` or `/Users/YourName/BikeScout`).
-2. **Prepare the Environment:** Open your terminal in the BikeScout folder and run these two commands to create your isolated "lab":
+1. **Download the repository:** Download this repository as a ZIP and extract it to a folder (e.g., `C:\BikeScout` or `/Users/YourName/BikeScout`).
+2. Rename `.env.example` to `.env` and paste your API keys:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-pip install bikescout
+ORS_API_KEY=your_ors_key_here
+OPENAI_API_KEY=your_llm_key_here
 ```
-3. **Open Claude Config:**
-    * In Claude Desktop, click the **Settings icon** (bottom left) -> **Developer** -> **Edit Config**.
-4. **Plug it in:** Copy the block below and paste it into the file. **Replace the placeholders** with your actual keys and the path where you saved the folder:
-
-```json
-{
-  "mcpServers": {
-    "bikescout": {
-      "command": "PATH/TO/YOUR/FOLDER/venv/bin/python3",
-      "args": [
-        "-u",
-        "-m",
-        "bikescout.mcp_server"
-      ],
-      "env": {
-        "PYTHONPATH": "PATH/TO/YOUR/FOLDER/src",
-        "ORS_API_KEY": "YOUR_ORS_API_KEY_HERE"
-      }
-    }
-  }
-}
+3. Launch: Open your terminal in the folder and run:
+```bash
+docker-compose up -d
 ```
+4. Access:
+- On PC: Open http://localhost:3000
+- On Smartphone: Connect to the same Wi-Fi, find your PC's IP (e.g., 192.168.1.15), and open http://192.168.1.15:3000.
 
-### 4. Initiate First Mission
-Restart Claude Desktop. Look for the **🔌 (Plug icon)**—that means BikeScout is online.
+### Using Docker, Ollama and Open WebUI
 
-**Try your first command:**
-> "I'm planning a 30km MTB loop in the Alps. Check the mud risk for the last 72 hours and tell me if I should run my mud tires or my fast-rolling ones."
+If you prefer a private and free experience without external API costs, use the `docker-compose-ollama.yml`
+file to run BikeScout with Ollama (Llama 3/Mistral) instead of OpenAI.
+Refer to this [guide](site/md/bikescout_ollama.md) to setup a complete local installation with Ollama and Open WebUI.
+Deploy BikeScout:
 
-You have successfully deployed your tactical scout. Your AI is now ready to analyze the terrain. 🚲💨
+### Using the Source Code
 
----
-
-## Prerequisites
+Pre Requirements:
 
 - **Python 3.10+**
 - **OpenRouteService API Key**: Get a free key at [openrouteservice.org](https://openrouteservice.org/).
@@ -133,12 +113,6 @@ You have successfully deployed your tactical scout. Your AI is now ready to anal
 To enable Strava integration, you need to create a developer application and generate a long-lived Refresh Token:
 
 See the related [how to obtain a Strava key section](site/md/strava_key.md)
-
-## Installation
-
-BikeScout is available on [PyPI](https://pypi.org/project/bikescout/). You can install it directly using `pip` or `uv`.
-
-## MCP Client Integration
 
 To integrate **BikeScout** with your preferred MCP client (Claude Desktop, Cline, Roo Code, etc.), add the following configuration to your settings file:
 

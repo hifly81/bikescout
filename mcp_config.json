@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "bikescout": {
+      "command": "/app/mcp_servers/bikescout_project/venv/bin/python3",
+      "args": [
+        "/app/mcp_servers/bikescout_project/src/bikescout/mcp_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/app/mcp_servers/bikescout_project/src",
+        "FAST_MCP_LOG_LEVEL": "ERROR"
+      }
+    }
+  }
+}

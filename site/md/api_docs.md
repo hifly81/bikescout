@@ -1,4 +1,85 @@
-## BikeScout Skills
+# BikeScout Documentation
+
+Tactical Cycling Intelligence | MCP Server for AI-Powered Mission Planning.
+
+_Version: 1.0.2 - April 2026_
+
+---
+
+## Key Features
+
+🗺️ Terrain & Surface Intelligence
+- **Real Trail Discovery**: Fetches actual trail names and surface data directly from OpenStreetMap (via Overpass API).
+- **Surface Breakdown**: Generates a detailed percentage breakdown of the entire route (asphalt, gravel, dirt, etc.).
+- **Technical Grading**: Analyzes OSM Tracktypes (Grade 1-5) to distinguish between smooth fire roads and rugged, technical MTB paths.
+- **Bike Compatibility Check**: A first-of-its-kind feature that validates if a route suits your specific bike (Road, Gravel, MTB) and tire width, issuing instant safety warnings.
+
+🌡️ Predictive Environmental Modeling
+- **TAEL Algorithm**: Our flagship Terrain-Aware Evaporation Lag model that predicts "Shadow-Lock" mud on north-facing slopes by analyzing real-time solar altitude and soil memory.
+- **Predictive Mud Risk**: Advanced rideability analysis based on geological soil composition (Clay vs. Sand) and 72-hour precipitation history.
+- **Tactical Ride Window**: A "Go/No-Go" decision engine that identifies the optimal start time by cross-referencing atmospheric hazards with terrain saturation.
+- **Smart Safety Weather**: Hyper-local 4-hour forecasts with expert-level gear and layering advice based on temperature, wind, and rain thresholds.
+- **Hydration Scout**: Calculates real-time liquid and electrolyte requirements based on the route's technical intensity and the maximum forecasted temperature for the next four hours.
+
+📈 High-Fidelity Navigation & Altimetry
+- **Wall-Sense Technology**: Automatically detects gradients >10% and injects active <wpt> alerts into your GPX file to warn you on your head unit before you hit the "wall."
+- **Tactical GPX Export**: Produces optimized GPX files (max 1,500 points) to eliminate GPS signal noise while strictly preserving critical elevation spikes.
+- **Visual Elevation Profiling**: Generates high-resolution graphical sparklines with chromatic difficulty scaling, cached locally to save AI context window.
+- **Pro Climb Categorization**: Automatically identifies and ranks climbs using professional UCI standards (from Category 4 to Hors Catégorie).
+
+🧠 Mission Logistics & Intelligence
+- **Smart POI Scouting**: Scans a 2km radius along the route for drinking water, bicycle repair stations, and mountain shelters.
+- **E-MTB Energy Management**: Calculates estimated battery consumption (Wh) based on rider weight, assist mode (Eco/Boost), and terrain-specific rolling resistance.
+- **Local Expert Skills**: Specialized "Local Wisdom" knowledge bases for world-class destinations like The Dolomites, Moab, and Finale Ligure.
+- **Post-Ride Analysis**: Fuses Strava activity logs with environmental intelligence to analyze how mud and weather conditions impacted your actual performance.
+
+---
+
+## Why BikeScout? (The Intelligence Gap)
+
+Standard navigation tools like Google Maps or Komoot are designed for simple "lines on a map." They treat every trail as a generic path. **BikeScout** is built for **Mission Planning**, bridging the gap between raw data and technical reality. We don't just show you the way; we provide the **Tactical Intelligence** needed to conquer the terrain.
+
+### 🛰️ Truth in Elevation (Progressive Filtering)
+Standard SRTM satellite data is notoriously "noisy," often overestimating vertical gain by up to 40% due to sensor spikes in mountain environments.
+* **Generic Maps:** Display jagged, unrealistic elevation profiles that inflate effort and drain battery.
+* **BikeScout:** Employs a **Progressive Elevation Filter (SMA)**. Our algorithm sanitizes satellite noise, delivering ascent values that match professional barometric sensors (Garmin/Wahoo) for pinpoint energy planning.
+
+### 🪨 Beyond "Paved" vs "Unpaved" (S-Scale Grading)
+To a standard navigator, a trail is just a trail. To a scout, the difference between packed gravel and loose rock gardens is the difference between a flow trail and a rescue mission.
+* **Generic Maps:** Indiscriminately label everything non-asphalt as "unpaved."
+* **BikeScout:** Probes deep OSM metadata to extract **MTB-Scale (S0-S5)** and **Tracktypes (Grade 1-5)**. It warns you if your setup is "under-gunned" for a technical section before you are committed.
+
+### 🌧️ Ground Memory & TAEL Logic
+Standard forecasts only tell you if it *might* rain. BikeScout analyzes what *actually* happened to the soil.
+* **Generic Maps:** Provide only current atmospheric snapshots.
+* **BikeScout:** Uses the **TAEL (Terrain-Aware Evaporation Lag)** index. By cross-referencing 72h precipitation history with soil geology (Clay vs. Sand) and solar altitude, it predicts where "Shadow-Lock" mud persists even on sunny days.
+
+### ⚡ E-MTB & Mechanical Synchronization
+Effort is relative to your machine. A 20% gradient feels different on a 7kg Road bike than on a 24kg E-MTB rig.
+* **Generic Maps:** Offer "one-size-fits-all" travel times and difficulty ratings.
+* **BikeScout:** Features a **Dynamic Effort Engine**. It calculates battery drain ($Wh$), tire pressure ($PSI$), and climb categorization based specifically on your **Total System Weight**, **Bike Type**, and **Tire Width**.
+
+### 🤖 Native AI Orchestration (MCP)
+The ultimate competitive advantage: BikeScout isn't just a script; it’s a specialized brain for your AI.
+* **Generic Maps:** Require manual searching, external tabs, and visual guessing.
+* **BikeScout:** Is a native **Model Context Protocol (MCP)** server. It allows LLMs like Claude, ChatGPT, or Cursor to "reason" like a local guide, automatically synthesizing weather, terrain, and logistics into a single tactical briefing.
+
+---
+
+### 📊 Strategic Comparison at a Glance
+
+| Feature | Generic Navigators | BikeScout Tactical AI |
+| :--- | :--- | :--- |
+| **Elevation Accuracy** | Raw & Inflated | **Filtered & Realistic (SMA)** |
+| **Surface Analysis** | Basic (Paved/Dirt) | **Technical (S-Scale/Tracktype)** |
+| **Effort Calculation** | Time-based average | **Physics-based (Weight/Friction)** |
+| **Condition Prediction** | Future Weather only | **Mud Risk (72h Rain + Soil Memory)** |
+| **Climb Categorization** | None | **UCI-Standard (Cat 4 to HC)** |
+| **Logistics** | Sponsored / Restaurants | **Tactical (Water/Repair/Shelter)** |
+| **AI Integration** | Manual / External | **Native MCP Tooling** |
+---
+
+## Skills
 
 BikeScout doesn't just provide raw data; it utilizes a system of **Actionable Knowledge Bases** (Skills) to transform data into tactical decisions. The system operates on two distinct levels:
 
@@ -34,6 +115,7 @@ The AI goes beyond simple data reading, performing a dynamic synthesis in four p
 4.  **Synthesized Briefing**: Cross-references everything with real-time data.
     * *Example:* The `analyze_route_surfaces` tool will suggest lowering pressure to 1.6 Bar and using soft compounds *because* the local expert intelligence knows that specific terrain doesn't drain quickly after the rain detected by the weather tool.
 
+---
 
 ## Tools Reference
 

@@ -17,6 +17,18 @@ The system provides precise setup advice, tailoring your equipment to the demand
   </video>
 </div>
 
+---
+
+## Explore BikeScout
+*Master the tools of Tactical Cycling Intelligence. From deep-tech integration to field-ready insights, choose your path below:*
+
+* **[BikeScout Documentation](site/md/api_docs.md)** **The Technical Core.** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
+
+* **[Official Website](https://hifly81.github.io/bikescout)** **The Strategic Hub.** A high-level overview of our predictive algorithms. Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
+
+* **[Tactical Intelligence Blog](https://hifly81.github.io/bikescout/site/blog.html)** **Field Reports & R&D.** Stay ahead of the curve with our latest research on cycling AI, terrain analysis updates, and real-world testing of tactical routing logic.
+
+
 **Love BikeScout?** ⭐ Star this repo to support the development of the first open-source tactical cycling engine.
 
 **Found a bug?** Open an Issue. Want to add a local skill? PRs are welcome!
@@ -54,42 +66,6 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 * *"Analyze my Strava ride from 2026-04-12. Compare my average speed with the Mud Risk at that time and tell me if the terrain conditions were the reason for my slow pace."*
 * *"Check my ride from last Sunday on Strava. Cross-reference the GPS path with the 72h rain history to see if the 'High' mud risk I encountered was accurately predicted."*
 * *"Get my activity from Strava for [Date]. Based on the surface types detected and the weather context of that day, was my tire pressure setup (1.8 bar) optimal or should I have gone lower?"*
-
----
-
-## Key Features
-
-🗺️ Terrain & Surface Intelligence
-- **Real Trail Discovery**: Fetches actual trail names and surface data directly from OpenStreetMap (via Overpass API).
-- **Surface Breakdown**: Generates a detailed percentage breakdown of the entire route (asphalt, gravel, dirt, etc.).
-- **Technical Grading**: Analyzes OSM Tracktypes (Grade 1-5) to distinguish between smooth fire roads and rugged, technical MTB paths.
-- **Bike Compatibility Check**: A first-of-its-kind feature that validates if a route suits your specific bike (Road, Gravel, MTB) and tire width, issuing instant safety warnings.
-
-🌡️ Predictive Environmental Modeling
-- **TAEL Algorithm**: Our flagship Terrain-Aware Evaporation Lag model that predicts "Shadow-Lock" mud on north-facing slopes by analyzing real-time solar altitude and soil memory.
-- **Predictive Mud Risk**: Advanced rideability analysis based on geological soil composition (Clay vs. Sand) and 72-hour precipitation history.
-- **Tactical Ride Window**: A "Go/No-Go" decision engine that identifies the optimal start time by cross-referencing atmospheric hazards with terrain saturation.
-- **Smart Safety Weather**: Hyper-local 4-hour forecasts with expert-level gear and layering advice based on temperature, wind, and rain thresholds.
-- **Hydration Scout**: Calculates real-time liquid and electrolyte requirements based on the route's technical intensity and the maximum forecasted temperature for the next four hours.
-
-📈 High-Fidelity Navigation & Altimetry
-- **Wall-Sense Technology**: Automatically detects gradients >10% and injects active <wpt> alerts into your GPX file to warn you on your head unit before you hit the "wall."
-- **Tactical GPX Export**: Produces optimized GPX files (max 1,500 points) to eliminate GPS signal noise while strictly preserving critical elevation spikes.
-- **Visual Elevation Profiling**: Generates high-resolution graphical sparklines with chromatic difficulty scaling, cached locally to save AI context window.
-- **Pro Climb Categorization**: Automatically identifies and ranks climbs using professional UCI standards (from Category 4 to Hors Catégorie).
-
-🧠 Mission Logistics & Intelligence
-- **Smart POI Scouting**: Scans a 2km radius along the route for drinking water, bicycle repair stations, and mountain shelters.
-- **E-MTB Energy Management**: Calculates estimated battery consumption (Wh) based on rider weight, assist mode (Eco/Boost), and terrain-specific rolling resistance.
-- **Local Expert Skills**: Specialized "Local Wisdom" knowledge bases for world-class destinations like The Dolomites, Moab, and Finale Ligure.
-- **Post-Ride Analysis**: Fuses Strava activity logs with environmental intelligence to analyze how mud and weather conditions impacted your actual performance.
-
-## Documentation
-
-- [API & Tools Documentation](site/md/api_docs.md)
-- [Website](https://hifly81.github.io/bikescout)
-- [Blog](https://hifly81.github.io/bikescout/site/blog.html)
-- [Why BikeScout? (vs Generic Maps)](site/md/comparison.md)
 
 ---
 

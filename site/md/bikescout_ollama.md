@@ -1,13 +1,13 @@
 # Deploy and Use BikeScout with Ollama and Open WebUI
 
+If you prefer a private and free experience without external API costs, use the `docker-compose-ollama.yml`
+file to run BikeScout with Ollama (Llama 3/Mistral) instead of OpenAI.
+Refer to this guide to setup a complete local installation with Ollama and Open WebUI.
+
 Pre Requirements:
 
 * **Docker Desktop:** [Download it here](https://www.docker.com/products/docker-desktop/).
 * **OpenRouteService Key:** [Sign up here](https://openrouteservice.org/) for trail and surface data.
-
-If you prefer a private and free experience without external API costs, use the `docker-compose-ollama.yml`
-file to run BikeScout with Ollama (Llama 3/Mistral) instead of OpenAI.
-Refer to this guide to setup a complete local installation with Ollama and Open WebUI
 
 Deploy BikeScout:
 
@@ -21,6 +21,7 @@ OPENAI_API_KEY=your_llm_key_here
 ```bash
 docker compose -f docker-compose-ollama.yml up -d
 ```
+4. Launch Open WebUI: connect to http://localhost:3000 and follow the instructions to create a first user.
 
 ## Enable BikeScout using Open WebUI
 

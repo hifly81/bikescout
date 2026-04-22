@@ -92,6 +92,11 @@ docker-compose up -d
 - On PC: Open http://localhost:3000
 - On Smartphone: Connect to the same Wi-Fi, find your PC's IP (e.g., 192.168.1.15), and open http://192.168.1.15:3000.
 
+To teardown the environment, execute:
+```bash
+docker compose down -v
+```
+
 ### Using Docker, Ollama and Open WebUI
 
 If you prefer a private and free experience without external API costs, use the `docker-compose-ollama.yml`
@@ -157,11 +162,6 @@ Example:
     }
   }
 }
-```
-
-To teardown the environment, execute:
-```bash
-docker compose down -v
 ```
 
 ## Debugging and Testing

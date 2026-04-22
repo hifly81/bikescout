@@ -26,6 +26,7 @@ docker compose -f docker-compose-ollama.yml up -d
    docker exec -it ollama ollama pull llama3.1:8b
 ```
 5. Launch Open WebUI: connect to http://localhost:3000 and follow the instructions to create a first user.
+6. Explore the Open API docs for BikeScout tools: http://localhost:8000/bikescout/docs
 
 
 ## Enable BikeScout using Open WebUI

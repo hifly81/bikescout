@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BikeScout Blog | Tactical Analysis: The Oropa Conquest</title>
+    <meta name="description" content="Decoding the Giro d'Italia 2024 Stage 2. How BikeScout's new GPX engine analyzed the Santuario di Oropa climb and Pogačar's performance zones.">
+    <meta name="keywords" content="MCP Server, Giro d'Italia, Oropa, Cycling Data Analysis, GPX Tool, Pro Cycling, Tactical Intelligence">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout">
+    <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+    <meta property="og:title" content="BikeScout | Tactical Giro Analysis">
+    <meta property="og:description" content="From raw GPX to World Tour Insights. Discover the power required to win on Oropa.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hifly81.github.io/bikescout">
+    <meta property="og:image" content="https://hifly81.github.io/bikescout/site/images/preview.png">
+    <meta http-equiv="content-language" content="en">
+
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "BikeScout",
+            "alternateName": "BikeScout Tactical Intelligence",
+            "description": "Advanced MCP server for tactical cycling intelligence. Features predictive mud logic, S-Scale terrain grading, and real-time OSM data analysis for AI-powered route planning.",
+            "applicationCategory": "MapApplication, HealthApplication",
+            "operatingSystem": "Independent (MCP Protocol)",
+            "downloadUrl": "https://github.com/hifly81/bikescout",
+            "license": "https://opensource.org/licenses/apache-2.0",
+            "softwareVersion": "1.1.1",
+            "keywords": "MCP server, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
+            "author": {
+                "@type": "Person",
+                "name": "hifly81",
+                "url": "https://github.com/hifly81"
+            },
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "EUR",
+                "availability": "https://schema.org/InStock"
+            },
+            "featureList": [
+                "Predictive Mud Logic: AI analysis of soil and weather to predict trail conditions.",
+                "S-Scale Grading: Technical terrain classification from S0 to S5.",
+                "MCP Integration: Model Context Protocol for Claude, ChatGPT, and Cursor.",
+                "Tactical POI Discovery: Real-time identification of strategic water points and shelters.",
+                "Dynamic GPX Generation: Tailored routing based on technical skill and bike type."
+            ],
+            "screenshot": "https://hifly81.github.io/bikescout/site/images/preview.png",
+            "softwareRequirements": "Python 3.10+, MCP Client (Claude Desktop, etc.)"
+        }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; overflow-x: hidden; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .bg-neon { background-color: #bef264; }
+
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content p { margin-bottom: 2rem; color: #cbd5e1; font-size: 1.25rem; }
+        .article-content strong { color: white; font-weight: 800; }
+        .article-content .dropcap { float: left; font-size: 5rem; line-height: 0.8; font-weight: 900; color: #bef264; margin-right: 0.75rem; font-style: italic; margin-top: 0.5rem; }
+
+        .tactical-box { background: rgba(190, 242, 100, 0.05); border: 1px dashed #bef264; padding: 2rem; margin: 3rem 0; border-radius: 2px; }
+        .hero-mesh {
+            background-color: #0f172a;
+            background-image: radial-gradient(#334155 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="blog.html" class="text-neon-text">Blog</a>
+            <a href="cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="about.html" class="hover:text-neon-text transition-colors">About</a>
+        </div>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">Dissecting Oropa: How our GPX Engine decoded Stage 2 of the Giro 2024.</h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Released: April 24, 2026</p>
+    </header>
+
+    <div class="article-content">
+        <p>When the Giro d'Italia 2024 peloton rolled out of San Francesco al Campo, headed toward the legendary Santuario di Oropa, the cycling world was braced for a historic showdown. While most fans were captivated by the romanticism of the climb, we were focused on a high-resolution data stream. <br>Using the latest BikeScout GPX Intelligence Tool, we processed every meter of the 155.29 km track to decode the exact tactical requirements of this iconic 2024 stage.</p>
+
+        <div class="mb-12 rounded overflow-hidden border border-slate-800 bg-slate-900/20">
+            <img src="images/giro2024.jpg" alt="Giro d'Italia 2024 Stage 2 Analysis" class="w-full h-auto opacity-90 hover:opacity-100 transition-opacity">
+            <div class="p-3 border-t border-slate-800 flex justify-between items-center mono text-[9px] uppercase tracking-widest text-slate-500">
+                <span>Fig 1.0: Altimetric Profiling</span>
+                <span>Source: <a href="https://www.giroditalia.it/" target="_blank" class="neon-text hover:underline">giroditalia.it</a></span>
+            </div>
+        </div>
+
+        <p>The results confirm what we suspected: Oropa is not just a climb; it's a brutal filtration system. Our engine identified a total ascent of <strong>2245.6 meters</strong>, peaking at an altitude of 1136m. But the raw numbers only tell half the story. The true intelligence lies in the <strong>Climb Analysis</strong> and the <strong>Performance Simulation</strong>.</p>
+
+        <div class="tactical-box">
+            <h3 class="neon-text mono font-bold mb-4">CRITICAL MISSION DATA:</h3>
+            <ul class="mono text-xs space-y-2">
+                <li>> DISTANCE: 155.29 KM</li>
+                <li>> TOTAL GAIN: 2245.6 M</li>
+                <li>> FINAL CLIMB (CAT 1): 14.25 KM @ 5.0%</li>
+                <li>> PEAK GRADIENT DETECTED: 28.0%</li>
+            </ul>
+        </div>
+
+        <h2>The Anatomy of the Cat 1 Finale</h2>
+        <p>While the stage features several Cat 3 ascents (Oasi Zegna and Nelva), the real battle was at km 140.7. Our tool flagged the <strong>Santuario di Oropa</strong> as a 14.25 km sector with a 716m vertical gain. Our <strong>Performance Simulation</strong> modeled a required VAM of 1350 for the leaders, translating to a staggering <strong>6.5 Watts/kg</strong> (approx. 467.8 Watts) to stay in the Pink Jersey hunt.</p>
+
+        <h2>Explosivity Zones: The "Road Walls"</h2>
+        <p>The most fascinating discovery was the identification of <strong>"Steep Road Walls"</strong>, micro-sectors with explosive gradients that don't show up in average slope data. We detected multiple zones exceeding <strong>25% gradient</strong> at km 97, 111, and 128. <br>These are the "leg-breakers" where positioning becomes the only variable that matters.</p>
+
+        <p>Tadej Pogačar’s attack was anticipated by our data: at km 140.7, the engine shifted from a 5.29 W/kg "cruising" simulation to a 6.5 W/kg "elite" threshold. The terrain demanded a masterpiece, and the data provided the blueprint.</p>
+
+        <h2>Conclusion: Ground Truth over Guesswork</h2>
+        <p>By fusing UCI category scoring with localized explosivity zones, we can now predict exactly where a race will break. <br>This level of precision is made possible by our <strong><a href="https://github.com/hifly81/bikescout/releases/tag/1.1.0">Version 1.1.0</a></strong> release, transforming raw GPX files into tactical masterpieces. <br>The Santuario di Oropa was a masterclass in effort, and our tool captured every watt of it.</p>    </div>
+
+    <div class="mt-20 flex flex-wrap gap-3">
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#Giro2024</span>
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#Oropa-Analysis</span>
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#GPX-Tactics</span>
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#Performance-Modeling</span>
+    </div>
+
+</article>
+
+<footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em]">
+    BikeScout @ 2026 // <span class="text-white">hifly81</span>
+</footer>
+
+</body>
+</html>

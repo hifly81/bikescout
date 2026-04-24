@@ -2,7 +2,7 @@ import requests
 import numpy as np
 from datetime import datetime, date
 from bikescout.tools.mud import get_mud_risk_analysis
-from bikescout.tools.geophysic import haversine_distance
+from bikescout.tools.geophysic import calculate_geodetic_segment
 from bikescout.tools.bike_setup import analyze_compatibility
 from bikescout.tools.bike_setup import get_tire_setup
 from bikescout.tools.battery import calculate_battery_drain
@@ -237,7 +237,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             real_dist_m = 0
             for i in range(len(geometry) - 1):
                 p1, p2 = geometry[i], geometry[i+1]
-                real_dist_m += haversine_distance(p1[1], p1[0], p2[1], p2[0])
+                real_dist_m += calculate_geodetic_segment(p1[1], p1[0], p2[1], p2[0])["distance"]
 
             # Surface Mapping
             surface_map = {0: "Unknown", 1: "Asphalt", 2: "Unpaved", 3: "Paved", 5: "Gravel", 11: "Grass", 14: "Concrete"}

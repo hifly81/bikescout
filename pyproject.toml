@@ -11,7 +11,7 @@ authors = [
 description = "Professional MCP server for AI-powered cycling and mountain bike route discovery, terrain analysis, and GPX generation."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = { text = "AGPL-3.0-only" }
 
 keywords = [
     "mcp",

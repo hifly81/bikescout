@@ -204,7 +204,7 @@ Contributions are what make the open-source community such an amazing place to l
 - Ensure all new tools are documented in the `README.md`.
 - Keep comments in English for international collaboration.
 
-*By contributing, you agree that your contributions will be licensed under the project's Apache-2.0 License.*
+*By contributing, you agree that your contributions will be licensed under the project's AGPLv3 License.*
 
 ---
 

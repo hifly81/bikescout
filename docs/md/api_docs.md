@@ -4,6 +4,25 @@ Tactical Cycling Intelligence | MCP Server for AI-Powered Mission Planning.
 
 _Version: 1.2.1 - April 2026_
 
+## License & Data Attributions
+
+### Software License
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** - see the [LICENSE](LICENSE) file for details.
+
+#### Why AGPLv3? 
+BikeScout contains proprietary-grade tactical logic (such as the TAEL Mud Reservoir Model). The AGPLv3 ensures that:
+- Transparency: Any modified version of BikeScout used to provide a service over a network (SaaS/Cloud) must make its full source code available to the community.
+- Integrity: The core tactical intelligence remains open and collaborative, preventing "closed-source" commercial hijacking of the platform's unique algorithms.
+
+### Data Sources & Credits
+BikeScout aggregates data from several open providers. Users of this server must adhere to their respective terms:
+
+* **Routing & Map Data:** Provided by [OpenRouteService](https://openrouteservice.org/) by HeiGIT.
+* **Geospatial & Geocoding Data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Data is available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Geocoding service powered by [Nominatim](https://nominatim.org/).
+* **Weather Forecasts:** Powered by [Open-Meteo](https://open-meteo.com/). Data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+* **Post-ride analysis**: Provided by Strava. Post-ride analysis and GPS telemetry are accessed via the [Strava API](https://developers.strava.com/docs/reference).
+
+
 ---
 
 ## Key Features

@@ -9,7 +9,7 @@ version: 1.2.1
 date-released: 2026-04-28
 url: "https://github.com/hifly81/bikescout"
 repository-code: "https://github.com/hifly81/bikescout"
-license: Apache 2
+license: AGPL-3.0-only
 keywords:
   - mcp-server
   - cycling-intelligence

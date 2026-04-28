@@ -211,7 +211,12 @@ Contributions are what make the open-source community such an amazing place to l
 ## License & Data Attributions
 
 ### Software License
-This project is licensed under the **Apache-2.0 License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** - see the [LICENSE](LICENSE) file for details.
+
+#### Why AGPLv3? 
+BikeScout contains proprietary-grade tactical logic (such as the TAEL Mud Reservoir Model). The AGPLv3 ensures that:
+- Transparency: Any modified version of BikeScout used to provide a service over a network (SaaS/Cloud) must make its full source code available to the community.
+- Integrity: The core tactical intelligence remains open and collaborative, preventing "closed-source" commercial hijacking of the platform's unique algorithms.
 
 ### Data Sources & Credits
 BikeScout aggregates data from several open providers. Users of this server must adhere to their respective terms:

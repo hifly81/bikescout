@@ -63,10 +63,6 @@ def calculate_ride_windows(
         START_ALLOWED = sunrise_h + 1
         END_ALLOWED = sunset_h
 
-        # 2. DATA ACQUISITION
-        from bikescout.tools.weather import get_weather_forecast
-        from bikescout.tools.mud import get_mud_risk_analysis
-
         weather_data = get_weather_forecast(lat, lon, target_date)
         mud_risk_data = get_mud_risk_analysis(lat, lon, surface_type)
 
@@ -116,6 +112,18 @@ def calculate_ride_windows(
             else: current_score -= (avg_rain * 0.5)
 
             if max_wind > 25: current_score -= (max_wind - 25) * 2
+            if surface_type != "asphalt":
+                current_score -= (current_mud_score * 0.6)
+
+            if avg_temp <= 0:
+                current_score -= 20
+
+            if avg_temp < 10:
+                current_score -= (10 - avg_temp) * 4
+
+            if avg_temp > 30:
+                current_score -= (avg_temp - 30) * 5
+
             if surface_type != "asphalt":
                 current_score -= (current_mud_score * 0.6)
 

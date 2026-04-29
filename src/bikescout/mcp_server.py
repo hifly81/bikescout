@@ -280,7 +280,7 @@ def hydration_scout(
         lat: float,
         lon: float,
         duration_hours: float = 2,
-        intensity_score: int = 50,
+        intensity_score: int = 3,
         target_date: Optional[str] = None
 ):
     """
@@ -295,8 +295,7 @@ def hydration_scout(
         lat: Latitude of the mission area.
         lon: Longitude of the mission area.
         duration_hours: Estimated time in the saddle.
-        intensity_score: Physiological effort (0 to 100).
-                         0: Rest, 50: Standard, 100: Max Effort/Race.
+        intensity_score: Physiological effort (1 to 5) 5 = Max Effort/Race.
         target_date: Optional. The date of the event in YYYY-MM-DD format.
     """
     # 1. Fetch weather context using the updated forecast engine

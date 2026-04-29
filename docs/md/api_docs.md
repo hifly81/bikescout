@@ -1312,13 +1312,13 @@ The **Physiological Intelligence Engine** of BikeScout. This tool translates env
 * **Predictive "Bonk" & Heat Alerts**: Tactical triggers detect high-risk scenarios, such as Thermoregulatory Strain (Temp > 28°C) or Sub-Surface Depletion (High Intensity + Duration > 2.5h), issuing critical mission-saving briefings.
 #### **Parameters:**
 
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `lat` | `float` | **Required** | Latitude of the mission area for weather correlation. |
-| `lon` | `float` | **Required** | Longitude of the mission area for weather correlation. |
-| `duration_hours` | `float` | **Required** | Total estimated time in the saddle. |
-| `intensity_score` | `int` | `50` | Physiological effort (0-100). Agent should scale this based on climb categories (e.g., HC climbs = 90). |
-| `target_date` | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format |
+| Parameter | Type | Default      | Description                                                                                         |
+| :--- | :--- |:-------------|:----------------------------------------------------------------------------------------------------|
+| `lat` | `float` | **Required** | Latitude of the mission area for weather correlation.                                               |
+| `lon` | `float` | **Required** | Longitude of the mission area for weather correlation.                                              |
+| `duration_hours` | `float` | **Required** | Total estimated time in the saddle.                                                                 |
+| `intensity_score` | `int` | `3`          | Physiological effort (1-5). Agent should scale this based on climb categories.                      |
+| `target_date` | `string` |              | target_date: Optional string in 'YYYY-MM-DD' format                                                 |
 
 #### **Tool Output Example (JSON):**
 ```json

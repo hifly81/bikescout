@@ -30,7 +30,7 @@ def get_mud_risk_analysis(
         surface_type: Literal["asphalt", "sand", "gravel", "grass", "dirt", "earth", "clay"] = "dirt",
         target_date: str = None) -> Dict[str, Any]:
     """
-    Tactical Mud Risk Analysis v3.0: Time-Step Reservoir Model (TAEL).
+    Tactical Mud Risk Analysis v3.1: Time-Step Reservoir Model TAEL®.
 
     This engine simulates ground saturation by tracking moisture via an hourly recursive formula:
     Mt = Mt-1 * e^(-k * Dt) + Rt
@@ -40,20 +40,22 @@ def get_mud_risk_analysis(
     """
     try:
         # --- 1. Temporal Window Logic ---
+        # Set the tactical reference point: use provided target or default to current UTC time
         if target_date:
             reference_date = datetime.strptime(target_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         else:
             reference_date = datetime.now(timezone.utc)
 
-        # 72-hour look-back window for building the "Reservoir"
+        # Establish a 72-hour look-back window to build the moisture "Reservoir" state
+        # This historical context is vital for determining deep soil saturation
         end_date = reference_date
         start_date = end_date - timedelta(hours=72)
 
-        # Determine API to use (Forecast for future, Archive for past)
-        # Open-Meteo standardizes on YYYY-MM-DD strings for hourly bounds
+        # Route request to either Forecast API (future planning) or Archive API (historical analysis)
         is_predictive = reference_date > datetime.now(timezone.utc)
         url = FORECAST_URL if is_predictive else ARCHIVE_URL
 
+        # Parameters optimized for hourly resolution to capture flash rain events
         params = {
             "latitude": lat,
             "longitude": lon,
@@ -78,7 +80,7 @@ def get_mud_risk_analysis(
             raise ValueError("No hourly weather data returned from API.")
 
         # --- 3. The Reservoir State Machine Setup ---
-        # Base drainage constants (k) - higher means faster drainage/drying
+        # Drainage coefficients (k): higher values represent superior permeability
         soil_k_matrix = {
             "asphalt": 0.50,
             "sand": 0.30,
@@ -86,23 +88,23 @@ def get_mud_risk_analysis(
             "grass": 0.10,
             "dirt": 0.08,
             "earth": 0.08,
-            "clay": 0.04
+            "clay": 0.04  # High water retention, prone to saturation
         }
         base_k = soil_k_matrix.get(surface_type.lower(), 0.08)
 
-        # State variables
-        M = 0.0  # Ground reservoir moisture (mm equivalent)
-        pet_hours = 0  # Potential Evapotranspiration hours (Sun > 20°)
-        total_raw_rain = 0.0
-        recent_rain_12h = 0.0
-        recent_dt_sum = 0.0 # Used for forward-simulating the Dry-Time ETA
+        # Initialization of tactical state variables
+        M = 0.0               # Current reservoir moisture level (mm equivalent)
+        pet_hours = 0         # Count of hours with significant solar drying potential
+        total_raw_rain = 0.0  # Cumulative precipitation over the 72h window
+        recent_rain_12h = 0.0 # Recent rainfall impacting immediate surface traction
+        recent_dt_sum = 0.0   # Rolling sum of drying potential for ETA forecasting
 
         # --- 4. Hourly Integration Loop ---
+        # Iteratively solve the moisture balance for every hour in the window
         for i in range(len(times)):
-            # Parse current hour string to datetime
             current_dt = datetime.fromisoformat(times[i]).replace(tzinfo=timezone.utc)
 
-            # Skip dates outside our exact 72h window if API returned extra days
+            # Ensure strict adherence to the 72h window bounds
             if current_dt < start_date or current_dt > end_date:
                 continue
 
@@ -116,16 +118,15 @@ def get_mud_risk_analysis(
                 recent_rain_12h += rain
 
             # A. Time-Integrated Solar Engine
-            # Calculate exact sun altitude for this specific hour
+            # Determine solar elevation to assess UV-based evaporation
             solar_alt = get_altitude(lat, lon, current_dt)
 
             # B. Calculate Drying Potential (Dt)
-            # Temp factor: Approaches 0 below freezing, scales up with heat
+            # Apply environmental scaling factors (Temperature, Wind, Sun)
             temp_factor = max(0.01, (temp / 20.0))
-            # Wind factor: Base drying + wind kinetic energy
             wind_factor = max(0.5, (wind / 15.0))
 
-            # Solar factor: Active only when sun is > 20°, mitigated by cloud cover
+            # Solar drying is only active when Sun > 20°, attenuated by cloud cover
             solar_factor = 1.0
             if solar_alt > 20:
                 solar_factor += ((solar_alt / 90.0) * (1.0 - (cloud / 100.0)))
@@ -133,36 +134,38 @@ def get_mud_risk_analysis(
 
             Dt = temp_factor * wind_factor * solar_factor
 
-            # Store recent Dt to project future drying ETA
+            # Record 24h drying trend for predictive simulation
             if (end_date - current_dt).total_seconds() <= (24 * 3600):
                 recent_dt_sum += Dt
 
             # C. Non-Linear Soil Sensitivity (Clay Clumping)
+            # Simulate the physical 'sealing' effect of clay when saturated
             current_k = base_k
             if surface_type.lower() == "clay" and M > 12.0:
-                # Clay loses 70% of its drainage efficiency once heavily saturated
+                # Saturated clay loses ~70% of its drainage efficiency
                 current_k *= 0.3
 
-                # D. The Recursive Reservoir Formula
+            # D. The Recursive Reservoir Formula
             # Mt = Mt-1 * e^(-k * Dt) + Rt
+            # This simulates exponential decay of moisture plus new hourly rainfall
             M = (M * math.exp(-current_k * Dt)) + rain
 
         # --- 5. Dry-Time ETA Simulation ---
-        # Simulate how many hours it will take for the reservoir to drop below 'Optimal'
+        # Project how many hours of favorable weather are needed to reach 'Optimal' status
         dry_threshold = 2.0
         eta_hours = 0
-        avg_recent_Dt = max(0.1, (recent_dt_sum / 24.0)) # Average drying potential of the last 24h
+        avg_recent_Dt = max(0.1, (recent_dt_sum / 24.0)) # Extract recent drying trend
 
         sim_M = M
         sim_k = base_k
-        while sim_M > dry_threshold and eta_hours < 96: # Cap simulation at 4 days
-            # Apply same clay clumping logic to simulation
+        while sim_M > dry_threshold and eta_hours < 96: # Cap projection at 96 hours
+            # Maintain non-linear soil logic within the simulation
             iter_k = sim_k * 0.3 if (surface_type.lower() == "clay" and sim_M > 12.0) else sim_k
             sim_M = sim_M * math.exp(-iter_k * avg_recent_Dt)
             eta_hours += 1
 
         # --- 6. Dual-Risk Categorization ---
-        # Traction Risk: heavily biased by immediate surface conditions (recent rain + total moisture)
+        # Traction Risk: Measures immediate 'greasiness' of the top layer
         traction_index = (recent_rain_12h * 1.5) + (M * 0.5)
         if traction_index < 2.0:
             traction_risk = "Low"
@@ -174,7 +177,7 @@ def get_mud_risk_analysis(
             traction_risk = "High"
             traction_advice = "Zero traction. Surface is slick; tires will pack with mud instantly."
 
-        # Trail Damage Risk: purely based on deep reservoir saturation
+        # Trail Damage Risk: Measures structural stability to prevent trenching
         if M < 4.0:
             damage_risk = "Low"
             damage_advice = "Trail structure is solid. No rutting expected."
@@ -186,12 +189,13 @@ def get_mud_risk_analysis(
             damage_advice = "DO NOT RIDE. Trail is structurally compromised. Riding will cause deep, permanent trenching."
 
         # --- 7. Payload Assembly ---
+        # Construct the final tactical intelligence report
         return {
             "status": "Success",
             "metadata": {
                 "target_date": reference_date.isoformat(),
                 "is_predictive": is_predictive,
-                "model_version": "TAEL v3.0"
+                "model_version": "TAEL® v3.0"
             },
             "environmental_context": {
                 "total_rain_72h_mm": round(total_raw_rain, 1),
@@ -200,6 +204,7 @@ def get_mud_risk_analysis(
             },
             "tactical_analysis": {
                 "surface_type": surface_type,
+                "mud_risk_numeric": round(M, 2),
                 "traction_risk": {
                     "level": traction_risk,
                     "advice": traction_advice
@@ -213,6 +218,7 @@ def get_mud_risk_analysis(
         }
 
     except Exception as e:
+        # Telemetry catch-all for API or calculation failures
         return {
             "status": "Error",
             "message": f"Telemetry failure: {str(e)}",

@@ -7,7 +7,7 @@ Location: Italy
 Last update: 2026/04/24
 Language: English
 Standards: HTML5, CSS3, Tailwind CSS
-Components: MCP (Model Context Protocol), Python, OpenStreetMap, Strava API
+Components: MCP (Model Context Protocol), Python, OpenStreetMap
 
 /* TECHNOLOGY STACK */
 Platform: GitHub Pages

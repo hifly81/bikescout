@@ -28,7 +28,6 @@ from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.geocoding import get_coordinates
 from bikescout.tools.poi import get_poi_scout
 from bikescout.tools.mud import get_mud_risk_analysis
-from bikescout.tools.strava import get_strava_activity
 from bikescout.tools.gonogo import calculate_ride_windows
 from bikescout.tools.altimetry import get_elevation_profile_image
 from bikescout.tools.nutrition import get_nutrition_plan
@@ -45,9 +44,6 @@ load_dotenv()
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 
 ORS_API_KEY = os.getenv("ORS_API_KEY")
-STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
-STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
-STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
 
 if not ORS_API_KEY:
     print("Error: ORS_API_KEY is not set.", file=sys.stderr)
@@ -73,37 +69,118 @@ def geocode_location(location_name: str, language: str = "en"):
 
 @mcp.tool()
 def trail_scout(
-        lat: float,
-        lon: float,
+        latitude: float,
+        longitude: float,
         rider: RiderProfile,
         bike: BikeSetup,
         mission: MissionConstraints,
+        dest_latitude: Optional[float] = None,
+        dest_longitude: Optional[float] = None,
         include_gpx: bool = True,
         include_map: bool = False,
+        style: Literal["sparkline", "filled", "bars"] = "filled",
         output_level: Literal["summary", "standard", "full"] = "standard",
         target_date: Optional[str] = None
 ):
     """
     Advanced trail discovery.
-    Returns route data, difficulty, a GPX file, and a STATIC MAP IMAGE
+    Returns route data, difficulty, a GPX file, and a URI with the altimetry report.
     that can be displayed directly in the chat.
+    Supports both single-point Round Trips and A->B separate destinations.
     If target_date is None, it defaults to the current date.
 
     Args:
-        lat: Latitude of the starting point.
-        lon: Longitude of the starting point.
+        latitude: Latitude of the starting point.
+        longitude: Longitude of the starting point.
         rider: Profile including weight and fitness level.
         bike: Setup details including bike type and tire width.
         mission: Constraints like search radius and surface preference.
-        include_gpx: If True, generates a downloadable GPX file for navigation.
-        include_map: If True, generates a visual static map image.
+        dest_latitude: Latitude of the ending point.
+        dest_longitude: Longitude of the ending point.
+        include_gpx: If True, generates a GPX file for navigation.
+        include_map: If True, generates a visual map image.
+        style: Visual style of the profile "sparkline", "filled", "bars".
         output_level: Detail level of the report ("summary", "standard", "full").
         target_date: Optional. The date of the event in YYYY-MM-DD format.
     """
 
     data = get_complete_trail_scout(
-        ORS_API_KEY, lat, lon, rider, bike, mission, include_gpx, include_map, output_level, target_date)
+        ORS_API_KEY, latitude, longitude, rider, bike, mission, dest_latitude, dest_longitude, include_gpx, include_map, style, output_level, target_date)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
+
+@mcp.tool()
+def trail_scout_simple(
+        latitude: float,
+        longitude: float,
+        # --- Rider Profile (Flat) ---
+        weight_kg: float = 75.0,
+        fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
+        # --- Bike Setup (Flat) ---
+        bike_type: Literal['mtb', 'road', 'gravel', 'e-mtb', 'enduro'] = "mtb",
+        tire_size: Literal["32", "29", "27.5", "700c", "650b"] = "29",
+        is_ebike: bool = False,
+        battery_wh: int = 625,
+        # --- Mission Constraints (Flat) ---
+        radius_km: int = 30,
+        profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = "cycling-mountain",
+        surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
+        complexity: int = 3,
+        seed: int = 42,
+        assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
+        dest_latitude: Optional[float] = None,
+        dest_longitude: Optional[float] = None,
+        # --- Output Options ---
+        include_gpx: bool = True,
+        include_map: bool = True,
+        style: Literal["sparkline", "filled", "bars"] = "filled",
+        output_level: Literal["summary", "standard", "full"] = "standard"
+):
+    """
+    Simplified tactical scout for cycling routes.
+    Use this for quick route generation with sensible defaults.
+    Only lat and lon are strictly required.
+    """
+    try:
+        # Internal reconstruction of validated Pydantic models
+        # This preserves all the validation logic (like e-bike battery checks)
+        rider = RiderProfile(
+            weight_kg=weight_kg,
+            fitness_level=fitness_level
+        )
+
+        bike = BikeSetup(
+            bike_type=bike_type,
+            tire_size=tire_size,
+            is_ebike=is_ebike,
+            battery_wh=battery_wh
+        )
+
+        mission = MissionConstraints(
+            radius_km=radius_km,
+            profile=profile,
+            surface_preference=surface_preference,
+            complexity=complexity,
+            seed=seed,
+            assist_mode=assist_mode
+        )
+
+        # Call the core logic (reusing the existing trail_scout logic)
+        return trail_scout(
+            latitude=latitude,
+            longitude=longitude,
+            rider=rider,
+            bike=bike,
+            mission=mission,
+            dest_latitude=dest_latitude,
+            dest_longitude=dest_longitude,
+            include_gpx=include_gpx,
+            include_map=include_map,
+            style=style,
+            output_level=output_level
+        )
+
+    except Exception as e:
+        return {"status": "Error", "message": f"Trail Scout Simple failed: {str(e)}"}
 
 @mcp.tool()
 def check_trail_weather(lat: float, lon: float, target_date: Optional[str] = None):
@@ -139,7 +216,7 @@ def ride_window_planner(
     """
     Tactical Go/No-Go Planner.
     Predicts the best riding window by cross-referencing weather stability
-    and TAEL soil drainage efficiency for the next 12-24 hours.
+    and TAEL® soil drainage efficiency for the next 12-24 hours.
     If target_date is None, it defaults to the current date.
 
     Args:
@@ -210,7 +287,7 @@ def check_trail_soil_condition(
 ):
     """
     Advanced predictive and historical model for ground saturation and mud risk.
-    Uses the TAEL (Terrain-Aware Evaporation Lag) algorithm to cross-reference
+    Uses the TAEL® (Terrain-Aware Evaporation Lag) algorithm to cross-reference
     cumulative 72h precipitation with drying efficiency factors.
 
     This tool is essential for:
@@ -224,7 +301,7 @@ def check_trail_soil_condition(
         target_date: Optional. The specific date to analyze (YYYY-MM-DD).
                      Defaults to today's date if not provided.
     """
-    # Executes the core TAEL logic with dynamic date windowing
+    # Executes the core TAEL® logic with dynamic date windowing
     data = get_mud_risk_analysis(lat, lon, surface_type, target_date)
 
     return {
@@ -233,33 +310,9 @@ def check_trail_soil_condition(
     }
 
 @mcp.tool()
-def analyze_strava_activity(activity_date: str):
+def elevation_profile_image(geometry: RouteGeometry, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "filled"):
     """
-    Analyzes a past Strava activity by date (format: YYYY-MM-DD).
-    Extracts real GPS data to provide a tactical post-ride report,
-    including surface breakdown and historical mud validation.
-
-    Args:
-        activity_date: The date of the ride in YYYY-MM-DD format.
-    """
-    if not all([STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN]):
-        return {
-            "status": "Error",
-            "message": "Strava credentials missing. Please set STRAVA_CLIENT_ID, CLIENT_SECRET and REFRESH_TOKEN."
-        }
-
-    data = get_strava_activity(
-        activity_date,
-        STRAVA_CLIENT_ID,
-        STRAVA_CLIENT_SECRET,
-        STRAVA_REFRESH_TOKEN
-    )
-    return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
-
-@mcp.tool()
-def elevation_profile_image(geometry: RouteGeometry, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "sparkline"):
-    """
-    Generates a visual elevation profile image (base64 encoded PNG).
+    Generates a visual elevation profile image amd return a URI with the altimetry report.
 
     This tool transforms raw elevation data into a color-coded graph:
     - Green: Flat/Easy (<3%)
@@ -415,6 +468,27 @@ def get_specific_knowledge(region: str) -> str:
 
     return f"Data for {region} not found."
 
+@mcp.resource("bikescout://altimetry/{filename}")
+def serve_altimetry_image(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "altimetry" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("Altimetry not found.")
+    return file_path.read_bytes()
+
+@mcp.resource("bikescout://maps/{filename}")
+def serve_map_image(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "maps" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("Map not found.")
+    return file_path.read_bytes()
+
+@mcp.resource("bikescout://gpx/{filename}")
+def serve_gpx(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "gpx" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("GPX not found.")
+    return file_path.read_bytes()
+
 @mcp.tool()
 def apply_safety_protocol(
         mission_type: Literal["mtb", "ebike", "road", "gravel", "general"]
@@ -474,8 +548,27 @@ def get_baseline_mechanics(bike_category: Literal["mtb", "ebike", "road", "grave
         "status": "Success"
     }
 
+import os
+
 def main():
-    mcp.run(transport='stdio')
+    """
+    Main entry point for the BikeScout MCP Server.
+    Supports both 'stdio' for local clients
+    and 'sse' for remote deployments/web interfaces.
+    """
+    # Use environment variable to choose the transport, defaulting to stdio
+    transport_mode = os.getenv("BIKESCOUT_TRANSPORT", "stdio").lower()
+
+    if transport_mode == "sse":
+        # Remote mode: Requires a host and port (defaulting to 0.0.0.0 for Docker/Cloud)
+        host = os.getenv("BIKESCOUT_HOST", "0.0.0.0")
+        port = int(os.getenv("BIKESCOUT_PORT", 8000))
+
+        print(f"Starting BikeScout MCP Server in SSE mode on {host}:{port}")
+        mcp.run(transport='sse', host=host, port=port)
+    else:
+        # Local mode: Standard I/O transport
+        mcp.run(transport='stdio')
 
 if __name__ == "__main__":
     main()

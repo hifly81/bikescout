@@ -18,7 +18,7 @@ import requests
 import uuid
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from bikescout.tools.maps import save_local_tactical_map
 from bikescout.tools.weather import get_weather_forecast
 from bikescout.tools.surface import get_surface_analyzer
@@ -44,15 +44,15 @@ def calculate_detailed_difficulty(dist_km: float, ascent_m: float) -> str:
 
     # 1. EXPERT: High distance, high climbing, or very steep
     if dist_km > 50 or ascent_m > 1000 or avg_gradient > 7:
-        return "🔴 Expert (Challenging distance or very steep climbs)"
+        return "🔥 Expert (Challenging distance or very steep climbs)"
 
     # 2. ADVANCED: Significant climbing or moderate distance
     if dist_km > 30 or ascent_m > 600 or avg_gradient > 4:
-        return "🟠 Advanced (Requires good fitness and stamina)"
+        return "⚡ Advanced (Requires good fitness and stamina)"
 
     # 3. MODERATE: Accessible but with some effort
     if dist_km > 15 or ascent_m > 300:
-        return "🟡 Moderate (Accessible for regular cyclists)"
+        return "🌿 Moderate (Accessible for regular cyclists)"
 
     # 4. BEGINNER: Short and flat
     return "🟢 Beginner (Short and relatively flat, ideal for everyone)"
@@ -84,7 +84,7 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
                 except:
                     pass
 
-                    # 2. ROBUST DATA EXTRACTION
+        # 2. ROBUST DATA EXTRACTION
         if hasattr(geojson_data, 'coordinates'):
             coords = geojson_data.coordinates
         elif isinstance(geojson_data, dict) and 'features' in geojson_data:
@@ -94,15 +94,16 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
             coords = geojson_data
 
         # 3. ELEVATION HEALING LAYER
-        # Detects and fixes 0.0 elevation points or impossible jumps by carrying over
-        # the previous known altitude. This prevents "climbing walls" glitches.
         healed_coords = []
+        points_fixed_count = 0
         for i in range(len(coords)):
             lon, lat, ele = coords[i]
 
-            # If current elevation is 0 or shows an impossible jump (>200m), fix it
-            if (ele <= 0 or (i > 0 and abs(ele - coords[i-1][2]) > 200)) and i > 0:
+            is_anomaly = (ele <= 0 or (i > 0 and abs(ele - coords[i-1][2]) > 200))
+
+            if is_anomaly and i > 0:
                 ele = coords[i-1][2]
+                points_fixed_count += 1
 
             healed_coords.append([lon, lat, ele])
 
@@ -178,13 +179,16 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(full_content)
 
+        mcp_uri = f"bikescout://gpx/{filename}"
+
         return {
             "status": "Success",
             "message": "Tactical GPX file successfully exported and cleaned.",
+            "mcp_resource_uri": mcp_uri,
             "file_location": str(file_path),
             "tactical_stats": {
                 "total_points": len(coords),
-                "healed_points": len(coords),
+                "healed_points": points_fixed_count,
                 "waypoints_count": waypoints.count('<wpt')
             }
         }
@@ -197,13 +201,16 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
 
 def get_complete_trail_scout(
         api_key,
-        lat: float,
-        lon: float,
+        latitude: float,
+        longitude: float,
         rider: RiderProfile,
         bike: BikeSetup,
         mission: MissionConstraints,
+        dest_latitude: Optional[float] = None,
+        dest_longitude: Optional[float] = None,
         include_gpx: bool = True,
         include_map: bool = False,
+        style: Literal["sparkline", "filled", "bars"] = "sparkline",
         output_level: Literal["summary", "standard", "full"] = "standard",
         target_date: str = None
 ):
@@ -211,20 +218,27 @@ def get_complete_trail_scout(
     The Master Orchestrator: Synchronized Technical Briefing.
     Integrates Surface Analysis, Weather-Driven Nutrition, Mud Risk,
     and Artifact Generation (GPX/Altimetry) using SMA-Sanitized data.
+
+    Supports both single-point Round Trips and A->B separate destinations.
     """
     # --- 1. CONFIGURATION ---
-    headers = {
-        'Accept': 'application/json, application/geo+json',
-        'Authorization': api_key,
-        'Content-Type': 'application/json'
-    }
 
-    routing_payload = {
-        "coordinates": [[lon, lat]],
-        "options": {"round_trip": {"length": mission.radius_km * 1000, "seed": mission.seed}},
-        "elevation": "true",
-        "extra_info": ["surface", "steepness"]
-    }
+    # Switch payload logic based on whether a destination is provided
+    if dest_latitude is not None and dest_longitude is not None:
+        # A -> B Route
+        routing_payload = {
+            "coordinates": [[longitude, latitude], [dest_longitude, dest_latitude]],
+            "elevation": "true",
+            "extra_info": ["surface", "steepness"]
+        }
+    else:
+        # Round Trip
+        routing_payload = {
+            "coordinates": [[longitude, latitude]],
+            "options": {"round_trip": {"length": mission.radius_km * 1000, "seed": mission.seed}},
+            "elevation": "true",
+            "extra_info": ["surface", "steepness"]
+        }
 
     try:
         # --- 2. EXECUTE PRIMARY ROUTING ---
@@ -247,7 +261,7 @@ def get_complete_trail_scout(
         surface_report = {}
         if output_level != "summary":
             try:
-                surface_report = get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date)
+                surface_report = get_surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
             except Exception as e:
                 surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
 
@@ -265,8 +279,9 @@ def get_complete_trail_scout(
             dominant_surface = "Unknown"
 
         # --- 5. CALL: WEATHER & MUD ---
-        weather_report = get_weather_forecast(lat, lon, target_date)
-        mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface, target_date)
+        # We query conditions at the starting coordinate as a baseline
+        weather_report = get_weather_forecast(latitude, longitude, target_date)
+        mud_analysis = get_mud_risk_analysis(latitude, longitude, dominant_surface, target_date)
 
         max_temp = 20.0
 
@@ -293,10 +308,11 @@ def get_complete_trail_scout(
                     # Fallback already set to reference_conditions or 20.0
                     pass
 
+        # --- 6. PERFORMANCE & LOGISTICS ---
         # Calculate intensity and estimated duration using synchronized stats
-        # Formula: dist/speed + vertical_penalty
-        estimated_hours = (dist_km / 16.0) + (ascent_m / 700.0)
-        intensity_score = 3 if (ascent_m > 1200 or dist_km > 60) else 2
+        perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
+        estimated_hours = perf["estimated_hours"]
+        intensity_score = perf["intensity_score"]
 
         nutrition_plan = get_nutrition_plan(estimated_hours, max_temp, intensity_score)
 
@@ -304,7 +320,8 @@ def get_complete_trail_scout(
         amenities = []
         if output_level == "full":
             try:
-                poi_res = get_poi_scout(api_key, lat, lon, mission.radius_km)
+                # Queries POIs around the starting point based on the mission radius
+                poi_res = get_poi_scout(api_key, latitude, longitude, mission.radius_km)
                 amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
             except:
                 amenities = []
@@ -314,6 +331,7 @@ def get_complete_trail_scout(
             "payload_version": "1.3",
             "status": "Success",
             "info": {
+                "route_type": "A to B" if (dest_latitude and dest_longitude) else "Round Trip",
                 "distance_km": dist_km,
                 "ascent_m": ascent_m,
                 "difficulty": calculate_detailed_difficulty(dist_km, ascent_m),
@@ -335,23 +353,27 @@ def get_complete_trail_scout(
 
         # --- 9. ARTIFACTS: MAP, GPX, ALTIMETRY ---
         if include_map:
-            response_payload["map_image_url"] = save_local_tactical_map(filename_part, data)
+            map_payload = save_local_tactical_map(filename_part, data)
+            if map_payload["status"] == "Success":
+                response_payload["map_path"] = map_payload["file_location"]
+                response_payload["mcp_resource_uri_map"] = map_payload["mcp_resource_uri"]
 
         if include_gpx:
             try:
                 gpx_report = generate_tactical_gpx(filename_part, geojson_data=route_geo, amenities=amenities)
                 if gpx_report["status"] == "Success":
                     response_payload["gpx_export_path"] = gpx_report["file_location"]
+                    response_payload["mcp_resource_uri_gpx"] = gpx_report["mcp_resource_uri"]
                     response_payload["gpx_stats"] = gpx_report.get("tactical_stats")
             except Exception as e:
                 response_payload["gpx_error"] = f"GPX failed: {str(e)}"
 
         if output_level != "summary":
             try:
-                altimetry_report = get_elevation_profile_image(geometry=route_geo, uuid_input=filename_part, style="filled")
+                altimetry_report = get_elevation_profile_image(geometry=route_geo, uuid_input=filename_part, style=style)
                 if altimetry_report["status"] == "Success":
                     response_payload["elevation_profile_path"] = altimetry_report["file_location"]
-                    response_payload["elevation_summary"] = altimetry_report.get("summary")
+                    response_payload["mcp_resource_uri_elevation_profile"] = altimetry_report["mcp_resource_uri"]
             except Exception as e:
                 response_payload["elevation_error"] = f"Altimetry failed: {str(e)}"
 
@@ -359,6 +381,69 @@ def get_complete_trail_scout(
 
     except Exception as e:
         return {"status": "Error", "message": f"Master Orchestrator failed: {str(e)}"}
+
+def calculate_performance_metrics(
+        dist_km: float,
+        ascent_m: float,
+        rider: RiderProfile,
+        bike: BikeSetup
+) -> dict:
+    """
+    Calculates estimated duration and intensity based on the Rider-Bike-Terrain triad.
+
+    This tactical engine replaces static averages with dynamic performance
+    modeling, considering base speed by bike type and VAM (Vertical Ascent Media)
+    by fitness level.
+    """
+    # 1. Base flat speed mapping (km/h) based on bike engineering
+    bike_speeds = {
+        "road": 25.0,
+        "gravel": 20.0,
+        "mtb": 15.0,
+        "enduro": 13.0,
+        "e-mtb": 18.0
+    }
+
+    # 2. VAM mapping (Vertical Ascent Media - Meters/Hour) based on fitness
+    fitness_vam = {
+        "beginner": 400.0,
+        "intermediate": 700.0,
+        "pro": 1000.0
+    }
+
+    # Normalize inputs
+    b_type = bike.bike_type.lower()
+    f_level = rider.fitness_level.lower()
+
+    # Get baseline performance values
+    base_speed = bike_speeds.get(b_type, 16.0)
+    vam = fitness_vam.get(f_level, 700.0)
+
+    # 3. E-bike Tactical Adjustments
+    if bike.is_ebike:
+        # E-bikes significantly boost climbing capacity regardless of fitness
+        # 850m/h is a conservative average for a rider using 'Trail' mode
+        vam = max(vam, 850.0)
+
+        # Speed bonus for heavy-rolling bikes when assisted
+        if b_type in ["mtb", "enduro", "e-mtb"]:
+            base_speed += 3.0
+
+    # 4. Final Duration Calculation
+    # Formula: Time on flats + Time dedicated to vertical gain
+    estimated_hours = (dist_km / base_speed) + (ascent_m / vam)
+
+    # 5. Relative Intensity Score
+    # Thresholds scale with fitness: what's easy for a Pro is Expert for a Beginner
+    intensity_threshold = 1200 if f_level == "pro" else 600
+    intensity_score = 3 if (ascent_m > intensity_threshold or dist_km > 60) else 2
+
+    return {
+        "estimated_hours": round(estimated_hours, 2),
+        "intensity_score": intensity_score,
+        "applied_vam": vam,
+        "applied_base_speed": base_speed
+    }
 
 def _map_surface_id(s_id):
     """Internal helper to convert ORS surface IDs to strings for Mud Analysis."""

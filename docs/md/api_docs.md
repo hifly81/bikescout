@@ -2,7 +2,7 @@
 
 Tactical Cycling Intelligence | MCP Server for AI-Powered Mission Planning.
 
-_Version: 1.2.2 - April 2026_
+_Version: 1.3.0 - April 2026_
 
 ## License & Data Attributions
 
@@ -10,7 +10,7 @@ _Version: 1.2.2 - April 2026_
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** - see the [LICENSE](LICENSE) file for details.
 
 #### Why AGPLv3? 
-BikeScout contains proprietary-grade tactical logic (such as the TAEL Mud Reservoir Model). The AGPLv3 ensures that:
+BikeScout contains proprietary-grade tactical logic (such as the TAEL® Mud Reservoir Model). The AGPLv3 ensures that:
 - Transparency: Any modified version of BikeScout used to provide a service over a network (SaaS/Cloud) must make its full source code available to the community.
 - Integrity: The core tactical intelligence remains open and collaborative, preventing "closed-source" commercial hijacking of the platform's unique algorithms.
 
@@ -20,8 +20,6 @@ BikeScout aggregates data from several open providers. Users of this server must
 * **Routing & Map Data:** Provided by [OpenRouteService](https://openrouteservice.org/) by HeiGIT.
 * **Geospatial & Geocoding Data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Data is available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Geocoding service powered by [Nominatim](https://nominatim.org/).
 * **Weather Forecasts:** Powered by [Open-Meteo](https://open-meteo.com/). Data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-* **Post-ride analysis**: Provided by Strava. Post-ride analysis and GPS telemetry are accessed via the [Strava API](https://developers.strava.com/docs/reference).
-
 
 ---
 
@@ -34,7 +32,7 @@ BikeScout aggregates data from several open providers. Users of this server must
 - **Bike Compatibility Check**: A first-of-its-kind feature that validates if a route suits your specific bike (Road, Gravel, MTB) and tire width, issuing instant safety warnings.
 
 ### ⛈️ Predictive Environmental Modeling
-- **TAEL Algorithm**: Our flagship **Terrain-Aware Evaporation Lag** model that predicts "Shadow-Lock" mud on north-facing slopes by analyzing real-time solar altitude and soil memory.
+- **TAEL® Algorithm**: Our flagship **Terrain-Aware Evaporation Lag** model that predicts "Shadow-Lock" mud on north-facing slopes by analyzing real-time solar altitude and soil memory.
 - **Predictive Mud Risk**: Advanced rideability analysis based on geological soil composition (Clay vs. Sand) and 72-hour precipitation history.
 - **Tactical Ride Window**: A "Go/No-Go" decision engine that identifies the optimal start time by cross-referencing atmospheric hazards with terrain saturation.
 - **Smart Safety Weather**: Hyper-local 4-hour forecasts with expert-level gear and layering advice based on temperature, wind, and rain thresholds.
@@ -50,7 +48,7 @@ BikeScout aggregates data from several open providers. Users of this server must
 - **Smart POI Scouting**: Scans a 5km radius along the route for drinking water, bicycle repair stations, and mountain shelters.
 - **E-MTB Energy Management**: Calculates estimated battery consumption (**Wh**) based on rider weight, assist mode (Eco/Boost), and terrain-specific rolling resistance.
 - **Local Expert Skills**: Specialized "Local Wisdom" knowledge bases for world-class destinations like The Dolomites, Moab, and Finale Ligure.
-- **Post-Ride Analysis**: Fuses Strava activity logs with environmental intelligence to analyze how mud and weather conditions impacted your actual performance.
+- **Post-Ride Analysis**: Fuses activity logs with environmental intelligence to analyze how mud and weather conditions impacted your actual performance.
 
 ### 🏁 Pro-Racing & Tactical Engine
 - **VAM & Power Modeling**: Precise **$W/kg$** requirements based on professional VAM targets and UCI climb categorization.
@@ -73,10 +71,10 @@ To a standard navigator, a trail is just a trail. To a scout, the difference bet
 * **Generic Maps:** Indiscriminately label everything non-asphalt as "unpaved."
 * **BikeScout:** Probes deep OSM metadata to extract **MTB-Scale (S0-S5)** and **Tracktypes (Grade 1-5)**. It warns you if your setup is "under-gunned" for a technical section before you are committed.
 
-### 🌧️ Ground Memory & TAEL Logic
+### 🌧️ Ground Memory & TAEL® Logic
 Standard forecasts only tell you if it *might* rain. BikeScout analyzes what *actually* happened to the soil.
 * **Generic Maps:** Provide only current atmospheric snapshots.
-* **BikeScout:** Uses the **TAEL (Terrain-Aware Evaporation Lag)** index. By cross-referencing 72h precipitation history with soil geology (Clay vs. Sand) and solar altitude, it predicts where "Shadow-Lock" mud persists even on sunny days.
+* **BikeScout:** Uses the **TAEL® (Terrain-Aware Evaporation Lag)** index. By cross-referencing 72h precipitation history with soil geology (Clay vs. Sand) and solar altitude, it predicts where "Shadow-Lock" mud persists even on sunny days.
 
 ### ⚡ E-MTB & Mechanical Synchronization
 Effort is relative to your machine. A 20% gradient feels different on a 7kg Road bike than on a 24kg E-MTB rig.
@@ -123,7 +121,7 @@ These skills inject "Local Wisdom" into the AI's reasoning, adapting calculation
 | `bikescout://knowledge/moab-usa` | 🏜️ **Moab, Utah** | High-desert survival, Slickrock traction mastery, and extreme hydration protocols. |
 | `bikescout://knowledge/castelliromani-italy` | 🌋 **Castelli Romani** | Volcanic soil behavior (dust/mud), aggressive spikes in gradient, and cultural stop protocols. |
 | `bikescout://knowledge/dolomiti-italy` | 🏔️ **Dolomites, Italy** | High-altitude weather vigilance, UNESCO limestone grip analysis, and 1:1 gearing strategies. |
-| `bikescout://knowledge/trouee-darenberg-france` | 🧱 **Arenberg Forest** | Vibration damping on Pavé, stone humidity risk (TAEL), and "Roubaix-spec" setup. |
+| `bikescout://knowledge/trouee-darenberg-france` | 🧱 **Arenberg Forest** | Vibration damping on Pavé, stone humidity risk (TAEL®), and "Roubaix-spec" setup. |
 | `bikescout://knowledge/finale-ligure-italy` | 🌊 **Finale Ligure** | EWS standards, brake fade management, and limestone rock garden suspension tuning. |
 | `bikescout://knowledge/derby-australia` | 🌿 **Derby, Tasmania** | Granite slab traction, "Hero Dirt" saturation analysis, and high-speed rebound optimization. |
 | `bikescout://knowledge/shimanamikaido-japan` | 🌉 **Shimanami Kaido** | Bridge crosswind analysis, island-hopping logistics, and road/gravel touring efficiency. |
@@ -157,12 +155,13 @@ Used for tire pressure and difficulty scaling.
 | `fitness_level` | `string` |         | Affects difficulty grading. Options: `beginner`, `intermediate`, `advanced`, `pro`. |
 
 #### **Bike Setup (`bike`)**
-| Field | Type | Default | Description |
-| :--- | :--- |:--------| :--- |
-| `bike_type` | `string` |         | Geometry profile. Options: `Road`, `Gravel`, `MTB`, `Enduro`. |
-| `tire_size` | `string` |         | Diameter/Standard. Options: `26`, `27.5`, `29`, `700c`, `650b`. |
-| `is_ebike` | `bool` | `false` | If true, triggers battery consumption and motor-assist logic. |
-| `battery_wh` | `int` |         | Battery capacity in Watt-hours (required if `is_ebike` is true). |
+| Field | Type     | Default | Description                                                                                          |
+| :--- |:---------|:--------|:-----------------------------------------------------------------------------------------------------|
+| `bike_type` | `string` |         | Geometry profile. Options: `Road`, `Gravel`, `MTB`, `Enduro`,`E-MTB`.                                |
+| `tire_size` | `string` | `29`    | Diameter/Standard. Options: `26`, `27.5`, `29`, `32`, `700c`, `650b`.                                |
+| `tire_width_mm` | `int`    | 54      | The actual width of the tire in mm. Critical for surface safety thresholds. Value between `18` and `75`. |
+| `is_ebike` | `bool`   | `false` | If true, triggers battery consumption and motor-assist logic.                                        |
+| `battery_wh` | `int`    |         | Battery capacity in Watt-hours (required if `is_ebike` is true).                                     |
 
 #### **Mission Constraints (`mission`)**
 | Field                | Type     | Default            | Description                                                                                                                                                                                                                                                                                            |
@@ -215,7 +214,7 @@ This tool acts as the intelligent "entry point" for all natural language queries
 The flagship tool of the server. It acts as a **Master Orchestrator**, merging geographic routing with real-time environmental data and technical bike-setup analysis to provide a comprehensive **"Cycling Dossier"**.
 
 #### **Functionality**
-* **Dynamic Round-Trip Routing**: Interfaces with **OpenRouteService (ORS)** to generate a loop based on the user's preferred distance, profile (MTB, Road, Gravel), and starting point.
+* **Dynamic Round-Trip and A-->B Routing**: Interfaces with **OpenRouteService (ORS)** to generate a route on the user's preferred distance, profile (MTB, Road, Gravel).
 * **Multi-Engine Integration**:
   - **Surface & Compatibility**: Automatically triggers the `get_surface_analyzer` to check if the trail suits the user's bike type and tire width.
   - **Predictive Mud Risk**: Cross-references the last **72 hours of precipitation** with soil geology (clay, sand, dirt) to estimate trail rideability.
@@ -223,7 +222,7 @@ The flagship tool of the server. It acts as a **Master Orchestrator**, merging g
   - **Cycling POI Scout**: Scans a 2km radius around the route for **drinking water**, **bicycle repair stations**, and **mountain shelters**.
 * **Technical Grading**: Identifies and categorizes climbs using **UCI-standardization** (Cat 4 to HC) based on length and average gradient.
 * **Visual & Navigational Assets**:
-    * Generates a **Static Map (.png)** preview for instant visualization.
+    * Generates a Map (.png) preview for instant visualization.
     * Enhanced GPX Engine: Produces a high-utility GPX XML string, ready to be loaded on Garmin, Strava,... 
 Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoint) tags that trigger alerts on Garmin, Wahoo, and Hammerhead units for:
       - Summit Alerts: Marks the highest elevation point of the route. 
@@ -231,19 +230,25 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
       - Hydration & Service: Precisely locates water fountains and repair shops found during the POI scouting.
 
 #### **Parameters:**
-| Parameter | Type | Default | Description                                          |
-| :--- | :--- | :--- |:-----------------------------------------------------|
-| `lat` | `float` | Required | Latitude of the starting point (e.g., `45.81`).      |
-| `lon` | `float` | Required | Longitude of the starting point (e.g., `9.08`).      |
-| **`rider`** | `object` | Required | [Rider Profile](#rider-profile-rider).               |
-| **`bike`** | `object` | Required | [Bike Setup](#bike-setup-bike).                      |
-| **`mission`** | `object` | Required | [Mission Constraints](#mission-constraints-mission). |
-| `include_gpx` | `bool` | `True` | Whether to include the raw XML GPX content.          |
-| `include_map` | `bool` | `False` | Whether to generate the Static Map URL.              |
-| `output_level` | `string` | `standard` | Verbosity level: `summary`, `standard`, or `full`.   |
-| `target_date` | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format  |
+| Parameter        | Type | Default | Description                                                |
+|:-----------------| :--- | :--- |:-----------------------------------------------------------|
+| `latitude`       | `float` | Required | Latitude of the starting point (e.g., `45.81`).            |
+| `longitude`      | `float` | Required | Longitude of the starting point (e.g., `9.08`).            |
+| **`rider`**      | `object` | Required | [Rider Profile](#rider-profile-rider).                     |
+| **`bike`**       | `object` | Required | [Bike Setup](#bike-setup-bike).                            |
+| **`mission`**    | `object` | Required | [Mission Constraints](#mission-constraints-mission).       |
+| `dest_latitude`  | `float` |  | Latitude of the ending point (e.g., `45.81`).              |
+| `dest_longitude` | `float` |  | Longitude of the ending point (e.g., `9.08`).            |
+| `include_gpx`    | `bool` | `True` | Whether to include the raw XML GPX content.                |
+| `include_map`    | `bool` | `False` | Whether to generate the Static Map URL.                    |
+| `style`          | `string` | `filled`          | Visual style of the profile, "sparkline", "filled", "bars" |                     |
+| `output_level`   | `string` | `standard` | Verbosity level: `summary`, `standard`, or `full`.         |
+| `target_date`    | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format        |
 
 #### **Tool Output Example (JSON):**
+
+Round Route Type:
+
 ```json
 {
   "payload_version": "1.3",
@@ -412,7 +417,9 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
       }
     ]
   },
-  "map_image_url": "/home/test/.bikescout/gpx/tactical_route_3c3c37.png",
+  "map_path": "bikescout://maps/tactical_map_6af64c_1777452416.png",
+  "mcp_resource_uri_map": "bikescout://maps/tactical_map_6af64c_1777452416.png",
+  "mcp_resource_uri_gpx": "bikescout://gpx/tactical_route_3c3c37.gpx",
   "gpx_export_path": "/home/test/.bikescout/gpx/tactical_route_3c3c37.gpx",
   "gpx_stats": {
     "total_points": 945,
@@ -420,7 +427,411 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
     "waypoints_count": 11
   },
   "elevation_profile_path": "/home/test/.bikescout/altimetry/bs_altimetry_3c3c37.png",
-  "elevation_summary": "Visual sparkline generated and cached."
+  "mcp_resource_uri_elevation_profile": "bikescout://altimetry/bs_altimetry_3c3c37.png"
+}
+```
+
+A-->B Route Type:
+
+```json
+{
+  "payload_version": "1.3",
+  "status": "Success",
+  "info": {
+    "route_type": "A to B",
+    "distance_km": 135.87,
+    "ascent_m": 3040,
+    "difficulty": "🔥 Expert (Challenging distance or very steep climbs)",
+    "surface_analysis": {
+      "status": "Success",
+      "profile_used": "cycling-road",
+      "metadata": {
+        "analyzed_date": "2026-04-29T14:07:33.379339+00:00",
+        "api_extras": [
+          "waytype",
+          "surface"
+        ]
+      },
+      "tactical_briefing": {
+        "distance_km": 135.87,
+        "elevation_gain_m": 3040,
+        "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+        "avg_gradient_est": "5.0%",
+        "mud_intelligence": {
+          "score": 0,
+          "label": "Unknown",
+          "traction_risk": "Low",
+          "trail_damage_risk": "Low",
+          "dry_time_eta": "Ready Now",
+          "safety_advice": "Check local conditions."
+        }
+      },
+      "mechanical_setup": {
+        "compatible": true,
+        "setup_details": "700c wheels | 86.0 PSI (5.93 Bar) [Efficiency Setup]",
+        "bike_type": "Road"
+      },
+      "surface_breakdown": [
+        {
+          "type": "Paved",
+          "percentage": "74.0%"
+        },
+        {
+          "type": "Unknown",
+          "percentage": "23.5%"
+        },
+        {
+          "type": "Asphalt",
+          "percentage": "2.5%"
+        },
+        {
+          "type": "Other",
+          "percentage": "0.1%"
+        },
+        {
+          "type": "Concrete",
+          "percentage": "0.0%"
+        }
+      ],
+      "emtb_tactical": null,
+      "safety_warnings": []
+    }
+  },
+  "conditions": {
+    "weather": [
+      {
+        "time": "00:00",
+        "temp": "10.2°C",
+        "app_temp": "6.8°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.4 km/h",
+        "gusts": "18.4 km/h"
+      },
+      {
+        "time": "01:00",
+        "temp": "10.0°C",
+        "app_temp": "6.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.3 km/h",
+        "gusts": "19.8 km/h"
+      },
+      {
+        "time": "02:00",
+        "temp": "9.9°C",
+        "app_temp": "6.4°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.6 km/h",
+        "gusts": "20.5 km/h"
+      },
+      {
+        "time": "03:00",
+        "temp": "9.4°C",
+        "app_temp": "5.8°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.4 km/h",
+        "gusts": "20.5 km/h"
+      },
+      {
+        "time": "04:00",
+        "temp": "9.3°C",
+        "app_temp": "5.8°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.6 km/h",
+        "gusts": "21.2 km/h"
+      },
+      {
+        "time": "05:00",
+        "temp": "9.8°C",
+        "app_temp": "6.4°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.4 km/h",
+        "gusts": "21.2 km/h"
+      },
+      {
+        "time": "06:00",
+        "temp": "11.6°C",
+        "app_temp": "8.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.0 km/h",
+        "gusts": "20.9 km/h"
+      },
+      {
+        "time": "07:00",
+        "temp": "14.8°C",
+        "app_temp": "11.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.7 km/h",
+        "gusts": "17.6 km/h"
+      },
+      {
+        "time": "08:00",
+        "temp": "16.0°C",
+        "app_temp": "12.9°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.2 km/h",
+        "gusts": "19.8 km/h"
+      },
+      {
+        "time": "09:00",
+        "temp": "17.0°C",
+        "app_temp": "13.9°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.1 km/h",
+        "gusts": "25.2 km/h"
+      },
+      {
+        "time": "10:00",
+        "temp": "18.1°C",
+        "app_temp": "15.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "9.4 km/h",
+        "gusts": "25.6 km/h"
+      },
+      {
+        "time": "11:00",
+        "temp": "18.1°C",
+        "app_temp": "15.0°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "12.0 km/h",
+        "gusts": "31.7 km/h"
+      },
+      {
+        "time": "12:00",
+        "temp": "19.0°C",
+        "app_temp": "16.5°C",
+        "rain_prob": "3%",
+        "rain_mm": "0.0 mm",
+        "wind": "13.4 km/h",
+        "gusts": "35.3 km/h"
+      },
+      {
+        "time": "13:00",
+        "temp": "19.1°C",
+        "app_temp": "16.5°C",
+        "rain_prob": "3%",
+        "rain_mm": "0.0 mm",
+        "wind": "14.1 km/h",
+        "gusts": "36.7 km/h"
+      },
+      {
+        "time": "14:00",
+        "temp": "18.5°C",
+        "app_temp": "15.1°C",
+        "rain_prob": "5%",
+        "rain_mm": "0.0 mm",
+        "wind": "12.9 km/h",
+        "gusts": "36.4 km/h"
+      },
+      {
+        "time": "15:00",
+        "temp": "18.0°C",
+        "app_temp": "14.2°C",
+        "rain_prob": "3%",
+        "rain_mm": "0.0 mm",
+        "wind": "11.9 km/h",
+        "gusts": "33.5 km/h"
+      },
+      {
+        "time": "16:00",
+        "temp": "17.0°C",
+        "app_temp": "13.8°C",
+        "rain_prob": "5%",
+        "rain_mm": "0.0 mm",
+        "wind": "9.4 km/h",
+        "gusts": "31.7 km/h"
+      },
+      {
+        "time": "17:00",
+        "temp": "15.7°C",
+        "app_temp": "13.1°C",
+        "rain_prob": "10%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.6 km/h",
+        "gusts": "27.0 km/h"
+      },
+      {
+        "time": "18:00",
+        "temp": "14.7°C",
+        "app_temp": "13.1°C",
+        "rain_prob": "13%",
+        "rain_mm": "0.0 mm",
+        "wind": "1.8 km/h",
+        "gusts": "22.3 km/h"
+      },
+      {
+        "time": "19:00",
+        "temp": "14.0°C",
+        "app_temp": "12.4°C",
+        "rain_prob": "30%",
+        "rain_mm": "0.0 mm",
+        "wind": "2.5 km/h",
+        "gusts": "15.1 km/h"
+      },
+      {
+        "time": "20:00",
+        "temp": "13.2°C",
+        "app_temp": "11.1°C",
+        "rain_prob": "15%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.8 km/h",
+        "gusts": "22.7 km/h"
+      },
+      {
+        "time": "21:00",
+        "temp": "12.8°C",
+        "app_temp": "10.5°C",
+        "rain_prob": "18%",
+        "rain_mm": "0.2 mm",
+        "wind": "6.3 km/h",
+        "gusts": "28.8 km/h"
+      },
+      {
+        "time": "22:00",
+        "temp": "12.5°C",
+        "app_temp": "10.4°C",
+        "rain_prob": "33%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.5 km/h",
+        "gusts": "15.8 km/h"
+      },
+      {
+        "time": "23:00",
+        "temp": "12.0°C",
+        "app_temp": "10.4°C",
+        "rain_prob": "40%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.9 km/h",
+        "gusts": "18.4 km/h"
+      }
+    ],
+    "mud_risk": {
+      "status": "Success",
+      "metadata": {
+        "target_date": "2026-04-29T14:07:33.664740+00:00",
+        "is_predictive": false,
+        "model_version": "TAEL® v3.1"
+      },
+      "environmental_context": {
+        "total_rain_72h_mm": 0,
+        "integrated_pet_hours": 30,
+        "reservoir_moisture_mm": 0
+      },
+      "tactical_analysis": {
+        "surface_type": "Unknown",
+        "traction_risk": {
+          "level": "Low",
+          "advice": "Maximum grip. Surface is hardpack and fast."
+        },
+        "trail_damage_risk": {
+          "level": "Low",
+          "advice": "Trail structure is solid. No rutting expected."
+        },
+        "dry_time_eta": "Ready Now"
+      }
+    },
+    "max_temp_detected": "19.1°C",
+    "safety_advice": {
+      "status": "🟢 [GO]",
+      "message": "Ideal conditions: Low wind, dry, and safe.",
+      "wind_risk_score": 27,
+      "gear_advice": "Standard (Short sleeves, summer bibs, light base layer)"
+    }
+  },
+  "logistics": {
+    "nutrition_plan": {
+      "status": "Success",
+      "mission_nutrition_briefing": {
+        "fluids": {
+          "total_liters": 6.6,
+          "hourly_rate_ml": 678
+        },
+        "carbohydrates": {
+          "total_grams": 880,
+          "hourly_target_g": 90,
+          "recommended_ratio": "2:1 Glucose-to-Fructose (or 1:0.8 ratio)",
+          "intensity_context": "Tempo"
+        },
+        "electrolytes": {
+          "total_sodium_mg": 5304,
+          "hourly_sodium_mg": 542
+        },
+        "tactical_advice": [
+          "FUELING ALERT: High target (90g/hr). Use a 2:1 Glucose-to-Fructose (or 1:0.8 ratio) mix to prevent GI distress. Gut training required.",
+          "BONK RISK: High intensity over prolonged duration. Missing a single feeding window will cause catastrophic glycogen depletion."
+        ]
+      }
+    },
+    "nearby_amenities": [
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1072,
+        "location": {
+          "lat": 41.761793,
+          "lon": 12.709082
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1101,
+        "location": {
+          "lat": 41.760723,
+          "lon": 12.703403
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1108,
+        "location": {
+          "lat": 41.76081,
+          "lon": 12.703437
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1110,
+        "location": {
+          "lat": 41.760813,
+          "lon": 12.703393
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1142,
+        "location": {
+          "lat": 41.761132,
+          "lon": 12.703355
+        }
+      }
+    ]
+  },
+  "map_path": "/home/test/.bikescout/gpx/tactical_map_fec080_1777471655.png",
+  "mcp_resource_uri_map": "bikescout://maps/tactical_map_fec080_1777471655.png",
+  "gpx_export_path": "/home/test/.bikescout/gpx/tactical_route_fec080.gpx",
+  "mcp_resource_uri_gpx": "bikescout://gpx/tactical_route_fec080.gpx",
+  "gpx_stats": {
+    "total_points": 856,
+    "healed_points": 856,
+    "waypoints_count": 15
+  },
+  "elevation_profile_path": "/home/test/.bikescout/altimetry/bs_altimetry_fec080.png",
+  "mcp_resource_uri_elevation_profile": "bikescout://altimetry/bs_altimetry_fec080.png"
 }
 ```
 
@@ -509,7 +920,7 @@ A real-time safety tool designed specifically for outdoor activities. It provide
 ---
 
 ### `ride_window_planner`
-The ultimate **Decision Intelligence** tool for the modern rider. It goes beyond simple weather reporting by calculating the optimal "Strategic Window" to deploy. It cross-references atmospheric stability with the **TAEL (Terrain-Aware Evaporation Lag)** index to determine exactly when the terrain will be at its peak performance.
+The ultimate **Decision Intelligence** tool for the modern rider. It goes beyond simple weather reporting by calculating the optimal "Strategic Window" to deploy. It cross-references atmospheric stability with the **TAEL® (Terrain-Aware Evaporation Lag)** index to determine exactly when the terrain will be at its peak performance.
 
 #### **Functionality**
 * **Sliding Window Logic:** Instead of a static snapshot, it iterates through consecutive hourly blocks to find the highest "Confidence Score" for your specific ride duration.
@@ -523,7 +934,7 @@ The ultimate **Decision Intelligence** tool for the modern rider. It goes beyond
 | `lat` | `float` | Required | Latitude of the deployment area. |
 | `lon` | `float` | Required | Longitude of the deployment area. |
 | `ride_duration_hours` | `float` | `2.0` | Target length of the mission (defines the sliding window size). |
-| `surface_type` | `str` | `"dirt"` | Used to calculate specific soil drainage coefficients for the TAEL index. |
+| `surface_type` | `str` | `"dirt"` | Used to calculate specific soil drainage coefficients for the TAEL® index. |
 | `target_date` | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format |
 
 
@@ -565,7 +976,7 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
 * **Surface-Aware Routing:** Fine-tunes the route generation based on user preferences like "avoid unpaved" or "prefer trails."
 * **Tactical Tire Intelligence:** Calculates optimal tire recommendations and pressure baseline by cross-referencing **Rider Weight**, bike type, and dominant surface composition.
 * **Mud Risk Score:** Provides a localized risk rating (Low/Medium/High) to help cyclists prevent drivetrain damage and avoid unrideable sections.
-* **TAEL (Terrain-Aware Evaporation Lag):** A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
+* **TAEL® (Terrain-Aware Evaporation Lag):** A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
 * **E-MTB Power Predictor:** A physics-based energy model that predicts battery drain by cross-referencing Total System Weight, Assist Mode, Surface Drag, and Mud Suction effects.
 
 #### **Parameters:**
@@ -866,7 +1277,7 @@ A predictive safety tool that cross-references geological surface data with hist
 * **Rain History Audit:** Automatically fetches cumulative rainfall from the last 72 hours using the Open-Meteo Archive API.
 * **Geological Sensitivity:** Differentiates how rain affects various terrains, calculating saturation levels for surfaces like clay, dirt, sand, and gravel.
 * **Mud Risk Score:** Provides a localized risk rating (Low/Medium/High) to help cyclists prevent drivetrain damage and avoid unrideable sections.
-* **TAEL v3.0 (Terrain-Aware Evaporation Lag)**: A high-fidelity reservoir model that replaces static daily sums with an hourly recursive engine ($M_t = M_{t-1} \cdot e^{-k \cdot D_t} + R_t$), integrating time-step rainfall, non-linear clay drainage physics, and cumulative solar energy to predict traction risks and provide a precise "Dry-Time" ETA.
+* **TAEL® v3.1 (Terrain-Aware Evaporation Lag)**: A high-fidelity reservoir model that replaces static daily sums with an hourly recursive engine ($M_t = M_{t-1} \cdot e^{-k \cdot D_t} + R_t$), integrating time-step rainfall, non-linear clay drainage physics, and cumulative solar energy to predict traction risks and provide a precise "Dry-Time" ETA.
 
 #### **Parameters:**
 | Parameter | Type | Default | Description |
@@ -884,7 +1295,7 @@ A predictive safety tool that cross-references geological surface data with hist
   "metadata": {
     "target_date": "2026-04-27T22:25:05.786299+00:00",
     "is_predictive": false,
-    "model_version": "TAEL v3.0"
+    "model_version": "TAEL® v3.1"
   },
   "environmental_context": {
     "total_rain_72h_mm": 0,
@@ -915,18 +1326,17 @@ Generates a high-resolution visual analysis of the route's elevation profile. Un
 * **Visual Slope Gradient:** Applies a dynamic chromatic scale (Green → Yellow → Red → Black) to instantly highlight critical steepness (over 10-15%).
 * **SRTM Data Processing:** Processes 3D coordinates (Longitude, Latitude, Elevation) to reconstruct the terrain profile with high precision.
 * **Automated Scaling**: Automatically adjusts the chart axes based on total elevation gain to ensure maximum readability for both flat valley floors and alpine passes.
-* **Base64 Visual Delivery**: Returns the image as a Base64 string (Data URI), enabling immediate integration into chat interfaces, PDF reports, or web dashboards without external hosting.
 * **Terrain-Sync Validation**: Uses RouteGeometry logic to validate and sanitize elevation data, eliminating "spikes" common in raw satellite data.
 * **Tactical Overview**: Provides a crucial "at-a-glance" briefing for energy management (pacing) and gear selection before starting the ride.
 
 #### **Parameters:**
 
-| Parameter  | Type     | Default            | Description                                        |
-|:-----------|:---------|:-------------------|:---------------------------------------------------|
-| `geometry` | `object` | **Required**       | [Route Geometry](#route-geometry-geometry).        |
-| `width`    | `int`    | 8                  | Width of the generated image (matplotlib inches).  |
-| `height`   | `int`    | 3                  | Height of the generated image (matplotlib inches). |
-| `style`    | `string` | sparkline          | Visual style of the profile, "sparkline", "filled", "bars"|                     |
+| Parameter  | Type     | Default      | Description                                        |
+|:-----------|:---------|:-------------|:---------------------------------------------------|
+| `geometry` | `object` | **Required** | [Route Geometry](#route-geometry-geometry).        |
+| `width`    | `int`    | 8            | Width of the generated image (matplotlib inches).  |
+| `height`   | `int`    | 3            | Height of the generated image (matplotlib inches). |
+| `style`    | `string` | `filled`      | Visual style of the profile, "sparkline", "filled", "bars"|                     |
 
 
 #### **Example Output (JSON):**
@@ -935,6 +1345,7 @@ Generates a high-resolution visual analysis of the route's elevation profile. Un
 {
   "status": "Success",
   "message": "Elevation profile stored in BikeScout home directory.",
+  "mcp_resource_uri": "bikescout://altimetry/climb.png",
   "file_location": "/home/.test/bikescout/altimetry/climb.png",
   "style_applied": "sparkline",
   "dimensions": "8x3 in",
@@ -1227,75 +1638,6 @@ A professional-grade performance engine for high-fidelity race track auditing. I
       "type": "Steep Road Wall"
     }
   ]
-}
-```
-
----
-
-### `analyze_strava_activity`
-A post-ride tactical diagnostic tool that fuses actual Strava GPS telemetry with historical environmental data to validate trail conditions and performance.
-
-#### **Functionality:**
-* **Satellite Data Retrieval:** Connects to the Strava API to fetch precise activity logs, including distance, elevation, and speed metrics.
-* **Environmental Fusion:** Automatically triggers the **Mud Risk** and **Weather** modules for the specific time and location of the ride.
-* **Surface-Aware Validation:** Detects the activity type (MTB vs. Road) to apply the correct soil sensitivity coefficients to the moisture analysis.
-
-#### **Parameters:**
-
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `activity_date` | `string` | **Required** | Date of the ride in `YYYY-MM-DD` format. |
-
-#### **Example Output (JSON):**
-
-```json
-{
-  "payload_version": "1.0",
-  "status": "Success",
-  "mission_id": "xxxxxx",
-  "debriefing_summary": {
-    "name": "Sessione di mountain biking pomeridiana",
-    "actual_avg_speed": "15.0 km/h",
-    "actual_vam": "258 m/h",
-    "worst_encountered_mud": 0
-  },
-  "spatio_temporal_logs": [
-    {
-      "timestamp": "2025-06-04T15:13:26+00:00",
-      "location": [
-        41.718848,
-        12.65801
-      ],
-      "mud_score": 0,
-      "wind_speed": 0
-    },
-    {
-      "timestamp": "2025-06-04T16:36:02+00:00",
-      "location": [
-        41.744515,
-        12.800712
-      ],
-      "mud_score": 0,
-      "wind_speed": 0
-    },
-    {
-      "timestamp": "2025-06-04T18:00:47+00:00",
-      "location": [
-        41.722348,
-        12.661549
-      ],
-      "mud_score": 0,
-      "wind_speed": 0
-    }
-  ],
-  "tactical_calibration": {
-    "efficiency_scoring": "Performance matched environmental expectations.",
-    "suggested_profile_update": {
-      "climbing_efficiency": "Standard",
-      "mud_penalty_factor": "Accurate"
-    }
-  },
-  "mechanical_feedback": "Tire pressure refinement suggested based on speed-to-saturation correlation."
 }
 ```
 

@@ -10,9 +10,6 @@ services:
       - 8000:8000
     environment:
       - ORS_API_KEY=${ORS_API_KEY}
-      - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
-      - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
-      - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
     entrypoint: >
       sh -c "cd /app/mcp_servers/bikescout_project &&
              rm -rf venv && 

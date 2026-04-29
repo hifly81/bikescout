@@ -6,9 +6,6 @@ services:
     restart: always
     environment:
       - ORS_API_KEY=${ORS_API_KEY}
-      - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
-      - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
-      - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
     networks:
       - mcp_network
 

@@ -171,7 +171,7 @@ def _build_ors_options(surface_preference):
 def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
     """
     Analyzes route surfaces and tactical risks by integrating OpenRouteService geometry
-    with TAEL Mud Intelligence (v2.5) and E-MTB performance metrics.
+    with TAEL® Mud Intelligence and E-MTB performance metrics.
 
     This method employs an adaptive fallback strategy to prevent ORS 400 errors by
     dynamically stripping unsupported 'extra_info' (like tracktype) depending on the
@@ -268,7 +268,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
 
             # 4. Mechanical & Performance Audit
-            tire_mm, tire_display = get_tire_setup(
+            tire_display = get_tire_setup(
                 bike_type=bike.bike_type,
                 tire_size_option=bike.tire_size,
                 mud_index=mud_score_val,
@@ -277,7 +277,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             )
 
             climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
-            breakdown, warnings, compatible = analyze_compatibility(bike.bike_type, tire_mm, extras, surface_map)
+            breakdown, warnings, compatible = analyze_compatibility(bike.bike_type, bike.tire_width_mm, extras, surface_map)
 
             # --- 5. E-MTB Power Management (Safe Detection) ---
             emtb_analysis = None

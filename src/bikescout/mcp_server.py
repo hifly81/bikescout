@@ -73,13 +73,13 @@ def geocode_location(location_name: str, language: str = "en"):
 
 @mcp.tool()
 def trail_scout(
-        lat: float,
-        lon: float,
+        latitude: float,
+        longitude: float,
         rider: RiderProfile,
         bike: BikeSetup,
         mission: MissionConstraints,
-        dest_lat: Optional[float] = None,
-        dest_lon: Optional[float] = None,
+        dest_latitude: Optional[float] = None,
+        dest_longitude: Optional[float] = None,
         include_gpx: bool = True,
         include_map: bool = False,
         style: Literal["sparkline", "filled", "bars"] = "filled",
@@ -94,13 +94,13 @@ def trail_scout(
     If target_date is None, it defaults to the current date.
 
     Args:
-        lat: Latitude of the starting point.
-        lon: Longitude of the starting point.
+        latitude: Latitude of the starting point.
+        longitude: Longitude of the starting point.
         rider: Profile including weight and fitness level.
         bike: Setup details including bike type and tire width.
         mission: Constraints like search radius and surface preference.
-        dest_lat: Latitude of the ending point.
-        dest_lon: Longitude of the ending point.
+        dest_latitude: Latitude of the ending point.
+        dest_longitude: Longitude of the ending point.
         include_gpx: If True, generates a GPX file for navigation.
         include_map: If True, generates a visual map image.
         style: Visual style of the profile "sparkline", "filled", "bars".
@@ -109,13 +109,13 @@ def trail_scout(
     """
 
     data = get_complete_trail_scout(
-        ORS_API_KEY, lat, lon, rider, bike, mission, dest_lat, dest_lon, include_gpx, include_map, style, output_level, target_date)
+        ORS_API_KEY, latitude, longitude, rider, bike, mission, dest_latitude, dest_longitude, include_gpx, include_map, style, output_level, target_date)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
 def trail_scout_simple(
-        lat: float,
-        lon: float,
+        latitude: float,
+        longitude: float,
         # --- Rider Profile (Flat) ---
         weight_kg: float = 75.0,
         fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
@@ -131,8 +131,8 @@ def trail_scout_simple(
         complexity: int = 3,
         seed: int = 42,
         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
-        dest_lat: Optional[float] = None,
-        dest_lon: Optional[float] = None,
+        dest_latitude: Optional[float] = None,
+        dest_longitude: Optional[float] = None,
         # --- Output Options ---
         include_gpx: bool = True,
         include_map: bool = True,
@@ -170,13 +170,13 @@ def trail_scout_simple(
 
         # Call the core logic (reusing the existing trail_scout logic)
         return trail_scout(
-            lat=lat,
-            lon=lon,
+            latitude=latitude,
+            longitude=longitude,
             rider=rider,
             bike=bike,
             mission=mission,
-            dest_lat=dest_lat,
-            dest_lon=dest_lon,
+            dest_latitude=dest_latitude,
+            dest_longitude=dest_longitude,
             include_gpx=include_gpx,
             include_map=include_map,
             style=style,

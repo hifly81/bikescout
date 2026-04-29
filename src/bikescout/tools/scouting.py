@@ -94,15 +94,16 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
             coords = geojson_data
 
         # 3. ELEVATION HEALING LAYER
-        # Detects and fixes 0.0 elevation points or impossible jumps by carrying over
-        # the previous known altitude. This prevents "climbing walls" glitches.
         healed_coords = []
+        points_fixed_count = 0
         for i in range(len(coords)):
             lon, lat, ele = coords[i]
 
-            # If current elevation is 0 or shows an impossible jump (>200m), fix it
-            if (ele <= 0 or (i > 0 and abs(ele - coords[i-1][2]) > 200)) and i > 0:
+            is_anomaly = (ele <= 0 or (i > 0 and abs(ele - coords[i-1][2]) > 200))
+
+            if is_anomaly and i > 0:
                 ele = coords[i-1][2]
+                points_fixed_count += 1
 
             healed_coords.append([lon, lat, ele])
 
@@ -187,7 +188,7 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
             "file_location": str(file_path),
             "tactical_stats": {
                 "total_points": len(coords),
-                "healed_points": len(coords),
+                "healed_points": points_fixed_count,
                 "waypoints_count": waypoints.count('<wpt')
             }
         }
@@ -200,13 +201,13 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
 
 def get_complete_trail_scout(
         api_key,
-        lat: float,
-        lon: float,
+        latitude: float,
+        longitude: float,
         rider: RiderProfile,
         bike: BikeSetup,
         mission: MissionConstraints,
-        dest_lat: Optional[float] = None,
-        dest_lon: Optional[float] = None,
+        dest_latitude: Optional[float] = None,
+        dest_longitude: Optional[float] = None,
         include_gpx: bool = True,
         include_map: bool = False,
         style: Literal["sparkline", "filled", "bars"] = "sparkline",
@@ -223,17 +224,17 @@ def get_complete_trail_scout(
     # --- 1. CONFIGURATION ---
 
     # Switch payload logic based on whether a destination is provided
-    if dest_lat is not None and dest_lon is not None:
+    if dest_latitude is not None and dest_longitude is not None:
         # A -> B Route
         routing_payload = {
-            "coordinates": [[lon, lat], [dest_lon, dest_lat]],
+            "coordinates": [[longitude, latitude], [dest_longitude, dest_latitude]],
             "elevation": "true",
             "extra_info": ["surface", "steepness"]
         }
     else:
         # Round Trip
         routing_payload = {
-            "coordinates": [[lon, lat]],
+            "coordinates": [[longitude, latitude]],
             "options": {"round_trip": {"length": mission.radius_km * 1000, "seed": mission.seed}},
             "elevation": "true",
             "extra_info": ["surface", "steepness"]
@@ -260,7 +261,7 @@ def get_complete_trail_scout(
         surface_report = {}
         if output_level != "summary":
             try:
-                surface_report = get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date)
+                surface_report = get_surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
             except Exception as e:
                 surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
 
@@ -279,8 +280,8 @@ def get_complete_trail_scout(
 
         # --- 5. CALL: WEATHER & MUD ---
         # We query conditions at the starting coordinate as a baseline
-        weather_report = get_weather_forecast(lat, lon, target_date)
-        mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface, target_date)
+        weather_report = get_weather_forecast(latitude, longitude, target_date)
+        mud_analysis = get_mud_risk_analysis(latitude, longitude, dominant_surface, target_date)
 
         max_temp = 20.0
 
@@ -320,7 +321,7 @@ def get_complete_trail_scout(
         if output_level == "full":
             try:
                 # Queries POIs around the starting point based on the mission radius
-                poi_res = get_poi_scout(api_key, lat, lon, mission.radius_km)
+                poi_res = get_poi_scout(api_key, latitude, longitude, mission.radius_km)
                 amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
             except:
                 amenities = []
@@ -330,7 +331,7 @@ def get_complete_trail_scout(
             "payload_version": "1.3",
             "status": "Success",
             "info": {
-                "route_type": "A to B" if (dest_lat and dest_lon) else "Round Trip",
+                "route_type": "A to B" if (dest_latitude and dest_longitude) else "Round Trip",
                 "distance_km": dist_km,
                 "ascent_m": ascent_m,
                 "difficulty": calculate_detailed_difficulty(dist_km, ascent_m),

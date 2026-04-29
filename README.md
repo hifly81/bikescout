@@ -38,7 +38,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 You can ask **BikeScout** complex, multi-step requests. It combines real-time data with technical cycling intelligence to provide expert-level answers.
 
 ### 🗺️ Advanced Planning (Multi-Tool)
-* *"I'm at Monte Cavo with my Gravel bike (40mm tires). Plan a 25km loop for me. Check if the terrain is compatible with my bike, verify the afternoon rain probability, and suggest a 'Fraschetta' for the finish. Use the Castelli Romani guide."*
+* *"I'm at Monte Cavo with my MTB bike (29 tires). Plan a 25km loop for me. Check if the terrain is compatible with my bike, verify the afternoon rain probability, and suggest a 'Fraschetta' for the finish. Use the Castelli Romani guide."*
 
 ### ⚙️ Bike Setup & Surface Intelligence
 * *"Check this route from Barcelona city center to El Prat. I'm on a Road Bike with 25mm tires. Is it compatible? Give me the exact percentage of gravel vs asphalt."*
@@ -91,7 +91,7 @@ If you prefer a private and free experience without external API costs, use the 
 file to run BikeScout with Ollama (Llama 3/Mistral) instead of OpenAI.
 Refer to this [guide](docs/md/bikescout_ollama.md) to setup a complete local installation with Ollama and Open WebUI.
 
-### Using an MCP client (e.g. Claude Desktop)
+### Using an MCP client (e.g. Claude Desktop, Cursor)
 
 Pre Requirements:
 

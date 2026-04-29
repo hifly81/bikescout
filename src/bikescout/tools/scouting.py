@@ -18,7 +18,7 @@ import requests
 import uuid
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from bikescout.tools.maps import save_local_tactical_map
 from bikescout.tools.weather import get_weather_forecast
 from bikescout.tools.surface import get_surface_analyzer
@@ -44,15 +44,15 @@ def calculate_detailed_difficulty(dist_km: float, ascent_m: float) -> str:
 
     # 1. EXPERT: High distance, high climbing, or very steep
     if dist_km > 50 or ascent_m > 1000 or avg_gradient > 7:
-        return "🔴 Expert (Challenging distance or very steep climbs)"
+        return "🔥 Expert (Challenging distance or very steep climbs)"
 
     # 2. ADVANCED: Significant climbing or moderate distance
     if dist_km > 30 or ascent_m > 600 or avg_gradient > 4:
-        return "🟠 Advanced (Requires good fitness and stamina)"
+        return "⚡ Advanced (Requires good fitness and stamina)"
 
     # 3. MODERATE: Accessible but with some effort
     if dist_km > 15 or ascent_m > 300:
-        return "🟡 Moderate (Accessible for regular cyclists)"
+        return "🌿 Moderate (Accessible for regular cyclists)"
 
     # 4. BEGINNER: Short and flat
     return "🟢 Beginner (Short and relatively flat, ideal for everyone)"
@@ -84,7 +84,7 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
                 except:
                     pass
 
-                    # 2. ROBUST DATA EXTRACTION
+        # 2. ROBUST DATA EXTRACTION
         if hasattr(geojson_data, 'coordinates'):
             coords = geojson_data.coordinates
         elif isinstance(geojson_data, dict) and 'features' in geojson_data:
@@ -205,6 +205,8 @@ def get_complete_trail_scout(
         rider: RiderProfile,
         bike: BikeSetup,
         mission: MissionConstraints,
+        dest_lat: Optional[float] = None,
+        dest_lon: Optional[float] = None,
         include_gpx: bool = True,
         include_map: bool = False,
         style: Literal["sparkline", "filled", "bars"] = "sparkline",
@@ -215,15 +217,27 @@ def get_complete_trail_scout(
     The Master Orchestrator: Synchronized Technical Briefing.
     Integrates Surface Analysis, Weather-Driven Nutrition, Mud Risk,
     and Artifact Generation (GPX/Altimetry) using SMA-Sanitized data.
+
+    Supports both single-point Round Trips and A->B separate destinations.
     """
     # --- 1. CONFIGURATION ---
 
-    routing_payload = {
-        "coordinates": [[lon, lat]],
-        "options": {"round_trip": {"length": mission.radius_km * 1000, "seed": mission.seed}},
-        "elevation": "true",
-        "extra_info": ["surface", "steepness"]
-    }
+    # Switch payload logic based on whether a destination is provided
+    if dest_lat is not None and dest_lon is not None:
+        # A -> B Route
+        routing_payload = {
+            "coordinates": [[lon, lat], [dest_lon, dest_lat]],
+            "elevation": "true",
+            "extra_info": ["surface", "steepness"]
+        }
+    else:
+        # Round Trip
+        routing_payload = {
+            "coordinates": [[lon, lat]],
+            "options": {"round_trip": {"length": mission.radius_km * 1000, "seed": mission.seed}},
+            "elevation": "true",
+            "extra_info": ["surface", "steepness"]
+        }
 
     try:
         # --- 2. EXECUTE PRIMARY ROUTING ---
@@ -264,6 +278,7 @@ def get_complete_trail_scout(
             dominant_surface = "Unknown"
 
         # --- 5. CALL: WEATHER & MUD ---
+        # We query conditions at the starting coordinate as a baseline
         weather_report = get_weather_forecast(lat, lon, target_date)
         mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface, target_date)
 
@@ -292,6 +307,7 @@ def get_complete_trail_scout(
                     # Fallback already set to reference_conditions or 20.0
                     pass
 
+        # --- 6. PERFORMANCE & LOGISTICS ---
         # Calculate intensity and estimated duration using synchronized stats
         perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
         estimated_hours = perf["estimated_hours"]
@@ -303,6 +319,7 @@ def get_complete_trail_scout(
         amenities = []
         if output_level == "full":
             try:
+                # Queries POIs around the starting point based on the mission radius
                 poi_res = get_poi_scout(api_key, lat, lon, mission.radius_km)
                 amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
             except:
@@ -313,6 +330,7 @@ def get_complete_trail_scout(
             "payload_version": "1.3",
             "status": "Success",
             "info": {
+                "route_type": "A to B" if (dest_lat and dest_lon) else "Round Trip",
                 "distance_km": dist_km,
                 "ascent_m": ascent_m,
                 "difficulty": calculate_detailed_difficulty(dist_km, ascent_m),
@@ -336,7 +354,7 @@ def get_complete_trail_scout(
         if include_map:
             map_payload = save_local_tactical_map(filename_part, data)
             if map_payload["status"] == "Success":
-                response_payload["map_path"] = map_payload["mcp_resource_uri"]
+                response_payload["map_path"] = map_payload["file_location"]
                 response_payload["mcp_resource_uri_map"] = map_payload["mcp_resource_uri"]
 
         if include_gpx:

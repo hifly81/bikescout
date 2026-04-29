@@ -215,7 +215,7 @@ This tool acts as the intelligent "entry point" for all natural language queries
 The flagship tool of the server. It acts as a **Master Orchestrator**, merging geographic routing with real-time environmental data and technical bike-setup analysis to provide a comprehensive **"Cycling Dossier"**.
 
 #### **Functionality**
-* **Dynamic Round-Trip Routing**: Interfaces with **OpenRouteService (ORS)** to generate a loop based on the user's preferred distance, profile (MTB, Road, Gravel), and starting point.
+* **Dynamic Round-Trip and A-->B Routing**: Interfaces with **OpenRouteService (ORS)** to generate a route on the user's preferred distance, profile (MTB, Road, Gravel).
 * **Multi-Engine Integration**:
   - **Surface & Compatibility**: Automatically triggers the `get_surface_analyzer` to check if the trail suits the user's bike type and tire width.
   - **Predictive Mud Risk**: Cross-references the last **72 hours of precipitation** with soil geology (clay, sand, dirt) to estimate trail rideability.
@@ -223,7 +223,7 @@ The flagship tool of the server. It acts as a **Master Orchestrator**, merging g
   - **Cycling POI Scout**: Scans a 2km radius around the route for **drinking water**, **bicycle repair stations**, and **mountain shelters**.
 * **Technical Grading**: Identifies and categorizes climbs using **UCI-standardization** (Cat 4 to HC) based on length and average gradient.
 * **Visual & Navigational Assets**:
-    * Generates a **Map (.png)** preview for instant visualization.
+    * Generates a Map (.png) preview for instant visualization.
     * Enhanced GPX Engine: Produces a high-utility GPX XML string, ready to be loaded on Garmin, Strava,... 
 Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoint) tags that trigger alerts on Garmin, Wahoo, and Hammerhead units for:
       - Summit Alerts: Marks the highest elevation point of the route. 
@@ -245,6 +245,9 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
 | `target_date` | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format  |
 
 #### **Tool Output Example (JSON):**
+
+Round Route Type:
+
 ```json
 {
   "payload_version": "1.3",
@@ -424,6 +427,410 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
   },
   "elevation_profile_path": "/home/test/.bikescout/altimetry/bs_altimetry_3c3c37.png",
   "mcp_resource_uri_elevation_profile": "bikescout://altimetry/bs_altimetry_3c3c37.png"
+}
+```
+
+A-->B Route Type:
+
+```json
+{
+  "payload_version": "1.3",
+  "status": "Success",
+  "info": {
+    "route_type": "A to B",
+    "distance_km": 135.87,
+    "ascent_m": 3040,
+    "difficulty": "🔥 Expert (Challenging distance or very steep climbs)",
+    "surface_analysis": {
+      "status": "Success",
+      "profile_used": "cycling-road",
+      "metadata": {
+        "analyzed_date": "2026-04-29T14:07:33.379339+00:00",
+        "api_extras": [
+          "waytype",
+          "surface"
+        ]
+      },
+      "tactical_briefing": {
+        "distance_km": 135.87,
+        "elevation_gain_m": 3040,
+        "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+        "avg_gradient_est": "5.0%",
+        "mud_intelligence": {
+          "score": 0,
+          "label": "Unknown",
+          "traction_risk": "Low",
+          "trail_damage_risk": "Low",
+          "dry_time_eta": "Ready Now",
+          "safety_advice": "Check local conditions."
+        }
+      },
+      "mechanical_setup": {
+        "compatible": true,
+        "setup_details": "700c wheels | 86.0 PSI (5.93 Bar) [Efficiency Setup]",
+        "bike_type": "Road"
+      },
+      "surface_breakdown": [
+        {
+          "type": "Paved",
+          "percentage": "74.0%"
+        },
+        {
+          "type": "Unknown",
+          "percentage": "23.5%"
+        },
+        {
+          "type": "Asphalt",
+          "percentage": "2.5%"
+        },
+        {
+          "type": "Other",
+          "percentage": "0.1%"
+        },
+        {
+          "type": "Concrete",
+          "percentage": "0.0%"
+        }
+      ],
+      "emtb_tactical": null,
+      "safety_warnings": []
+    }
+  },
+  "conditions": {
+    "weather": [
+      {
+        "time": "00:00",
+        "temp": "10.2°C",
+        "app_temp": "6.8°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.4 km/h",
+        "gusts": "18.4 km/h"
+      },
+      {
+        "time": "01:00",
+        "temp": "10.0°C",
+        "app_temp": "6.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.3 km/h",
+        "gusts": "19.8 km/h"
+      },
+      {
+        "time": "02:00",
+        "temp": "9.9°C",
+        "app_temp": "6.4°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.6 km/h",
+        "gusts": "20.5 km/h"
+      },
+      {
+        "time": "03:00",
+        "temp": "9.4°C",
+        "app_temp": "5.8°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.4 km/h",
+        "gusts": "20.5 km/h"
+      },
+      {
+        "time": "04:00",
+        "temp": "9.3°C",
+        "app_temp": "5.8°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.6 km/h",
+        "gusts": "21.2 km/h"
+      },
+      {
+        "time": "05:00",
+        "temp": "9.8°C",
+        "app_temp": "6.4°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "7.4 km/h",
+        "gusts": "21.2 km/h"
+      },
+      {
+        "time": "06:00",
+        "temp": "11.6°C",
+        "app_temp": "8.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.0 km/h",
+        "gusts": "20.9 km/h"
+      },
+      {
+        "time": "07:00",
+        "temp": "14.8°C",
+        "app_temp": "11.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.7 km/h",
+        "gusts": "17.6 km/h"
+      },
+      {
+        "time": "08:00",
+        "temp": "16.0°C",
+        "app_temp": "12.9°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.2 km/h",
+        "gusts": "19.8 km/h"
+      },
+      {
+        "time": "09:00",
+        "temp": "17.0°C",
+        "app_temp": "13.9°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.1 km/h",
+        "gusts": "25.2 km/h"
+      },
+      {
+        "time": "10:00",
+        "temp": "18.1°C",
+        "app_temp": "15.7°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "9.4 km/h",
+        "gusts": "25.6 km/h"
+      },
+      {
+        "time": "11:00",
+        "temp": "18.1°C",
+        "app_temp": "15.0°C",
+        "rain_prob": "0%",
+        "rain_mm": "0.0 mm",
+        "wind": "12.0 km/h",
+        "gusts": "31.7 km/h"
+      },
+      {
+        "time": "12:00",
+        "temp": "19.0°C",
+        "app_temp": "16.5°C",
+        "rain_prob": "3%",
+        "rain_mm": "0.0 mm",
+        "wind": "13.4 km/h",
+        "gusts": "35.3 km/h"
+      },
+      {
+        "time": "13:00",
+        "temp": "19.1°C",
+        "app_temp": "16.5°C",
+        "rain_prob": "3%",
+        "rain_mm": "0.0 mm",
+        "wind": "14.1 km/h",
+        "gusts": "36.7 km/h"
+      },
+      {
+        "time": "14:00",
+        "temp": "18.5°C",
+        "app_temp": "15.1°C",
+        "rain_prob": "5%",
+        "rain_mm": "0.0 mm",
+        "wind": "12.9 km/h",
+        "gusts": "36.4 km/h"
+      },
+      {
+        "time": "15:00",
+        "temp": "18.0°C",
+        "app_temp": "14.2°C",
+        "rain_prob": "3%",
+        "rain_mm": "0.0 mm",
+        "wind": "11.9 km/h",
+        "gusts": "33.5 km/h"
+      },
+      {
+        "time": "16:00",
+        "temp": "17.0°C",
+        "app_temp": "13.8°C",
+        "rain_prob": "5%",
+        "rain_mm": "0.0 mm",
+        "wind": "9.4 km/h",
+        "gusts": "31.7 km/h"
+      },
+      {
+        "time": "17:00",
+        "temp": "15.7°C",
+        "app_temp": "13.1°C",
+        "rain_prob": "10%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.6 km/h",
+        "gusts": "27.0 km/h"
+      },
+      {
+        "time": "18:00",
+        "temp": "14.7°C",
+        "app_temp": "13.1°C",
+        "rain_prob": "13%",
+        "rain_mm": "0.0 mm",
+        "wind": "1.8 km/h",
+        "gusts": "22.3 km/h"
+      },
+      {
+        "time": "19:00",
+        "temp": "14.0°C",
+        "app_temp": "12.4°C",
+        "rain_prob": "30%",
+        "rain_mm": "0.0 mm",
+        "wind": "2.5 km/h",
+        "gusts": "15.1 km/h"
+      },
+      {
+        "time": "20:00",
+        "temp": "13.2°C",
+        "app_temp": "11.1°C",
+        "rain_prob": "15%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.8 km/h",
+        "gusts": "22.7 km/h"
+      },
+      {
+        "time": "21:00",
+        "temp": "12.8°C",
+        "app_temp": "10.5°C",
+        "rain_prob": "18%",
+        "rain_mm": "0.2 mm",
+        "wind": "6.3 km/h",
+        "gusts": "28.8 km/h"
+      },
+      {
+        "time": "22:00",
+        "temp": "12.5°C",
+        "app_temp": "10.4°C",
+        "rain_prob": "33%",
+        "rain_mm": "0.0 mm",
+        "wind": "6.5 km/h",
+        "gusts": "15.8 km/h"
+      },
+      {
+        "time": "23:00",
+        "temp": "12.0°C",
+        "app_temp": "10.4°C",
+        "rain_prob": "40%",
+        "rain_mm": "0.0 mm",
+        "wind": "4.9 km/h",
+        "gusts": "18.4 km/h"
+      }
+    ],
+    "mud_risk": {
+      "status": "Success",
+      "metadata": {
+        "target_date": "2026-04-29T14:07:33.664740+00:00",
+        "is_predictive": false,
+        "model_version": "TAEL v3.0"
+      },
+      "environmental_context": {
+        "total_rain_72h_mm": 0,
+        "integrated_pet_hours": 30,
+        "reservoir_moisture_mm": 0
+      },
+      "tactical_analysis": {
+        "surface_type": "Unknown",
+        "traction_risk": {
+          "level": "Low",
+          "advice": "Maximum grip. Surface is hardpack and fast."
+        },
+        "trail_damage_risk": {
+          "level": "Low",
+          "advice": "Trail structure is solid. No rutting expected."
+        },
+        "dry_time_eta": "Ready Now"
+      }
+    },
+    "max_temp_detected": "19.1°C",
+    "safety_advice": {
+      "status": "🟢 [GO]",
+      "message": "Ideal conditions: Low wind, dry, and safe.",
+      "wind_risk_score": 27,
+      "gear_advice": "Standard (Short sleeves, summer bibs, light base layer)"
+    }
+  },
+  "logistics": {
+    "nutrition_plan": {
+      "status": "Success",
+      "mission_nutrition_briefing": {
+        "fluids": {
+          "total_liters": 6.6,
+          "hourly_rate_ml": 678
+        },
+        "carbohydrates": {
+          "total_grams": 880,
+          "hourly_target_g": 90,
+          "recommended_ratio": "2:1 Glucose-to-Fructose (or 1:0.8 ratio)",
+          "intensity_context": "Tempo"
+        },
+        "electrolytes": {
+          "total_sodium_mg": 5304,
+          "hourly_sodium_mg": 542
+        },
+        "tactical_advice": [
+          "FUELING ALERT: High target (90g/hr). Use a 2:1 Glucose-to-Fructose (or 1:0.8 ratio) mix to prevent GI distress. Gut training required.",
+          "BONK RISK: High intensity over prolonged duration. Missing a single feeding window will cause catastrophic glycogen depletion."
+        ]
+      }
+    },
+    "nearby_amenities": [
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1072,
+        "location": {
+          "lat": 41.761793,
+          "lon": 12.709082
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1101,
+        "location": {
+          "lat": 41.760723,
+          "lon": 12.703403
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1108,
+        "location": {
+          "lat": 41.76081,
+          "lon": 12.703437
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1110,
+        "location": {
+          "lat": 41.760813,
+          "lon": 12.703393
+        }
+      },
+      {
+        "name": "Water Fountain 💧",
+        "type": "Water Fountain 💧",
+        "distance_m": 1142,
+        "location": {
+          "lat": 41.761132,
+          "lon": 12.703355
+        }
+      }
+    ]
+  },
+  "map_path": "/home/test/.bikescout/gpx/tactical_map_fec080_1777471655.png",
+  "mcp_resource_uri_map": "bikescout://maps/tactical_map_fec080_1777471655.png",
+  "gpx_export_path": "/home/test/.bikescout/gpx/tactical_route_fec080.gpx",
+  "mcp_resource_uri_gpx": "bikescout://gpx/tactical_route_fec080.gpx",
+  "gpx_stats": {
+    "total_points": 856,
+    "healed_points": 856,
+    "waypoints_count": 15
+  },
+  "elevation_profile_path": "/home/test/.bikescout/altimetry/bs_altimetry_fec080.png",
+  "mcp_resource_uri_elevation_profile": "bikescout://altimetry/bs_altimetry_fec080.png"
 }
 ```
 

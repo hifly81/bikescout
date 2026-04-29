@@ -18,13 +18,17 @@ def _get_gradient_color(grade: float) -> str:
 
 def save_local_tactical_map(
         filename_part: str,
-        geojson_data: dict
+        geojson_data: dict,
+        use_gradient: bool = True,
+        line_color: str = 'red',
+        line_width: int = 7
 ) -> dict:
     """
     Generates and saves a tactical map image locally using OSM tiles.
     Features:
     - Auto-cleanup of files older than 3 days.
-    - Slope-based heatmap (gradient) or solid color line.
+    - Robust GeoJSON validation (multi-geometry/null safety).
+    - Slope-based heatmap (gradient) or solid color line with 2D fallback.
     - Start/End tactical markers.
     - MCP resource URI compatibility.
     """
@@ -43,21 +47,33 @@ def save_local_tactical_map(
                 except Exception:
                     pass
 
-        # --- 2. Data Validation & Normalization ---
-        if not geojson_data or 'features' not in geojson_data:
-            return {"status": "Error", "message": "Invalid GeoJSON data."}
+        # --- 2. Robust Data Validation & Normalization ---
+        # Safely check for features to prevent IndexError on empty collections
+        features = geojson_data.get('features', [])
+        if not features:
+            return {"status": "Error", "message": "No features found in GeoJSON."}
 
-        # ORS returns [longitude, latitude, elevation]
-        all_coords = geojson_data['features'][0]['geometry']['coordinates']
-        if not all_coords:
-            return {"status": "Error", "message": "No coordinates found."}
+        # Extract the geometry safely, ensuring it exists and is a LineString
+        geometry = features[0].get('geometry')
+        if not geometry or geometry.get('type') != 'LineString':
+            return {"status": "Error", "message": "Invalid or missing LineString geometry."}
+
+        # Extract coordinates and ensure we have at least 2 points to draw a line
+        all_coords = geometry.get('coordinates', [])
+        if len(all_coords) < 2:
+            return {"status": "Error", "message": "Insufficient coordinates for mapping."}
+
+        # Check if elevation data is present (3D coordinates vs 2D coordinates)
+        has_elevation = len(all_coords[0]) >= 3
+        # Disable gradient automatically if data is only 2D
+        actual_use_gradient = use_gradient and has_elevation
 
         # --- 3. Initialize Renderer ---
         # Note: Set a proper User-Agent in your environment to comply with OSM Tile Usage Policy
         m = StaticMap(800, 600, url_template='https://tile.openstreetmap.org/{z}/{x}/{y}.png')
 
         # --- 4. Layers: Path (Gradient or Solid) ---
-        if len(all_coords[0]) >= 3:
+        if actual_use_gradient:
             # Heatmap logic: Break the track into segments colored by slope
             for i in range(len(all_coords) - 1):
                 p1, p2 = all_coords[i], all_coords[i+1]
@@ -71,12 +87,12 @@ def save_local_tactical_map(
                 segment_color = _get_gradient_color(grade)
 
                 # Draw small segment (staticmap needs [lon, lat])
-                segment = Line([[p1[0], p1[1]], [p2[0], p2[1]]], segment_color, 7)
+                segment = Line([[p1[0], p1[1]], [p2[0], p2[1]]], segment_color, line_width)
                 m.add_line(segment)
         else:
-            # Fallback to solid color if gradient is disabled or elevation is missing
+            # Fallback to solid color if gradient is disabled or elevation is missing (2D data)
             clean_coords = [[c[0], c[1]] for c in all_coords]
-            tactical_path = Line(clean_coords, 'red', 7)
+            tactical_path = Line(clean_coords, line_color, line_width)
             m.add_line(tactical_path)
 
         # --- 5. Layers: Tactical Markers ---
@@ -98,9 +114,10 @@ def save_local_tactical_map(
 
         return {
             "status": "Success",
-            "message": "Tactical heatmap map created successfully.",
+            "message": "Tactical map created successfully.",
             "mcp_resource_uri": mcp_uri,
-            "file_location": str(file_path)
+            "file_location": str(file_path),
+            "style_applied": "gradient" if actual_use_gradient else "solid"
         }
 
     except Exception as e:

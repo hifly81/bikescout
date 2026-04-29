@@ -45,7 +45,7 @@ class BikeSetup(BaseModel):
         "mtb",
         description="The category of the bike, used to filter suitable trail surfaces."
     )
-    tire_size: Literal["29", "27.5", "700c", "650b"] = Field(
+    tire_size: Literal["32", "29", "27.5", "700c", "650b"] = Field(
         "29",
         description="Standard wheel diameter."
     )

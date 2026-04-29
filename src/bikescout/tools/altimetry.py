@@ -148,7 +148,7 @@ def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int 
 
         return {
             "status": "Success",
-            "message": "Elevation profile stored in BikeScout home directory.",
+            "message": "Elevation profile image created.",
             "mcp_resource_uri": mcp_uri,
             "file_location": str(file_path),
             "style_applied": style,

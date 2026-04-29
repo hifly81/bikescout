@@ -331,7 +331,10 @@ def get_complete_trail_scout(
 
         # --- 9. ARTIFACTS: MAP, GPX, ALTIMETRY ---
         if include_map:
-            response_payload["map_image_url"] = save_local_tactical_map(filename_part, data)
+            map_payload = save_local_tactical_map(filename_part, data)
+            if map_payload["status"] == "Success":
+                response_payload["map_path"] = map_payload["mcp_resource_uri"]
+                response_payload["mcp_resource_uri_map"] = map_payload["mcp_resource_uri"]
 
         if include_gpx:
             try:

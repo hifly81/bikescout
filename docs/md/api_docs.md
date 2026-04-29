@@ -223,7 +223,7 @@ The flagship tool of the server. It acts as a **Master Orchestrator**, merging g
   - **Cycling POI Scout**: Scans a 2km radius around the route for **drinking water**, **bicycle repair stations**, and **mountain shelters**.
 * **Technical Grading**: Identifies and categorizes climbs using **UCI-standardization** (Cat 4 to HC) based on length and average gradient.
 * **Visual & Navigational Assets**:
-    * Generates a **Static Map (.png)** preview for instant visualization.
+    * Generates a **Map (.png)** preview for instant visualization.
     * Enhanced GPX Engine: Produces a high-utility GPX XML string, ready to be loaded on Garmin, Strava,... 
 Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoint) tags that trigger alerts on Garmin, Wahoo, and Hammerhead units for:
       - Summit Alerts: Marks the highest elevation point of the route. 
@@ -240,7 +240,7 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
 | **`mission`** | `object` | Required | [Mission Constraints](#mission-constraints-mission). |
 | `include_gpx` | `bool` | `True` | Whether to include the raw XML GPX content.          |
 | `include_map` | `bool` | `False` | Whether to generate the Static Map URL.              |
-| `style`    | `string` | sparkline          | Visual style of the profile, "sparkline", "filled", "bars"|                     |
+| `style`    | `string` | `filled`          | Visual style of the profile, "sparkline", "filled", "bars"|                     |
 | `output_level` | `string` | `standard` | Verbosity level: `summary`, `standard`, or `full`.   |
 | `target_date` | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format  |
 
@@ -413,7 +413,8 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
       }
     ]
   },
-  "map_image_url": "/home/test/.bikescout/gpx/tactical_route_3c3c37.png",
+  "map_path": "bikescout://maps/tactical_map_6af64c_1777452416.png",
+  "mcp_resource_uri_map": "bikescout://maps/tactical_map_6af64c_1777452416.png",
   "gpx_export_path": "/home/test/.bikescout/gpx/tactical_route_3c3c37.gpx",
   "gpx_stats": {
     "total_points": 945,
@@ -921,12 +922,12 @@ Generates a high-resolution visual analysis of the route's elevation profile. Un
 
 #### **Parameters:**
 
-| Parameter  | Type     | Default            | Description                                        |
-|:-----------|:---------|:-------------------|:---------------------------------------------------|
-| `geometry` | `object` | **Required**       | [Route Geometry](#route-geometry-geometry).        |
-| `width`    | `int`    | 8                  | Width of the generated image (matplotlib inches).  |
-| `height`   | `int`    | 3                  | Height of the generated image (matplotlib inches). |
-| `style`    | `string` | sparkline          | Visual style of the profile, "sparkline", "filled", "bars"|                     |
+| Parameter  | Type     | Default      | Description                                        |
+|:-----------|:---------|:-------------|:---------------------------------------------------|
+| `geometry` | `object` | **Required** | [Route Geometry](#route-geometry-geometry).        |
+| `width`    | `int`    | 8            | Width of the generated image (matplotlib inches).  |
+| `height`   | `int`    | 3            | Height of the generated image (matplotlib inches). |
+| `style`    | `string` | `filled`      | Visual style of the profile, "sparkline", "filled", "bars"|                     |
 
 
 #### **Example Output (JSON):**

@@ -80,7 +80,7 @@ def trail_scout(
         mission: MissionConstraints,
         include_gpx: bool = True,
         include_map: bool = False,
-        style: Literal["sparkline", "filled", "bars"] = "sparkline",
+        style: Literal["sparkline", "filled", "bars"] = "filled",
         output_level: Literal["summary", "standard", "full"] = "standard",
         target_date: Optional[str] = None
 ):
@@ -259,7 +259,7 @@ def analyze_strava_activity(activity_date: str):
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
-def elevation_profile_image(geometry: RouteGeometry, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "sparkline"):
+def elevation_profile_image(geometry: RouteGeometry, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "filled"):
     """
     Generates a visual elevation profile image amd return a URI with the altimetry report.
 
@@ -422,6 +422,13 @@ def serve_altimetry_image(filename: str) -> bytes:
     file_path = Path.home() / ".bikescout" / "altimetry" / filename
     if not file_path.exists():
         raise FileNotFoundError("Altimetry not found.")
+    return file_path.read_bytes()
+
+@mcp.resource("bikescout://maps/{filename}")
+def serve_map_image(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "maps" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("Map not found.")
     return file_path.read_bytes()
 
 @mcp.tool()

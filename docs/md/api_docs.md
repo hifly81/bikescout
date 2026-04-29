@@ -415,6 +415,7 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
   },
   "map_path": "bikescout://maps/tactical_map_6af64c_1777452416.png",
   "mcp_resource_uri_map": "bikescout://maps/tactical_map_6af64c_1777452416.png",
+  "mcp_resource_uri_gpx": "bikescout://gpx/tactical_route_3c3c37.gpx",
   "gpx_export_path": "/home/test/.bikescout/gpx/tactical_route_3c3c37.gpx",
   "gpx_stats": {
     "total_points": 945,

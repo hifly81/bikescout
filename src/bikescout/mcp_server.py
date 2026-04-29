@@ -431,6 +431,13 @@ def serve_map_image(filename: str) -> bytes:
         raise FileNotFoundError("Map not found.")
     return file_path.read_bytes()
 
+@mcp.resource("bikescout://gpx/{filename}")
+def serve_gpx(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "gpx" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("GPX not found.")
+    return file_path.read_bytes()
+
 @mcp.tool()
 def apply_safety_protocol(
         mission_type: Literal["mtb", "ebike", "road", "gravel", "general"]

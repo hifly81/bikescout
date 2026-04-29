@@ -178,9 +178,12 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(full_content)
 
+        mcp_uri = f"bikescout://gpx/{filename}"
+
         return {
             "status": "Success",
             "message": "Tactical GPX file successfully exported and cleaned.",
+            "mcp_resource_uri": mcp_uri,
             "file_location": str(file_path),
             "tactical_stats": {
                 "total_points": len(coords),
@@ -341,6 +344,7 @@ def get_complete_trail_scout(
                 gpx_report = generate_tactical_gpx(filename_part, geojson_data=route_geo, amenities=amenities)
                 if gpx_report["status"] == "Success":
                     response_payload["gpx_export_path"] = gpx_report["file_location"]
+                    response_payload["mcp_resource_uri_gpx"] = gpx_report["mcp_resource_uri"]
                     response_payload["gpx_stats"] = gpx_report.get("tactical_stats")
             except Exception as e:
                 response_payload["gpx_error"] = f"GPX failed: {str(e)}"

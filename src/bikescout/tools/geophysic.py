@@ -50,7 +50,7 @@ def calculate_geodetic_segment(lat1: float, lon1: float, lat2: float, lon2: floa
 
     # 2. Calculate Forward Bearing
     # This is called internally to establish the direction of travel
-    bearing = calculate_bearing(lat1, lon1, lat2, lon2)
+    bearing = _calculate_bearing(lat1, lon1, lat2, lon2)
 
     # 3. Calculate Wind Alignment Score
     # Only triggered if wind_direction telemetry is provided
@@ -64,7 +64,7 @@ def calculate_geodetic_segment(lat1: float, lon1: float, lat2: float, lon2: floa
         "wind_alignment": alignment
     }
 
-def calculate_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+def _calculate_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
     Calculates the Forward Bearing (heading) between two GPS points.
     Essential for Crosswind Analysis and Aero Drag Modeling.

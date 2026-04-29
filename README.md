@@ -97,12 +97,7 @@ Pre Requirements:
 
 - **Python 3.10+**
 - **OpenRouteService API Key**: Get a free key at [openrouteservice.org](https://openrouteservice.org/).
-- **MCP Client**: Such as Claude Desktop.
-- **Strava Account (Optional)**: Required only for the **Post-Ride Tactical Analysis** feature.
-
-To enable Strava integration, you need to create a developer application and generate a long-lived Refresh Token:
-
-See the related [how to obtain a Strava key section](docs/md/strava_key.md)
+- **MCP Client**: Such as Claude Desktop, Cursor.
 
 To integrate **BikeScout** with your preferred MCP client (Claude Desktop, Cline, Roo Code, etc.), add the following configuration to your settings file:
 
@@ -141,9 +136,6 @@ Example:
       "env": {
         "PYTHONPATH": "PATH/TO/YOUR/BIKESCOUT_FOLDER/src", 
         "ORS_API_KEY": "YOUR_OPENROUTE_SERVICE_API_KEY",
-        "STRAVA_CLIENT_ID": "YOUR_STRAVA_CLIENT_ID",
-        "STRAVA_CLIENT_SECRET": "YOUR_STRAVA_CLIENT_SECRET",
-        "STRAVA_REFRESH_TOKEN": "YOUR_STRAVA_REFRESH_TOKEN",
       }
     }
   }
@@ -159,10 +151,6 @@ To launch the inspector and interact with the tools manually, run the following 
 
 ```bash
 export ORS_API_KEY=YOUR_OPENROUTE_SERVICE_API_KEY
-## Optional API Key
-export STRAVA_CLIENT_ID=YOUR_STRAVA_CLIENT_ID
-export STRAVA_CLIENT_SECRET=YOUR_STRAVA_CLIENT_SECRET
-export STRAVA_REFRESH_TOKEN=YOUR_STRAVA_REFRESH_TOKEN
 
 PYTHONPATH=./src npx @modelcontextprotocol/inspector ./venv/bin/python3 -m bikescout.mcp_server
 ```
@@ -213,4 +201,3 @@ BikeScout aggregates data from several open providers. Users of this server must
 * **Routing & Map Data:** Provided by [OpenRouteService](https://openrouteservice.org/) by HeiGIT.
 * **Geospatial & Geocoding Data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Data is available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Geocoding service powered by [Nominatim](https://nominatim.org/).
 * **Weather Forecasts:** Powered by [Open-Meteo](https://open-meteo.com/). Data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-* **Post-ride analysis**: Provided by Strava. Post-ride analysis and GPS telemetry are accessed via the [Strava API](https://developers.strava.com/docs/reference).

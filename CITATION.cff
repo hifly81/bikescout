@@ -13,7 +13,6 @@ license: AGPL-3.0-only
 keywords:
   - mcp-server
   - cycling-intelligence
-  - strava-integration
   - geospatial-ai
   - mud-prediction
 abstract: >-

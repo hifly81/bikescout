@@ -20,8 +20,6 @@ BikeScout aggregates data from several open providers. Users of this server must
 * **Routing & Map Data:** Provided by [OpenRouteService](https://openrouteservice.org/) by HeiGIT.
 * **Geospatial & Geocoding Data:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. Data is available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/). Geocoding service powered by [Nominatim](https://nominatim.org/).
 * **Weather Forecasts:** Powered by [Open-Meteo](https://open-meteo.com/). Data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-* **Post-ride analysis**: Provided by Strava. Post-ride analysis and GPS telemetry are accessed via the [Strava API](https://developers.strava.com/docs/reference).
-
 
 ---
 
@@ -50,7 +48,7 @@ BikeScout aggregates data from several open providers. Users of this server must
 - **Smart POI Scouting**: Scans a 5km radius along the route for drinking water, bicycle repair stations, and mountain shelters.
 - **E-MTB Energy Management**: Calculates estimated battery consumption (**Wh**) based on rider weight, assist mode (Eco/Boost), and terrain-specific rolling resistance.
 - **Local Expert Skills**: Specialized "Local Wisdom" knowledge bases for world-class destinations like The Dolomites, Moab, and Finale Ligure.
-- **Post-Ride Analysis**: Fuses Strava activity logs with environmental intelligence to analyze how mud and weather conditions impacted your actual performance.
+- **Post-Ride Analysis**: Fuses activity logs with environmental intelligence to analyze how mud and weather conditions impacted your actual performance.
 
 ### 🏁 Pro-Racing & Tactical Engine
 - **VAM & Power Modeling**: Precise **$W/kg$** requirements based on professional VAM targets and UCI climb categorization.
@@ -1640,75 +1638,6 @@ A professional-grade performance engine for high-fidelity race track auditing. I
       "type": "Steep Road Wall"
     }
   ]
-}
-```
-
----
-
-### `analyze_strava_activity`
-A post-ride tactical diagnostic tool that fuses actual Strava GPS telemetry with historical environmental data to validate trail conditions and performance.
-
-#### **Functionality:**
-* **Satellite Data Retrieval:** Connects to the Strava API to fetch precise activity logs, including distance, elevation, and speed metrics.
-* **Environmental Fusion:** Automatically triggers the **Mud Risk** and **Weather** modules for the specific time and location of the ride.
-* **Surface-Aware Validation:** Detects the activity type (MTB vs. Road) to apply the correct soil sensitivity coefficients to the moisture analysis.
-
-#### **Parameters:**
-
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `activity_date` | `string` | **Required** | Date of the ride in `YYYY-MM-DD` format. |
-
-#### **Example Output (JSON):**
-
-```json
-{
-  "payload_version": "1.0",
-  "status": "Success",
-  "mission_id": "xxxxxx",
-  "debriefing_summary": {
-    "name": "Sessione di mountain biking pomeridiana",
-    "actual_avg_speed": "15.0 km/h",
-    "actual_vam": "258 m/h",
-    "worst_encountered_mud": 0
-  },
-  "spatio_temporal_logs": [
-    {
-      "timestamp": "2025-06-04T15:13:26+00:00",
-      "location": [
-        41.718848,
-        12.65801
-      ],
-      "mud_score": 0,
-      "wind_speed": 0
-    },
-    {
-      "timestamp": "2025-06-04T16:36:02+00:00",
-      "location": [
-        41.744515,
-        12.800712
-      ],
-      "mud_score": 0,
-      "wind_speed": 0
-    },
-    {
-      "timestamp": "2025-06-04T18:00:47+00:00",
-      "location": [
-        41.722348,
-        12.661549
-      ],
-      "mud_score": 0,
-      "wind_speed": 0
-    }
-  ],
-  "tactical_calibration": {
-    "efficiency_scoring": "Performance matched environmental expectations.",
-    "suggested_profile_update": {
-      "climbing_efficiency": "Standard",
-      "mud_penalty_factor": "Accurate"
-    }
-  },
-  "mechanical_feedback": "Tire pressure refinement suggested based on speed-to-saturation correlation."
 }
 ```
 

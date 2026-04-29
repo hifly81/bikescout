@@ -96,8 +96,8 @@ def trail_scout(
         rider: Profile including weight and fitness level.
         bike: Setup details including bike type and tire width.
         mission: Constraints like search radius and surface preference.
-        include_gpx: If True, generates a downloadable GPX file for navigation.
-        include_map: If True, generates a visual static map image.
+        include_gpx: If True, generates a GPX file for navigation.
+        include_map: If True, generates a visual map image.
         style: Visual style of the profile "sparkline", "filled", "bars".
         output_level: Detail level of the report ("summary", "standard", "full").
         target_date: Optional. The date of the event in YYYY-MM-DD format.
@@ -106,6 +106,76 @@ def trail_scout(
     data = get_complete_trail_scout(
         ORS_API_KEY, lat, lon, rider, bike, mission, include_gpx, include_map, style, output_level, target_date)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
+
+@mcp.tool()
+def trail_scout_simple(
+        lat: float,
+        lon: float,
+        # --- Rider Profile (Flat) ---
+        weight_kg: float = 75.0,
+        fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
+        # --- Bike Setup (Flat) ---
+        bike_type: Literal['mtb', 'road', 'gravel', 'e-mtb', 'enduro'] = "mtb",
+        tire_size: Literal["32", "29", "27.5", "700c", "650b"] = "29",
+        is_ebike: bool = False,
+        battery_wh: int = 625,
+        # --- Mission Constraints (Flat) ---
+        radius_km: int = 30,
+        profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = "cycling-mountain",
+        surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
+        complexity: int = 3,
+        seed: int = 42,
+        assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
+        # --- Output Options ---
+        include_gpx: bool = True,
+        include_map: bool = True,
+        style: Literal["sparkline", "filled", "bars"] = "filled",
+        output_level: Literal["summary", "standard", "full"] = "standard"
+):
+    """
+    Simplified tactical scout for cycling routes.
+    Use this for quick route generation with sensible defaults.
+    Only lat and lon are strictly required.
+    """
+    try:
+        # Internal reconstruction of validated Pydantic models
+        # This preserves all the validation logic (like e-bike battery checks)
+        rider = RiderProfile(
+            weight_kg=weight_kg,
+            fitness_level=fitness_level
+        )
+
+        bike = BikeSetup(
+            bike_type=bike_type,
+            tire_size=tire_size,
+            is_ebike=is_ebike,
+            battery_wh=battery_wh
+        )
+
+        mission = MissionConstraints(
+            radius_km=radius_km,
+            profile=profile,
+            surface_preference=surface_preference,
+            complexity=complexity,
+            seed=seed,
+            assist_mode=assist_mode
+        )
+
+        # Call the core logic (reusing the existing trail_scout logic)
+        return trail_scout(
+            lat=lat,
+            lon=lon,
+            rider=rider,
+            bike=bike,
+            mission=mission,
+            include_gpx=include_gpx,
+            include_map=include_map,
+            style=style,
+            output_level=output_level
+        )
+
+    except Exception as e:
+        return {"status": "Error", "message": f"Trail Scout Simple failed: {str(e)}"}
 
 @mcp.tool()
 def check_trail_weather(lat: float, lon: float, target_date: Optional[str] = None):

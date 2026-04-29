@@ -29,11 +29,13 @@ class RiderProfile(BaseModel):
     """
     weight_kg: float = Field(
         75.0,
-        description="Rider weight in kilograms. Critical for tire pressure and energy modeling."
+        description="Rider weight in kilograms. Critical for tire pressure and energy modeling.",
+        json_schema_extra={"examples": [70.0, 85.5]}
     )
     fitness_level: Literal["beginner", "intermediate", "pro"] = Field(
         "intermediate",
-        description="User's athletic preparation level. Affects fatigue and climbing logic."
+        description="User's athletic preparation level. Affects fatigue and climbing logic.",
+        json_schema_extra={"examples": ["intermediate"]}
     )
 
 class BikeSetup(BaseModel):
@@ -43,19 +45,23 @@ class BikeSetup(BaseModel):
     """
     bike_type: Literal['MTB', 'Road', 'Gravel', 'E-MTB', 'Enduro', 'mtb', 'road', 'gravel', 'e-mtb', 'enduro'] = Field(
         "mtb",
-        description="The category of the bike, used to filter suitable trail surfaces."
+        description="The category of the bike, used to filter suitable trail surfaces.",
+        json_schema_extra={"examples": ["mtb", "road"]}
     )
     tire_size: Literal["32", "29", "27.5", "700c", "650b"] = Field(
         "29",
-        description="Standard wheel diameter."
+        description="Standard wheel diameter.",
+        json_schema_extra={"examples": ["29", "700c"]}
     )
     is_ebike: bool = Field(
         False,
-        description="Set to True if the bike has an electric motor."
+        description="Set to True if the bike has an electric motor.",
+        json_schema_extra={"examples": [False]}
     )
     battery_wh: int = Field(
         625,
-        description="Battery capacity in Watt-hours. Mandatory if is_ebike is True."
+        description="Battery capacity in Watt-hours. Mandatory if is_ebike is True.",
+        json_schema_extra={"examples": [625, 750]}
     )
 
     @model_validator(mode='after')
@@ -74,30 +80,36 @@ class MissionConstraints(BaseModel):
     """
     radius_km: int = Field(
         30,
-        description="The desired search radius or loop length in kilometers."
+        description="The desired search radius or loop length in kilometers.",
+        json_schema_extra={"examples": [20, 50]}
     )
     profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = Field(
         "cycling-mountain",
-        description="The OpenRouteService routing profile."
+        description="The OpenRouteService routing profile.",
+        json_schema_extra={"examples": ["cycling-mountain"]}
     )
     surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = Field(
         "neutral",
-        description="User preference for road vs off-road surfaces."
+        description="User preference for road vs off-road surfaces.",
+        json_schema_extra={"examples": ["neutral"]}
     )
     complexity: int = Field(
         3,
         ge=3,
         le=10,
         serialization_alias="points",
-        description="Number of waypoints to generate for the route shape (3-10)."
+        description="Number of waypoints to generate for the route shape (3-10).",
+        json_schema_extra={"examples": [3, 5]}
     )
     seed: int = Field(
         42,
-        description="Random seed for reproducibility of generated trails."
+        description="Random seed for reproducibility of generated trails.",
+        json_schema_extra={"examples": [11, 42]}
     )
     assist_mode: Literal["Eco", "Trail", "Boost", "eco", "trail", "boost"] = Field(
         "Eco",
-        description="E-bike motor assistance level. Influences battery range predictions."
+        description="E-bike motor assistance level. Influences battery range predictions.",
+        json_schema_extra={"examples": ["Trail"]}
     )
 
 class RouteGeometry(BaseModel):
@@ -108,6 +120,11 @@ class RouteGeometry(BaseModel):
     coordinates: List[List[float]] = Field(
         ...,
         description="A list of coordinate triplets: [lon, lat, ele].",
+        json_schema_extra={
+            "examples": [
+                [[9.1913, 45.4642, 120.0], [9.1915, 45.4645, 122.5]]
+            ]
+        }
     )
 
     @field_validator('coordinates')

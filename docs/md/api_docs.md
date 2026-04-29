@@ -120,13 +120,13 @@ These skills inject "Local Wisdom" into the AI's reasoning, adapting calculation
 
 | Skill / Knowledge Base | Destination | Tactical Specialization |
 | :--- | :--- | :--- |
-| `get_moab_intel` | 🏜️ **Moab, Utah** | High-desert survival, Slickrock traction mastery, and extreme hydration protocols. |
-| `get_castelli_intel` | 🌋 **Castelli Romani** | Volcanic soil behavior (dust/mud), aggressive spikes in gradient, and cultural stop protocols. |
-| `get_dolomiti_intel` | 🏔️ **Dolomites, Italy** | High-altitude weather vigilance, UNESCO limestone grip analysis, and 1:1 gearing strategies. |
-| `get_arenberg_intel` | 🧱 **Arenberg Forest** | Vibration damping on Pavé, stone humidity risk (TAEL), and "Roubaix-spec" setup. |
-| `get_finale_intel` | 🌊 **Finale Ligure** | EWS standards, brake fade management, and limestone rock garden suspension tuning. |
-| `get_derby_intel` | 🌿 **Derby, Tasmania** | Granite slab traction, "Hero Dirt" saturation analysis, and high-speed rebound optimization. |
-| `get_shimanami_intel` | 🌉 **Shimanami Kaido** | Bridge crosswind analysis, island-hopping logistics, and road/gravel touring efficiency. |
+| `bikescout://knowledge/moab-usa` | 🏜️ **Moab, Utah** | High-desert survival, Slickrock traction mastery, and extreme hydration protocols. |
+| `bikescout://knowledge/castelliromani-italy` | 🌋 **Castelli Romani** | Volcanic soil behavior (dust/mud), aggressive spikes in gradient, and cultural stop protocols. |
+| `bikescout://knowledge/dolomiti-italy` | 🏔️ **Dolomites, Italy** | High-altitude weather vigilance, UNESCO limestone grip analysis, and 1:1 gearing strategies. |
+| `bikescout://knowledge/trouee-darenberg-france` | 🧱 **Arenberg Forest** | Vibration damping on Pavé, stone humidity risk (TAEL), and "Roubaix-spec" setup. |
+| `bikescout://knowledge/finale-ligure-italy` | 🌊 **Finale Ligure** | EWS standards, brake fade management, and limestone rock garden suspension tuning. |
+| `bikescout://knowledge/derby-australia` | 🌿 **Derby, Tasmania** | Granite slab traction, "Hero Dirt" saturation analysis, and high-speed rebound optimization. |
+| `bikescout://knowledge/shimanamikaido-japan` | 🌉 **Shimanami Kaido** | Bridge crosswind analysis, island-hopping logistics, and road/gravel touring efficiency. |
 
 
 ### **How These Skills Work: Retrieve-and-Reason**

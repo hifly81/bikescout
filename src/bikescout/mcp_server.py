@@ -16,6 +16,7 @@
 
 import os
 import sys
+import json
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from pathlib import Path
@@ -379,60 +380,40 @@ def analyze_gpx_track(
 
 # --- SKILLS SECTION
 
-@mcp.tool()
-def get_local_knowledge(region: str):
+BASE_DIR = Path(__file__).parent.absolute() / "prompts"
+
+@mcp.resource("bikescout://world-knowledge")
+def get_world_knowledge() -> str:
     """
-    Retrieves high-fidelity tactical intelligence for specific cycling meccas.
-
-    Args:
-        region: Name of the cycling destination (e.g., "Dolomites", "Moab", "Finale Ligure").
+    Central index for all tactical regions.
     """
+    if not BASE_DIR.exists():
+        return "Directory not found."
 
-    current_dir = Path(__file__).parent.absolute()
-    base_dir = current_dir / "prompts"
+    resource_list = []
+    for file in BASE_DIR.glob("*.md"):
+        slug = file.stem.replace("explore-", "")
+        resource_list.append({
+            "uri": f"bikescout://knowledge/{slug}",
+            "name": f"Tactical Guide: {slug.replace('-', ' ').title()}",
+            "mimeType": "text/markdown"
+        })
+    return json.dumps(resource_list, indent=2)
 
-    target_slug = region.lower().replace(" ", "").replace("_", "")
+@mcp.resource("bikescout://knowledge/{region}")
+def get_specific_knowledge(region: str) -> str:
+    """
+    Fetches the actual markdown content.
+    """
+    target_slug = region.lower().replace("-", "").replace("_", "")
 
-    try:
-        if not base_dir.exists():
-            return {
-                "status": "Error",
-                "message": f"Critical Error: 'prompts' directory not found at {base_dir}",
-                "debug_current_working_dir": os.getcwd()
-            }
+    for file in BASE_DIR.glob("*.md"):
+        file_name_clean = file.stem.lower().replace("explore-", "").replace("-", "").replace("_", "")
 
-        available_files = list(base_dir.glob("*.md"))
+        if target_slug == file_name_clean:
+            return file.read_text(encoding="utf-8")
 
-        selected_file = None
-        for file in available_files:
-            # (eg: explore-moab-usa.md -> moab)
-            file_name_clean = file.name.lower().replace("-", "").replace("_", "")
-
-            if target_slug in file_name_clean:
-                selected_file = file
-                break
-
-        if not selected_file:
-            return {
-                "status": "Error",
-                "message": f"Region '{region}' not found in tactical database.",
-                "scanned_directory": str(base_dir),
-                "available_files": [f.name for f in available_files]
-            }
-
-        with open(selected_file, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        return {
-            "payload_version": BIKESCOUT_PROTOCOL_VERSION,
-            "region": region,
-            "matched_file": selected_file.name,
-            "tactical_intelligence": content,
-            "status": "Success"
-        }
-
-    except Exception as e:
-        return {"status": "Error", "message": f"FileSystem Exception: {str(e)}"}
+    return f"Data for {region} not found."
 
 @mcp.tool()
 def apply_safety_protocol(
@@ -492,27 +473,6 @@ def get_baseline_mechanics(bike_category: Literal["mtb", "ebike", "road", "grave
         "setup_notes": BikeScoutResources.MECHANICAL_NOTES,
         "status": "Success"
     }
-
-# --- PROMPTS SECTION ---
-
-def register_dynamic_prompts(mcp_instance, manager):
-    for slug, content in manager.prompts_data.items():
-        def create_handler(static_content):
-            def handler():
-                return static_content
-            return handler
-
-        mcp_instance.prompt(
-            name=slug,
-            description=(
-                f"SYSTEM_PROMPT: Load this to act as the expert guide for {slug}. "
-                "Do not access as a resource. Use this prompt to initialize your "
-                "knowledge, tools usage logic, and tactical persona for this region."
-            )
-        )(create_handler(content))
-
-register_dynamic_prompts(mcp, prompts_manager)
-
 
 def main():
     mcp.run(transport='stdio')

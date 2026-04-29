@@ -18,6 +18,8 @@ def analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_ma
     """
     Physics-based compatibility check using tire width (mm) and bike geometry.
     """
+    bike_type = bike_type.lower()
+
     breakdown = []
     warnings = []
     is_compatible = True
@@ -45,8 +47,7 @@ def analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_ma
                     warnings.append(f"Traction Alert: {percentage}% is {name}. {tire_mm}mm tires may slip in wet/loose conditions.")
 
             # --- 3. Geometry vs. Rubber (Frame-specific logic) ---
-            # Even with wide tires, a pure 'Road' geometry has limits in off-road handling
-            if bike_type.lower() == "road":
+            if bike_type == "road":
                 if name in ["Gravel", "Unpaved", "Pebbles", "Grass", "Other"] and percentage > 15.0:
                     warnings.append(f"Geometry Warning: {percentage}% {name} exceeds standard road bike handling design.")
 

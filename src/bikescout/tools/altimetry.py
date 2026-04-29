@@ -21,14 +21,15 @@ import io
 import base64
 import uuid
 import time
+from geopy.distance import geodesic
 from pathlib import Path
 from bikescout.schemas import RouteGeometry
 from typing import Literal
 
 def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, style: str = "filled"):
     """
-    Generates an elevation profile plot with gradient coding.
-    Includes an Elevation Healing layer and multiple visual styles.
+    Generates an elevation profile plot with high-precision geodetic distances.
+    Uses WGS-84 Geodesic distances to ensure X-axis accuracy (prevents coordinate compression).
     """
     if not geometry or len(geometry) < 2:
         return None
@@ -44,21 +45,25 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
     geometry = healed_geometry
     elevations = [p[2] for p in geometry]
 
-    # --- 2. X-Axis Calculation ---
+    # --- 2. X-Axis Calculation (High Precision Geodesic) ---
     distances = [0]
     total_dist = 0
     for i in range(len(geometry) - 1):
         p1, p2 = geometry[i], geometry[i+1]
-        d = np.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2) * 111000
+
+        d = geodesic((p1[1], p1[0]), (p2[1], p2[0])).meters
+
         total_dist += d
         distances.append(total_dist)
+
     dist_km = [d / 1000 for d in distances]
 
-    # --- 3. Gradient Calculation  ---
+    # --- 3. Gradient Calculation (Refined) ---
     grades = []
     for i in range(len(elevations) - 1):
         rise = elevations[i+1] - elevations[i]
         run = distances[i+1] - distances[i]
+
         g = (rise / run) * 100 if run > 0.1 else 0
         grades.append(np.clip(g, -25, 25))
     grades.append(0)
@@ -110,10 +115,9 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
 
     return img_base64
 
-def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "sparkline"):
+def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "filled"):
     """
-    Generates an elevation profile, saves it to ~/.bikescout/altimetry/
-    and performs auto-cleaning of old files.
+    Generates an elevation profile, manages local storage and auto-cleaning.
     """
     try:
         coords_list = geometry.coordinates
@@ -123,19 +127,21 @@ def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int 
 
         now = time.time()
         for f in home_dir.glob("*.png"):
-            if f.is_file() and (now - f.stat().st_mtime) > (3 * 86400): # 3 days
+            if f.is_file() and (now - f.stat().st_mtime) > (3 * 86400):
                 try:
                     f.unlink()
                 except: pass
-
         plot_result = _generate_altimetry_plot(coords_list, width, height, style)
 
-        raw_data = plot_result.get("image_data_url") if isinstance(plot_result, dict) else plot_result
+        raw_data = plot_result
+        if isinstance(plot_result, dict):
+            raw_data = plot_result.get("image_data_url", "")
+
         if "base64," in raw_data:
             raw_data = raw_data.split("base64,")[1]
 
         if not raw_data:
-            return {"status": "Error", "message": "No plot data."}
+            return {"status": "Error", "message": "No plot data generated."}
 
         unique_id = uuid_input if uuid_input else uuid.uuid4().hex[:6]
         filename = f"bs_altimetry_{unique_id}.png"
@@ -153,7 +159,9 @@ def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int 
             "file_location": str(file_path),
             "style_applied": style,
             "dimensions": f"{width}x{height} in",
-            "instructions": f"The file is safe in your home directory: {file_path}"
+            "total_distance_km": round(sum(geodesic((geometry.coordinates[i][1], geometry.coordinates[i][0]),
+                                                    (geometry.coordinates[i+1][1], geometry.coordinates[i+1][0])).meters
+                                           for i in range(len(geometry.coordinates)-1)) / 1000, 2)
         }
 
     except Exception as e:

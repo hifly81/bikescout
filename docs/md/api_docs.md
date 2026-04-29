@@ -2,7 +2,7 @@
 
 Tactical Cycling Intelligence | MCP Server for AI-Powered Mission Planning.
 
-_Version: 1.2.2 - April 2026_
+_Version: 1.3.0 - April 2026_
 
 ## License & Data Attributions
 

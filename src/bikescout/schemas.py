@@ -53,6 +53,13 @@ class BikeSetup(BaseModel):
         description="Standard wheel diameter.",
         json_schema_extra={"examples": ["29", "700c"]}
     )
+    tire_width_mm: int = Field(
+        54,
+        ge=18,
+        le=75,
+        description="The actual width of the tire in mm. Critical for surface safety thresholds.",
+        json_schema_extra={"examples": 54}
+    )
     is_ebike: bool = Field(
         False,
         description="Set to True if the bike has an electric motor.",

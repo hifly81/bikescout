@@ -157,12 +157,13 @@ Used for tire pressure and difficulty scaling.
 | `fitness_level` | `string` |         | Affects difficulty grading. Options: `beginner`, `intermediate`, `advanced`, `pro`. |
 
 #### **Bike Setup (`bike`)**
-| Field | Type | Default | Description |
-| :--- | :--- |:--------| :--- |
-| `bike_type` | `string` |         | Geometry profile. Options: `Road`, `Gravel`, `MTB`, `Enduro`. |
-| `tire_size` | `string` |         | Diameter/Standard. Options: `26`, `27.5`, `29`, `700c`, `650b`. |
-| `is_ebike` | `bool` | `false` | If true, triggers battery consumption and motor-assist logic. |
-| `battery_wh` | `int` |         | Battery capacity in Watt-hours (required if `is_ebike` is true). |
+| Field | Type     | Default | Description                                                                                          |
+| :--- |:---------|:--------|:-----------------------------------------------------------------------------------------------------|
+| `bike_type` | `string` |         | Geometry profile. Options: `Road`, `Gravel`, `MTB`, `Enduro`,`E-MTB`.                                |
+| `tire_size` | `string` | `29`    | Diameter/Standard. Options: `26`, `27.5`, `29`, `32`, `700c`, `650b`.                                |
+| `tire_width_mm` | `int`    | 54      | The actual width of the tire in mm. Critical for surface safety thresholds. Value between `18` and `75`. |
+| `is_ebike` | `bool`   | `false` | If true, triggers battery consumption and motor-assist logic.                                        |
+| `battery_wh` | `int`    |         | Battery capacity in Watt-hours (required if `is_ebike` is true).                                     |
 
 #### **Mission Constraints (`mission`)**
 | Field                | Type     | Default            | Description                                                                                                                                                                                                                                                                                            |

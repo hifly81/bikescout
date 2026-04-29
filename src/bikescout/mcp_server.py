@@ -567,8 +567,27 @@ def get_baseline_mechanics(bike_category: Literal["mtb", "ebike", "road", "grave
         "status": "Success"
     }
 
+import os
+
 def main():
-    mcp.run(transport='stdio')
+    """
+    Main entry point for the BikeScout MCP Server.
+    Supports both 'stdio' for local clients
+    and 'sse' for remote deployments/web interfaces.
+    """
+    # Use environment variable to choose the transport, defaulting to stdio
+    transport_mode = os.getenv("BIKESCOUT_TRANSPORT", "stdio").lower()
+
+    if transport_mode == "sse":
+        # Remote mode: Requires a host and port (defaulting to 0.0.0.0 for Docker/Cloud)
+        host = os.getenv("BIKESCOUT_HOST", "0.0.0.0")
+        port = int(os.getenv("BIKESCOUT_PORT", 8000))
+
+        print(f"Starting BikeScout MCP Server in SSE mode on {host}:{port}")
+        mcp.run(transport='sse', host=host, port=port)
+    else:
+        # Local mode: Standard I/O transport
+        mcp.run(transport='stdio')
 
 if __name__ == "__main__":
     main()

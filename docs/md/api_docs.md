@@ -10,7 +10,7 @@ _Version: 1.2.2 - April 2026_
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** - see the [LICENSE](LICENSE) file for details.
 
 #### Why AGPLv3? 
-BikeScout contains proprietary-grade tactical logic (such as the TAEL Mud Reservoir Model). The AGPLv3 ensures that:
+BikeScout contains proprietary-grade tactical logic (such as the TAEL® Mud Reservoir Model). The AGPLv3 ensures that:
 - Transparency: Any modified version of BikeScout used to provide a service over a network (SaaS/Cloud) must make its full source code available to the community.
 - Integrity: The core tactical intelligence remains open and collaborative, preventing "closed-source" commercial hijacking of the platform's unique algorithms.
 
@@ -32,7 +32,7 @@ BikeScout aggregates data from several open providers. Users of this server must
 - **Bike Compatibility Check**: A first-of-its-kind feature that validates if a route suits your specific bike (Road, Gravel, MTB) and tire width, issuing instant safety warnings.
 
 ### ⛈️ Predictive Environmental Modeling
-- **TAEL Algorithm**: Our flagship **Terrain-Aware Evaporation Lag** model that predicts "Shadow-Lock" mud on north-facing slopes by analyzing real-time solar altitude and soil memory.
+- **TAEL® Algorithm**: Our flagship **Terrain-Aware Evaporation Lag** model that predicts "Shadow-Lock" mud on north-facing slopes by analyzing real-time solar altitude and soil memory.
 - **Predictive Mud Risk**: Advanced rideability analysis based on geological soil composition (Clay vs. Sand) and 72-hour precipitation history.
 - **Tactical Ride Window**: A "Go/No-Go" decision engine that identifies the optimal start time by cross-referencing atmospheric hazards with terrain saturation.
 - **Smart Safety Weather**: Hyper-local 4-hour forecasts with expert-level gear and layering advice based on temperature, wind, and rain thresholds.
@@ -71,10 +71,10 @@ To a standard navigator, a trail is just a trail. To a scout, the difference bet
 * **Generic Maps:** Indiscriminately label everything non-asphalt as "unpaved."
 * **BikeScout:** Probes deep OSM metadata to extract **MTB-Scale (S0-S5)** and **Tracktypes (Grade 1-5)**. It warns you if your setup is "under-gunned" for a technical section before you are committed.
 
-### 🌧️ Ground Memory & TAEL Logic
+### 🌧️ Ground Memory & TAEL® Logic
 Standard forecasts only tell you if it *might* rain. BikeScout analyzes what *actually* happened to the soil.
 * **Generic Maps:** Provide only current atmospheric snapshots.
-* **BikeScout:** Uses the **TAEL (Terrain-Aware Evaporation Lag)** index. By cross-referencing 72h precipitation history with soil geology (Clay vs. Sand) and solar altitude, it predicts where "Shadow-Lock" mud persists even on sunny days.
+* **BikeScout:** Uses the **TAEL® (Terrain-Aware Evaporation Lag)** index. By cross-referencing 72h precipitation history with soil geology (Clay vs. Sand) and solar altitude, it predicts where "Shadow-Lock" mud persists even on sunny days.
 
 ### ⚡ E-MTB & Mechanical Synchronization
 Effort is relative to your machine. A 20% gradient feels different on a 7kg Road bike than on a 24kg E-MTB rig.
@@ -121,7 +121,7 @@ These skills inject "Local Wisdom" into the AI's reasoning, adapting calculation
 | `bikescout://knowledge/moab-usa` | 🏜️ **Moab, Utah** | High-desert survival, Slickrock traction mastery, and extreme hydration protocols. |
 | `bikescout://knowledge/castelliromani-italy` | 🌋 **Castelli Romani** | Volcanic soil behavior (dust/mud), aggressive spikes in gradient, and cultural stop protocols. |
 | `bikescout://knowledge/dolomiti-italy` | 🏔️ **Dolomites, Italy** | High-altitude weather vigilance, UNESCO limestone grip analysis, and 1:1 gearing strategies. |
-| `bikescout://knowledge/trouee-darenberg-france` | 🧱 **Arenberg Forest** | Vibration damping on Pavé, stone humidity risk (TAEL), and "Roubaix-spec" setup. |
+| `bikescout://knowledge/trouee-darenberg-france` | 🧱 **Arenberg Forest** | Vibration damping on Pavé, stone humidity risk (TAEL®), and "Roubaix-spec" setup. |
 | `bikescout://knowledge/finale-ligure-italy` | 🌊 **Finale Ligure** | EWS standards, brake fade management, and limestone rock garden suspension tuning. |
 | `bikescout://knowledge/derby-australia` | 🌿 **Derby, Tasmania** | Granite slab traction, "Hero Dirt" saturation analysis, and high-speed rebound optimization. |
 | `bikescout://knowledge/shimanamikaido-japan` | 🌉 **Shimanami Kaido** | Bridge crosswind analysis, island-hopping logistics, and road/gravel touring efficiency. |
@@ -721,7 +721,7 @@ A-->B Route Type:
       "metadata": {
         "target_date": "2026-04-29T14:07:33.664740+00:00",
         "is_predictive": false,
-        "model_version": "TAEL v3.0"
+        "model_version": "TAEL® v3.1"
       },
       "environmental_context": {
         "total_rain_72h_mm": 0,
@@ -920,7 +920,7 @@ A real-time safety tool designed specifically for outdoor activities. It provide
 ---
 
 ### `ride_window_planner`
-The ultimate **Decision Intelligence** tool for the modern rider. It goes beyond simple weather reporting by calculating the optimal "Strategic Window" to deploy. It cross-references atmospheric stability with the **TAEL (Terrain-Aware Evaporation Lag)** index to determine exactly when the terrain will be at its peak performance.
+The ultimate **Decision Intelligence** tool for the modern rider. It goes beyond simple weather reporting by calculating the optimal "Strategic Window" to deploy. It cross-references atmospheric stability with the **TAEL® (Terrain-Aware Evaporation Lag)** index to determine exactly when the terrain will be at its peak performance.
 
 #### **Functionality**
 * **Sliding Window Logic:** Instead of a static snapshot, it iterates through consecutive hourly blocks to find the highest "Confidence Score" for your specific ride duration.
@@ -934,7 +934,7 @@ The ultimate **Decision Intelligence** tool for the modern rider. It goes beyond
 | `lat` | `float` | Required | Latitude of the deployment area. |
 | `lon` | `float` | Required | Longitude of the deployment area. |
 | `ride_duration_hours` | `float` | `2.0` | Target length of the mission (defines the sliding window size). |
-| `surface_type` | `str` | `"dirt"` | Used to calculate specific soil drainage coefficients for the TAEL index. |
+| `surface_type` | `str` | `"dirt"` | Used to calculate specific soil drainage coefficients for the TAEL® index. |
 | `target_date` | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format |
 
 
@@ -976,7 +976,7 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
 * **Surface-Aware Routing:** Fine-tunes the route generation based on user preferences like "avoid unpaved" or "prefer trails."
 * **Tactical Tire Intelligence:** Calculates optimal tire recommendations and pressure baseline by cross-referencing **Rider Weight**, bike type, and dominant surface composition.
 * **Mud Risk Score:** Provides a localized risk rating (Low/Medium/High) to help cyclists prevent drivetrain damage and avoid unrideable sections.
-* **TAEL (Terrain-Aware Evaporation Lag):** A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
+* **TAEL® (Terrain-Aware Evaporation Lag):** A tactical model that cross-references 72h rainfall and geological drainage with real-time solar altitude to predict trail saturation and "Shadow-Lock" mud persistence.
 * **E-MTB Power Predictor:** A physics-based energy model that predicts battery drain by cross-referencing Total System Weight, Assist Mode, Surface Drag, and Mud Suction effects.
 
 #### **Parameters:**
@@ -1277,7 +1277,7 @@ A predictive safety tool that cross-references geological surface data with hist
 * **Rain History Audit:** Automatically fetches cumulative rainfall from the last 72 hours using the Open-Meteo Archive API.
 * **Geological Sensitivity:** Differentiates how rain affects various terrains, calculating saturation levels for surfaces like clay, dirt, sand, and gravel.
 * **Mud Risk Score:** Provides a localized risk rating (Low/Medium/High) to help cyclists prevent drivetrain damage and avoid unrideable sections.
-* **TAEL v3.0 (Terrain-Aware Evaporation Lag)**: A high-fidelity reservoir model that replaces static daily sums with an hourly recursive engine ($M_t = M_{t-1} \cdot e^{-k \cdot D_t} + R_t$), integrating time-step rainfall, non-linear clay drainage physics, and cumulative solar energy to predict traction risks and provide a precise "Dry-Time" ETA.
+* **TAEL® v3.1 (Terrain-Aware Evaporation Lag)**: A high-fidelity reservoir model that replaces static daily sums with an hourly recursive engine ($M_t = M_{t-1} \cdot e^{-k \cdot D_t} + R_t$), integrating time-step rainfall, non-linear clay drainage physics, and cumulative solar energy to predict traction risks and provide a precise "Dry-Time" ETA.
 
 #### **Parameters:**
 | Parameter | Type | Default | Description |
@@ -1295,7 +1295,7 @@ A predictive safety tool that cross-references geological surface data with hist
   "metadata": {
     "target_date": "2026-04-27T22:25:05.786299+00:00",
     "is_predictive": false,
-    "model_version": "TAEL v3.0"
+    "model_version": "TAEL® v3.1"
   },
   "environmental_context": {
     "total_rain_72h_mm": 0,

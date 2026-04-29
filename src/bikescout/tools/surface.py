@@ -171,7 +171,7 @@ def _build_ors_options(surface_preference):
 def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
     """
     Analyzes route surfaces and tactical risks by integrating OpenRouteService geometry
-    with TAEL Mud Intelligence (v2.5) and E-MTB performance metrics.
+    with TAEL® Mud Intelligence and E-MTB performance metrics.
 
     This method employs an adaptive fallback strategy to prevent ORS 400 errors by
     dynamically stripping unsupported 'extra_info' (like tracktype) depending on the

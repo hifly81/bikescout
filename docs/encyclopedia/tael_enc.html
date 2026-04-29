@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BikeScout Encyclopedia | TAEL Model: Terrain-Aware Evaporation Lag</title>
+    <title>BikeScout Encyclopedia | TAEL® Model: Terrain-Aware Evaporation Lag</title>
     <meta name="description" content="Transform raw map data into Tactical Intelligence. BikeScout is the first MCP server for AI agents to predict mud risk, S-Scale terrain and E-MTB range. Optimize your mission.">
     <meta name="keywords" content="MCP Server, Model Context Protocol, MTB Intelligence, Gravel Scouting, Cycling Geodata, Mud Prediction, Trail Analysis">
     <meta name="robots" content="index, follow">
@@ -104,23 +104,23 @@
 
 <article class="max-w-3xl mx-auto py-20 px-6">
     <header class="mb-12 border-b border-slate-800 pb-12">
-        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">TAEL <br><span class="neon-text">Model</span></h1>
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">TAEL® <br><span class="neon-text">Model</span></h1>
         <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Terrain-Aware Evaporation Lag</p>
     </header>
 
     <div class="article-content">
-        <p>The <strong>TAEL (Terrain-Aware Evaporation Lag)</strong> Model is BikeScout’s algorithm designed to solve the "Post-Rain Paradox": why do trails remain saturated even after hours of direct sunlight? Unlike basic weather apps, TAEL treats the soil as a dynamic capacitor that stores and releases moisture at different rates.</p>
+        <p>The <strong>TAEL® (Terrain-Aware Evaporation Lag)</strong> Model is BikeScout’s algorithm designed to solve the "Post-Rain Paradox": why do trails remain saturated even after hours of direct sunlight? Unlike basic weather apps, TAEL treats the soil as a dynamic capacitor that stores and releases moisture at different rates.</p>
 
         <h2>The Core Logic</h2>
-        <p>TAEL operates on the principle that evaporation is not instantaneous. It calculates a "Lag Factor" based on three variables: <strong>Cumulative Precipitation (72h)</strong>, <strong>Soil Drainage Class</strong> (Clay, Loam, Sand), and <strong>Photonic Energy flux</strong>.</p>
+        <p>TAEL® operates on the principle that evaporation is not instantaneous. It calculates a "Lag Factor" based on three variables: <strong>Cumulative Precipitation (72h)</strong>, <strong>Soil Drainage Class</strong> (Clay, Loam, Sand), and <strong>Photonic Energy flux</strong>.</p>
 
         <div class="tech-box">
-            <span class="mono text-neon-text font-bold">// TAEL MOISTURE INDEX FORMULA</span><br>
+            <span class="mono text-neon-text font-bold">// TAEL® MOISTURE INDEX FORMULA</span><br>
             <span class="mono text-slate-400">Index = (Precip_72h * Drainage_Coeff) / (Temp_Efficiency + Solar_Persistence)</span>
         </div>
 
         <h2>Drainage Coefficients</h2>
-        <p>Different surfaces have different "memories". TAEL assigns specific weights to soil types detected via MCP surface sensing:</p>
+        <p>Different surfaces have different "memories". TAEL® assigns specific weights to soil types detected via MCP surface sensing:</p>
         <ul>
             <li><strong>Clay/Compact:</strong> High retention, slow lag (Mud risk remains high for 48h+).</li>
             <li><strong>Gravel/Fine Gravel:</strong> Low retention, fast lag (Quick recovery).</li>
@@ -128,12 +128,12 @@
         </ul>
 
         <h2>Tactical Advantage</h2>
-        <p>The TAEL Model provides a <code>mud_risk_score</code> from 1 to 100. This is used by the AI to suggest tire tread patterns and pressure. If TAEL predicts a "Saturation Lock", the briefing will recommend higher-profile knobs and lower PSI, even if the current sky is clear.</p>
+        <p>The TAEL® Model provides a <code>mud_risk_score</code> from 1 to 100. This is used by the AI to suggest tire tread patterns and pressure. If TAEL predicts a "Saturation Lock", the briefing will recommend higher-profile knobs and lower PSI, even if the current sky is clear.</p>
 
         <div class="mt-16 flex flex-wrap gap-4">
             <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Soil-Science</span>
             <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Predictive-Modeling</span>
-            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#TAEL</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#TAEL®</span>
         </div>
     </div>
 </article>

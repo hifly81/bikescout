@@ -216,7 +216,7 @@ def ride_window_planner(
     """
     Tactical Go/No-Go Planner.
     Predicts the best riding window by cross-referencing weather stability
-    and TAEL soil drainage efficiency for the next 12-24 hours.
+    and TAEL® soil drainage efficiency for the next 12-24 hours.
     If target_date is None, it defaults to the current date.
 
     Args:
@@ -287,7 +287,7 @@ def check_trail_soil_condition(
 ):
     """
     Advanced predictive and historical model for ground saturation and mud risk.
-    Uses the TAEL (Terrain-Aware Evaporation Lag) algorithm to cross-reference
+    Uses the TAEL® (Terrain-Aware Evaporation Lag) algorithm to cross-reference
     cumulative 72h precipitation with drying efficiency factors.
 
     This tool is essential for:
@@ -301,7 +301,7 @@ def check_trail_soil_condition(
         target_date: Optional. The specific date to analyze (YYYY-MM-DD).
                      Defaults to today's date if not provided.
     """
-    # Executes the core TAEL logic with dynamic date windowing
+    # Executes the core TAEL® logic with dynamic date windowing
     data = get_mud_risk_analysis(lat, lon, surface_type, target_date)
 
     return {

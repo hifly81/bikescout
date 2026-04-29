@@ -195,7 +195,7 @@ def poi_scout(lat: float, lon: float, radius_km: int = 2):
     Args:
         lat: Latitude of the center point (usually start/end or a climb peak).
         lon: Longitude of the center point.
-        radius_km: Search radius in kilometers. Recommended: 2-5km. Max: 5km.
+        radius_km: Search radius in kilometers. Max: 2km.
     """
     data = get_poi_scout(ORS_API_KEY, lat, lon, radius_km)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}

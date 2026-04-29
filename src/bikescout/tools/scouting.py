@@ -293,9 +293,9 @@ def get_complete_trail_scout(
                     pass
 
         # Calculate intensity and estimated duration using synchronized stats
-        # Formula: dist/speed + vertical_penalty
-        estimated_hours = (dist_km / 16.0) + (ascent_m / 700.0)
-        intensity_score = 3 if (ascent_m > 1200 or dist_km > 60) else 2
+        perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
+        estimated_hours = perf["estimated_hours"]
+        intensity_score = perf["intensity_score"]
 
         nutrition_plan = get_nutrition_plan(estimated_hours, max_temp, intensity_score)
 
@@ -362,6 +362,69 @@ def get_complete_trail_scout(
 
     except Exception as e:
         return {"status": "Error", "message": f"Master Orchestrator failed: {str(e)}"}
+
+def calculate_performance_metrics(
+        dist_km: float,
+        ascent_m: float,
+        rider: RiderProfile,
+        bike: BikeSetup
+) -> dict:
+    """
+    Calculates estimated duration and intensity based on the Rider-Bike-Terrain triad.
+
+    This tactical engine replaces static averages with dynamic performance
+    modeling, considering base speed by bike type and VAM (Vertical Ascent Media)
+    by fitness level.
+    """
+    # 1. Base flat speed mapping (km/h) based on bike engineering
+    bike_speeds = {
+        "road": 25.0,
+        "gravel": 20.0,
+        "mtb": 15.0,
+        "enduro": 13.0,
+        "e-mtb": 18.0
+    }
+
+    # 2. VAM mapping (Vertical Ascent Media - Meters/Hour) based on fitness
+    fitness_vam = {
+        "beginner": 400.0,
+        "intermediate": 700.0,
+        "pro": 1000.0
+    }
+
+    # Normalize inputs
+    b_type = bike.bike_type.lower()
+    f_level = rider.fitness_level.lower()
+
+    # Get baseline performance values
+    base_speed = bike_speeds.get(b_type, 16.0)
+    vam = fitness_vam.get(f_level, 700.0)
+
+    # 3. E-bike Tactical Adjustments
+    if bike.is_ebike:
+        # E-bikes significantly boost climbing capacity regardless of fitness
+        # 850m/h is a conservative average for a rider using 'Trail' mode
+        vam = max(vam, 850.0)
+
+        # Speed bonus for heavy-rolling bikes when assisted
+        if b_type in ["mtb", "enduro", "e-mtb"]:
+            base_speed += 3.0
+
+    # 4. Final Duration Calculation
+    # Formula: Time on flats + Time dedicated to vertical gain
+    estimated_hours = (dist_km / base_speed) + (ascent_m / vam)
+
+    # 5. Relative Intensity Score
+    # Thresholds scale with fitness: what's easy for a Pro is Expert for a Beginner
+    intensity_threshold = 1200 if f_level == "pro" else 600
+    intensity_score = 3 if (ascent_m > intensity_threshold or dist_km > 60) else 2
+
+    return {
+        "estimated_hours": round(estimated_hours, 2),
+        "intensity_score": intensity_score,
+        "applied_vam": vam,
+        "applied_base_speed": base_speed
+    }
 
 def _map_surface_id(s_id):
     """Internal helper to convert ORS surface IDs to strings for Mud Analysis."""

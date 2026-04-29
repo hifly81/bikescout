@@ -240,6 +240,7 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
 | **`mission`** | `object` | Required | [Mission Constraints](#mission-constraints-mission). |
 | `include_gpx` | `bool` | `True` | Whether to include the raw XML GPX content.          |
 | `include_map` | `bool` | `False` | Whether to generate the Static Map URL.              |
+| `style`    | `string` | sparkline          | Visual style of the profile, "sparkline", "filled", "bars"|                     |
 | `output_level` | `string` | `standard` | Verbosity level: `summary`, `standard`, or `full`.   |
 | `target_date` | `string` |  | target_date: Optional string in 'YYYY-MM-DD' format  |
 
@@ -420,7 +421,7 @@ Unlike standard GPS files, BikeScout automatically injects active <wpt> (waypoin
     "waypoints_count": 11
   },
   "elevation_profile_path": "/home/test/.bikescout/altimetry/bs_altimetry_3c3c37.png",
-  "elevation_summary": "Visual sparkline generated and cached."
+  "mcp_resource_uri_elevation_profile": "bikescout://altimetry/bs_altimetry_3c3c37.png"
 }
 ```
 
@@ -915,7 +916,6 @@ Generates a high-resolution visual analysis of the route's elevation profile. Un
 * **Visual Slope Gradient:** Applies a dynamic chromatic scale (Green → Yellow → Red → Black) to instantly highlight critical steepness (over 10-15%).
 * **SRTM Data Processing:** Processes 3D coordinates (Longitude, Latitude, Elevation) to reconstruct the terrain profile with high precision.
 * **Automated Scaling**: Automatically adjusts the chart axes based on total elevation gain to ensure maximum readability for both flat valley floors and alpine passes.
-* **Base64 Visual Delivery**: Returns the image as a Base64 string (Data URI), enabling immediate integration into chat interfaces, PDF reports, or web dashboards without external hosting.
 * **Terrain-Sync Validation**: Uses RouteGeometry logic to validate and sanitize elevation data, eliminating "spikes" common in raw satellite data.
 * **Tactical Overview**: Provides a crucial "at-a-glance" briefing for energy management (pacing) and gear selection before starting the ride.
 
@@ -935,6 +935,7 @@ Generates a high-resolution visual analysis of the route's elevation profile. Un
 {
   "status": "Success",
   "message": "Elevation profile stored in BikeScout home directory.",
+  "mcp_resource_uri": "bikescout://altimetry/climb.png",
   "file_location": "/home/.test/bikescout/altimetry/climb.png",
   "style_applied": "sparkline",
   "dimensions": "8x3 in",

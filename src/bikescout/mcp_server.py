@@ -80,12 +80,13 @@ def trail_scout(
         mission: MissionConstraints,
         include_gpx: bool = True,
         include_map: bool = False,
+        style: Literal["sparkline", "filled", "bars"] = "sparkline",
         output_level: Literal["summary", "standard", "full"] = "standard",
         target_date: Optional[str] = None
 ):
     """
     Advanced trail discovery.
-    Returns route data, difficulty, a GPX file, and a STATIC MAP IMAGE
+    Returns route data, difficulty, a GPX file, and a URI with the altimetry report.
     that can be displayed directly in the chat.
     If target_date is None, it defaults to the current date.
 
@@ -97,12 +98,13 @@ def trail_scout(
         mission: Constraints like search radius and surface preference.
         include_gpx: If True, generates a downloadable GPX file for navigation.
         include_map: If True, generates a visual static map image.
+        style: Visual style of the profile "sparkline", "filled", "bars".
         output_level: Detail level of the report ("summary", "standard", "full").
         target_date: Optional. The date of the event in YYYY-MM-DD format.
     """
 
     data = get_complete_trail_scout(
-        ORS_API_KEY, lat, lon, rider, bike, mission, include_gpx, include_map, output_level, target_date)
+        ORS_API_KEY, lat, lon, rider, bike, mission, include_gpx, include_map, style, output_level, target_date)
     return {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
 
 @mcp.tool()
@@ -259,7 +261,7 @@ def analyze_strava_activity(activity_date: str):
 @mcp.tool()
 def elevation_profile_image(geometry: RouteGeometry, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "sparkline"):
     """
-    Generates a visual elevation profile image (base64 encoded PNG).
+    Generates a visual elevation profile image amd return a URI with the altimetry report.
 
     This tool transforms raw elevation data into a color-coded graph:
     - Green: Flat/Easy (<3%)
@@ -414,6 +416,13 @@ def get_specific_knowledge(region: str) -> str:
             return file.read_text(encoding="utf-8")
 
     return f"Data for {region} not found."
+
+@mcp.resource("bikescout://altimetry/{filename}")
+def serve_altimetry_image(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "altimetry" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("Altimetry not found.")
+    return file_path.read_bytes()
 
 @mcp.tool()
 def apply_safety_protocol(

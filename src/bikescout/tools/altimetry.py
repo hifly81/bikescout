@@ -25,19 +25,18 @@ from pathlib import Path
 from bikescout.schemas import RouteGeometry
 from typing import Literal
 
-def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3):
+def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, style: str = "filled"):
     """
     Generates an elevation profile plot with gradient coding.
-    Includes an Elevation Healing layer to handle SRTM glitches.
+    Includes an Elevation Healing layer and multiple visual styles.
     """
     if not geometry or len(geometry) < 2:
         return None
 
-    # --- 1. Data Healing (Consistency with GPX Tool) ---
+    # --- 1. Data Healing ---
     healed_geometry = []
     for i in range(len(geometry)):
         lon, lat, ele = geometry[i]
-        # Same logic as GPX: fix 0.0 or impossible jumps
         if (ele <= 0 or (i > 0 and abs(ele - geometry[i-1][2]) > 200)) and i > 0:
             ele = healed_geometry[i-1][2]
         healed_geometry.append([lon, lat, ele])
@@ -50,57 +49,59 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3):
     total_dist = 0
     for i in range(len(geometry) - 1):
         p1, p2 = geometry[i], geometry[i+1]
-        # Haversine-lite for the plot
         d = np.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2) * 111000
         total_dist += d
         distances.append(total_dist)
-
     dist_km = [d / 1000 for d in distances]
 
-    # --- 3. Gradient Calculation ---
+    # --- 3. Gradient Calculation  ---
     grades = []
     for i in range(len(elevations) - 1):
         rise = elevations[i+1] - elevations[i]
         run = distances[i+1] - distances[i]
-        # Avoid division by zero and unrealistic spikes
-        if run > 0.1:
-            g = (rise / run) * 100
-            # Clip gradient for visual consistency (max 25% for color scaling)
-            grades.append(np.clip(g, -25, 25))
-        else:
-            grades.append(0)
+        g = (rise / run) * 100 if run > 0.1 else 0
+        grades.append(np.clip(g, -25, 25))
     grades.append(0)
 
-    # --- 4. Setup Plot & Draw ---
+    # --- 4. Setup Plot & Dynamic Style Drawing ---
     plt.figure(figsize=(width, height), dpi=100)
     ax = plt.gca()
 
     cmap = mcolors.LinearSegmentedColormap.from_list("grav_cmap", ["#2ecc71", "#f1c40f", "#e74c3c"])
-    # 0% to 12% is a good visual range for cycling
     norm = mcolors.Normalize(vmin=0, vmax=12)
-
-    # Fill segments with gradient colors
     min_ele = min(elevations)
-    for i in range(len(dist_km) - 1):
-        x = [dist_km[i], dist_km[i+1]]
-        y = [elevations[i], elevations[i+1]]
-        avg_grade = abs(grades[i])
-        color = cmap(norm(avg_grade))
-        # Fill down to baseline (min elevation - buffer)
-        plt.fill_between(x, y, min_ele - 20, color=color, alpha=0.8)
 
-    # Border line
-    plt.plot(dist_km, elevations, color='#2c3e50', linewidth=1.5, alpha=0.9)
+    if style == "sparkline":
+        plt.plot(dist_km, elevations, color='#2c3e50', linewidth=2)
+        plt.axis('off')
 
-    # Styling
-    ax.set_facecolor('#ffffff')
-    plt.title("Tactical Elevation Profile", fontsize=12, fontweight='bold')
-    plt.xlabel("Distance (km)")
-    plt.ylabel("Elevation (m)")
-    plt.grid(True, linestyle='--', alpha=0.3)
+    elif style == "bars":
+        for i in range(len(dist_km) - 1):
+            avg_grade = abs(grades[i])
+            color = cmap(norm(avg_grade))
+            plt.bar(dist_km[i], elevations[i] - (min_ele - 10),
+                    width=(dist_km[i+1] - dist_km[i]),
+                    bottom=min_ele - 10, color=color, align='edge')
+        plt.plot(dist_km, elevations, color='#2c3e50', linewidth=0.5, alpha=0.5)
+
+    else: # Default: "filled"
+        for i in range(len(dist_km) - 1):
+            x = [dist_km[i], dist_km[i+1]]
+            y = [elevations[i], elevations[i+1]]
+            avg_grade = abs(grades[i])
+            color = cmap(norm(avg_grade))
+            plt.fill_between(x, y, min_ele - 20, color=color, alpha=0.8)
+        plt.plot(dist_km, elevations, color='#2c3e50', linewidth=1.5)
+
+    if style != "sparkline":
+        ax.set_facecolor('#ffffff')
+        plt.title(f"Tactical Elevation Profile ({style.capitalize()})", fontsize=10, fontweight='bold')
+        plt.xlabel("Distance (km)", fontsize=8)
+        plt.ylabel("Elevation (m)", fontsize=8)
+        plt.grid(True, linestyle='--', alpha=0.3)
+
     plt.tight_layout()
 
-    # Encode
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)
@@ -127,7 +128,7 @@ def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int 
                     f.unlink()
                 except: pass
 
-        plot_result = _generate_altimetry_plot(coords_list, width, height)
+        plot_result = _generate_altimetry_plot(coords_list, width, height, style)
 
         raw_data = plot_result.get("image_data_url") if isinstance(plot_result, dict) else plot_result
         if "base64," in raw_data:
@@ -143,9 +144,12 @@ def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int 
         with open(file_path, "wb") as f:
             f.write(base64.b64decode(raw_data))
 
+        mcp_uri = f"bikescout://altimetry/{filename}"
+
         return {
             "status": "Success",
             "message": "Elevation profile stored in BikeScout home directory.",
+            "mcp_resource_uri": mcp_uri,
             "file_location": str(file_path),
             "style_applied": style,
             "dimensions": f"{width}x{height} in",

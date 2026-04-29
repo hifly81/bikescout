@@ -204,6 +204,7 @@ def get_complete_trail_scout(
         mission: MissionConstraints,
         include_gpx: bool = True,
         include_map: bool = False,
+        style: Literal["sparkline", "filled", "bars"] = "sparkline",
         output_level: Literal["summary", "standard", "full"] = "standard",
         target_date: str = None
 ):
@@ -213,11 +214,6 @@ def get_complete_trail_scout(
     and Artifact Generation (GPX/Altimetry) using SMA-Sanitized data.
     """
     # --- 1. CONFIGURATION ---
-    headers = {
-        'Accept': 'application/json, application/geo+json',
-        'Authorization': api_key,
-        'Content-Type': 'application/json'
-    }
 
     routing_payload = {
         "coordinates": [[lon, lat]],
@@ -348,10 +344,10 @@ def get_complete_trail_scout(
 
         if output_level != "summary":
             try:
-                altimetry_report = get_elevation_profile_image(geometry=route_geo, uuid_input=filename_part, style="filled")
+                altimetry_report = get_elevation_profile_image(geometry=route_geo, uuid_input=filename_part, style=style)
                 if altimetry_report["status"] == "Success":
                     response_payload["elevation_profile_path"] = altimetry_report["file_location"]
-                    response_payload["elevation_summary"] = altimetry_report.get("summary")
+                    response_payload["mcp_resource_uri_elevation_profile"] = altimetry_report["mcp_resource_uri"]
             except Exception as e:
                 response_payload["elevation_error"] = f"Altimetry failed: {str(e)}"
 

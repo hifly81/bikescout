@@ -194,6 +194,15 @@ def get_mud_risk_analysis(
         else:
             damage_risk, damage_advice = "Extreme", "DO NOT RIDE. Structural damage likely."
 
+        if M < 4.0:
+            global_label = "Low"
+        elif M < 12.0:
+            global_label = "Medium"
+        elif M < 20.0:
+            global_label = "High"
+        else:
+            global_label = "Extreme"
+
         # --- 7. Final Payload Assembly ---
         return {
             "status": "Success",
@@ -210,6 +219,8 @@ def get_mud_risk_analysis(
             },
             "tactical_analysis": {
                 "surface_type": surface_type,
+                "mud_risk_numeric": round(M, 2),
+                "mud_risk_score": global_label,
                 "traction_risk": {"level": traction_risk, "advice": traction_advice},
                 "trail_damage_risk": {"level": damage_risk, "advice": damage_advice},
                 "dry_time_eta": f"{eta_hours} hours" if eta_hours > 0 else "Ready Now"

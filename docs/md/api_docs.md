@@ -458,8 +458,8 @@ A-->B Route Type:
         "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
         "avg_gradient_est": "5.0%",
         "mud_intelligence": {
-          "score": 0,
-          "label": "Unknown",
+          "score": 2,
+          "label": "Low",
           "traction_risk": "Low",
           "trail_damage_risk": "Low",
           "dry_time_eta": "Ready Now",
@@ -1010,8 +1010,8 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
     "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
     "avg_gradient_est": "11.9%",
     "mud_intelligence": {
-      "score": 0,
-      "label": "Unknown",
+      "score": 2,
+      "label": "Low",
       "traction_risk": "Low",
       "trail_damage_risk": "Low",
       "dry_time_eta": "Ready Now",
@@ -1081,8 +1081,8 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
     "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
     "avg_gradient_est": "2.5%",
     "mud_intelligence": {
-      "score": 0,
-      "label": "Unknown",
+      "score": 2,
+      "label": "Low",
       "traction_risk": "Low",
       "trail_damage_risk": "Low",
       "dry_time_eta": "Ready Now",
@@ -1146,8 +1146,8 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
     "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
     "avg_gradient_est": "3.2%",
     "mud_intelligence": {
-      "score": 0,
-      "label": "Unknown",
+      "score": 2,
+      "label": "Low",
       "traction_risk": "Low",
       "trail_damage_risk": "Low",
       "dry_time_eta": "Ready Now",

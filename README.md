@@ -20,12 +20,9 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ## Explore BikeScout
 
-* **[BikeScout Documentation](docs/md/api_docs.md)** **The Technical Core.** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
+* **[BikeScout Documentation](docs/md/api_docs.md)** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
 
-* **[Official Website](https://hifly81.github.io/bikescout)** **The Strategic Hub.** A high-level overview of our predictive algorithms. Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
-
-* **[Tactical Intelligence Blog](https://hifly81.github.io/bikescout/blog.html)** **Field Reports & R&D.** Stay ahead of the curve with our latest research on cycling AI, terrain analysis updates, and real-world testing of tactical routing logic.
-
+* **[Official Website](https://hifly81.github.io/bikescout)** A high-level overview of our predictive algorithms. Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
 
 **Love BikeScout?** ⭐ Star this repo to support the development of the first open-source tactical cycling engine.
 

@@ -264,6 +264,7 @@ Round Route Type:
         "distance_km": 46.35,
         "elevation_gain_m": 1830,
         "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+        "avg_gradient": "3.7%",
         "avg_gradient_est": "13.2%",
         "technical_difficulty": {
           "mtb_scale": "Standard / Unclassified",
@@ -456,6 +457,7 @@ A-->B Route Type:
         "distance_km": 135.87,
         "elevation_gain_m": 3040,
         "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+        "avg_gradient": "3.7%",
         "avg_gradient_est": "5.0%",
         "mud_intelligence": {
           "score": 2,
@@ -1008,6 +1010,7 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
     "distance_km": 38.19,
     "elevation_gain_m": 1367,
     "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+    "avg_gradient": "3.7%",
     "avg_gradient_est": "11.9%",
     "mud_intelligence": {
       "score": 2,
@@ -1079,6 +1082,7 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
     "distance_km": 109.29,
     "elevation_gain_m": 1254,
     "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+    "avg_gradient": "1.2%",
     "avg_gradient_est": "2.5%",
     "mud_intelligence": {
       "score": 2,
@@ -1144,6 +1148,7 @@ This tool goes beyond simple mapping by cross-referencing terrain data with the 
     "distance_km": 79.74,
     "elevation_gain_m": 1137,
     "climb_category": "Hors Catégorie (HC) - Legendary Challenge",
+    "avg_gradient": "1.2%",
     "avg_gradient_est": "3.2%",
     "mud_intelligence": {
       "score": 2,

@@ -290,6 +290,8 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             if not isinstance(battery_cap, (int, float)):
                 battery_cap = 0
 
+            avg_gradient_total = (clean_ascent / real_dist_m * 100) if real_dist_m > 0 else 0
+
             is_emtb = "E-" in bike_type_str and battery_cap > 0
 
             if is_emtb:
@@ -317,7 +319,8 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                     "distance_km": round(real_dist_m / 1000, 2),
                     "elevation_gain_m": clean_ascent,
                     "climb_category": climb_cat,
-                    "avg_gradient_est": f"{round(avg_grad, 1)}%",
+                    "avg_gradient": f"{round(avg_gradient_total, 1)}%",
+                    "avg_climb_gradient": f"{round(avg_grad, 1)}%",
                     "mud_intelligence": {
                         "score": mud_score_val,
                         "label": t_analysis.get("mud_risk_score", "Unknown"),

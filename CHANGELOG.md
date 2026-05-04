@@ -1,8 +1,19 @@
 # Changelog - Bikescout
 
+## [1.3.1]
+* release: prepare version 1.3.1 ([2e35ebf](https://github.com/hifly81/bikescout/commit/2e35ebf77503531715162b3bfbc857aca2a27d51))
+* docs: add warning about implicit output schemas and parsing hallucinations ([d1e5704](https://github.com/hifly81/bikescout/commit/d1e5704a1e1a531d4cd8d54dc5e0934fb52b434d))
+* refactor(compatibility): implement surface aggregation and tactical normalization ([1985892](https://github.com/hifly81/bikescout/commit/19858921639a0b3343536858dda8b58de049c800))
+* refactor(geodetics): improve aero-tactical wind analysis ([dd99281](https://github.com/hifly81/bikescout/commit/dd99281b94cda929d8c2f7ec33d72b727a09b927))
+* feat(mud-engine): add categorical mud_risk_label to payload ([26ec31c](https://github.com/hifly81/bikescout/commit/26ec31c23d627e1869ca2be37fbb80daa7fd95c5))
+* feat(mud-engine): implement timezone-aware TAEL� v3.2 reservoir model ([c377aaa](https://github.com/hifly81/bikescout/commit/c377aaaabb73161d3bd4584eb880ea34b6806919))
+* refactor: optimize weather normalization and add solar altitude engine ([14bb70b](https://github.com/hifly81/bikescout/commit/14bb70bd3dc8c4e45eb96735db0efaa94c9f8b35))
+* Simplify documentation link descriptions in README ([ad86e1f](https://github.com/hifly81/bikescout/commit/ad86e1f6511464545126b26d2df9732bc932acd0))
+* changelog ([33e8d6e](https://github.com/hifly81/bikescout/commit/33e8d6e8904172f24e46a86301bc38bdda07a391))
+
 ## [1.3.0]
 * Prepare release 1.3.0 ([100f872](https://github.com/hifly81/bikescout/commit/100f8721b992a07a97acb3a739c62c4118656d76))
-* feat(mud): fix numeric risk bug & formalize TAEL® v3.1 engine ([b17889a](https://github.com/hifly81/bikescout/commit/b17889a1c536c08dc88200e310352608de58d646))
+* feat(mud): fix numeric risk bug & formalize TAEL� v3.1 engine ([b17889a](https://github.com/hifly81/bikescout/commit/b17889a1c536c08dc88200e310352608de58d646))
 * fix(altimetry): resolve X-axis compression using WGS-84 geodesics ([dc9aa99](https://github.com/hifly81/bikescout/commit/dc9aa99f1a418d9dd50e16b204362cb0636590b5))
 * refactor(geodetic): internalize bearing calculation and clean API ([8a56adc](https://github.com/hifly81/bikescout/commit/8a56adc5e14d91e9a0e9ae9df34e694ccb22f3a3))
 * removed strava tool ([4e19c52](https://github.com/hifly81/bikescout/commit/4e19c52fd0bc568c5fda15420e520a5a423e7931))
@@ -324,5 +335,7 @@
 
 ## [0.2.0]
 * added tool: weather forecast ([6e06716](https://github.com/hifly81/bikescout/commit/6e06716b238341fa0544c1eadf6e5692ccee2864))
+
+## [0.1.0]
 * added examples ([83a0490](https://github.com/hifly81/bikescout/commit/83a0490f5d4b0172f837d523b8d8000984ca75a2))
 * first commit ([0334da0](https://github.com/hifly81/bikescout/commit/0334da01cc10f9c3b03ebf899c2549c8cb9437fc))

@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BikeScout | Tactical Cycling Intelligence & MCP Server for AI Planning.</title>
+    <meta name="description" content="Transform raw map data into Tactical Intelligence. BikeScout is the first MCP server for AI agents to predict mud risk, S-Scale terrain and E-MTB range. Optimize your mission.">
+    <meta name="keywords" content="MCP Server, Model Context Protocol, MTB Intelligence, Gravel Scouting, Cycling Geodata, Mud Prediction, Trail Analysis">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout">
+    <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+    <meta property="og:title" content="BikeScout | Tactical Cycling Intelligence">
+    <meta property="og:description" content="Stop guessing. Analyze soil drainage, technical grade and elevation with the first MCP-powered cycling scout.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hifly81.github.io/bikescout">
+    <meta property="og:image" content="https://hifly81.github.io/bikescout/images/preview.png">
+    <meta http-equiv="content-language" content="en">
+
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "BikeScout",
+            "alternateName": "BikeScout Tactical Intelligence",
+            "description": "Advanced MCP server for tactical cycling intelligence. Features predictive mud logic, S-Scale terrain grading, and real-time OSM data analysis for AI-powered route planning.",
+            "applicationCategory": "MapApplication, HealthApplication",
+            "operatingSystem": "Independent (MCP Protocol)",
+            "downloadUrl": "https://github.com/hifly81/bikescout",
+            "license": "https://www.gnu.org/licenses/agpl-3.0-standalone.html",
+            "softwareVersion": "1.3.0",
+            "keywords": "MCP server, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
+            "author": {
+                "@type": "Person",
+                "name": "hifly81",
+                "url": "https://github.com/hifly81"
+            },
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "EUR",
+                "availability": "https://schema.org/InStock"
+            },
+            "featureList": [
+                "Predictive Mud Logic: AI analysis of soil and weather to predict trail conditions.",
+                "S-Scale Grading: Technical terrain classification from S0 to S5.",
+                "MCP Integration: Model Context Protocol for Claude, ChatGPT, and Cursor.",
+                "Tactical POI Discovery: Real-time identification of strategic water points and shelters.",
+                "Dynamic GPX Generation: Tailored routing based on technical skill and bike type."
+            ],
+            "screenshot": "https://hifly81.github.io/bikescout/images/preview.png",
+            "softwareRequirements": "Python 3.10+, MCP Client (Claude Desktop, etc.)"
+        }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; }
+        .neon-text { color: #bef264; }
+        .bg-card { background-color: #111827; }
+        .border-custom { border-color: #334155; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+        th, td { border: 1px solid #334155; padding: 0.75rem; text-align: left; }
+        th { background-color: #1e293b; color: #f1f5f9; font-weight: 700; }
+        td { color: #cbd5e1; }
+        tr:nth-child(even) { background-color: #0f172a; }
+        .code-block { background-color: #020617; border: 1px solid #334155; padding: 1rem; border-radius: 0.5rem; color: #34d399; font-family: monospace; overflow-x: auto; }
+
+        /* Tab Styles */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .nav-btn.active { color: #bef264; border-bottom: 2px solid #bef264; }
+    </style>
+</head>
+
+<body class="bg-[#0b0f1a] text-slate-200 selection:bg-[#bef264] selection:text-[#0b0f1a]">
+
+<!-- Navigation Navbar -->
+<nav class="fixed top-0 left-0 w-full bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 z-50">
+    <div class="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-mountain-sun text-2xl neon-text"></i>
+            <a href="https://hifly81.github.io/bikescout"><span class="text-6xl md:text-2xl font-black mb-6 tracking-tighter italic uppercase text-white leading-none">Bike<span class="neon-text">Scout</span></span></a>
+        </div>
+        <div class="flex gap-6">
+            <button onclick="switchTab('user-guide')" id="tab-guide" class="nav-btn active text-slate-300 font-bold hover:text-white transition-colors pb-1">User Guide</button>
+            <button onclick="switchTab('api-reference')" id="tab-api" class="nav-btn text-slate-300 font-bold hover:text-white transition-colors pb-1">API Reference</button>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<main class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- ==========================================
+         USER GUIDE SECTION
+         ========================================== -->
+    <section id="user-guide" class="tab-content active">
+        <header class="hero-mesh relative border-b border-slate-800 py-24 px-6 text-center">
+            <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-[#0b0f1a]"></div>
+            <div class="relative max-w-6xl mx-auto">
+                <h1 class="text-6xl md:text-8xl font-black mb-6 tracking-tighter italic uppercase text-white leading-none">Bike<span class="neon-text">Scout</span></h1>
+                <p class="text-xl md:text-2xl text-slate-400 max-w-4xl mx-auto mb-10 leading-relaxed">
+                    The MCP Engine that turns raw geodata into Predictive Intel.<br>
+                    Plan with certainty and scout the terrain before you ride: analyze soil drainage, wind vectors, and technical grade before you drop in.
+                </p>
+                <div class="flex flex-col md:flex-row justify-center items-center gap-6">
+                    <a href="https://github.com/hifly81/bikescout" class="mono text-xs font-bold uppercase tracking-widest bg-white text-black px-8 py-4 rounded-full hover:bg-neon-text transition-all">
+                        View on GitHub <i class="fab fa-github ml-2"></i>
+                    </a>
+                    <div class="mono bg-slate-900 border border-slate-700 px-6 py-4 rounded text-sm text-neon-text shadow-lg">pip install bikescout</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="bg-card border border-custom p-8 rounded-xl mb-10 shadow-lg">
+            <h2 class="text-2xl font-bold text-white mb-4 border-b border-slate-700 pb-2">License & Data Attributions</h2>
+
+            <h3 class="text-xl font-bold text-slate-200 mt-6 mb-2">Software License</h3>
+            <p class="text-slate-400 mb-4 leading-relaxed">This project is licensed under the <strong>GNU Affero General Public License v3.0 (AGPL-3.0)</strong>.</p>
+            <p class="text-slate-300 font-bold mb-2">Why AGPLv3?</p>
+            <p class="text-slate-400 mb-4 leading-relaxed">BikeScout contains proprietary-grade tactical logic (such as the TAEL™ Mud Reservoir Model). The AGPLv3 ensures that:</p>
+            <ul class="list-disc list-inside text-slate-400 mb-6 space-y-2">
+                <li><strong class="text-slate-300">Transparency:</strong> Any modified version used to provide a service over a network must make its full source code available.</li>
+                <li><strong class="text-slate-300">Integrity:</strong> Core tactical intelligence remains open and collaborative.</li>
+            </ul>
+
+            <h3 class="text-xl font-bold text-slate-200 mt-6 mb-2">Data Sources & Credits</h3>
+            <p class="text-slate-400 mb-4 leading-relaxed">BikeScout aggregates data from several open providers:</p>
+            <ul class="list-disc list-inside text-slate-400 mb-4 space-y-2">
+                <li><strong>Routing & Map Data:</strong> Provided by OpenRouteService by HeiGIT.</li>
+                <li><strong>Geospatial Data:</strong> © OpenStreetMap contributors (ODbL). Geocoding by Nominatim.</li>
+                <li><strong>Weather Forecasts:</strong> Powered by Open-Meteo (CC BY 4.0).</li>
+            </ul>
+        </div>
+
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold text-white mb-6 border-b border-slate-700 pb-2">Key Features</h2>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Feature Block -->
+                <div class="bg-card border border-custom p-6 rounded-xl">
+                    <h3 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group neon-text"></i> Terrain & Surface Intelligence
+                    </h3>
+                    <ul class="list-none text-slate-400 space-y-3">
+                        <li><strong class="text-slate-200">Real Trail Discovery:</strong> Fetches actual trail names and surface data via Overpass API.</li>
+                        <li><strong class="text-slate-200">Surface Breakdown:</strong> Generates a percentage breakdown of the entire route.</li>
+                        <li><strong class="text-slate-200">Technical Grading:</strong> Analyzes OSM Tracktypes (Grade 1-5).</li>
+                        <li><strong class="text-slate-200">Bike Compatibility Check:</strong> Validates if a route suits your specific bike.</li>
+                    </ul>
+                </div>
+
+                <!-- Feature Block -->
+                <div class="bg-card border border-custom p-6 rounded-xl">
+                    <h3 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-sun-rain neon-text"></i> Predictive Environmental Modeling
+                    </h3>
+                    <ul class="list-none text-slate-400 space-y-3">
+                        <li><strong class="text-slate-200">TAEL™ Algorithm:</strong> Terrain-Aware Evaporation Lag predicting "Shadow-Lock" mud.</li>
+                        <li><strong class="text-slate-200">Predictive Mud Risk:</strong> Rideability based on soil and 72h precipitation history.</li>
+                        <li><strong class="text-slate-200">Tactical Ride Window:</strong> A "Go/No-Go" decision engine for start times.</li>
+                        <li><strong class="text-slate-200">Smart Safety Weather & Hydration:</strong> Hyper-local 4-hour forecasts and liquid requirements.</li>
+                    </ul>
+                </div>
+
+                <!-- Feature Block -->
+                <div class="bg-card border border-custom p-6 rounded-xl">
+                    <h3 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-route neon-text"></i> High-Fidelity Navigation
+                    </h3>
+                    <ul class="list-none text-slate-400 space-y-3">
+                        <li><strong class="text-slate-200">Wall-Sense Technology:</strong> Detects gradients >10% with active GPX `<wpt>` alerts.</li>
+                        <li><strong class="text-slate-200">Tactical GPX Export:</strong> Optimized GPX files eliminating GPS signal noise.</li>
+                        <li><strong class="text-slate-200">Pro Climb Categorization:</strong> Uses professional UCI standards (Cat 4 to Hors Catégorie).</li>
+                    </ul>
+                </div>
+
+                <!-- Feature Block -->
+                <div class="bg-card border border-custom p-6 rounded-xl">
+                    <h3 class="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt neon-text"></i> Mission Logistics & Pro Engine
+                    </h3>
+                    <ul class="list-none text-slate-400 space-y-3">
+                        <li><strong class="text-slate-200">Smart POI Scouting:</strong> 5km radius scan for water and shelters.</li>
+                        <li><strong class="text-slate-200">E-MTB Management:</strong> Battery consumption (Wh) based on rider weight and assist mode.</li>
+                        <li><strong class="text-slate-200">VAM & Power Modeling:</strong> Precise W/kg requirements based on VAM targets.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold text-white mb-6 border-b border-slate-700 pb-2">Why BikeScout? (The Intelligence Gap)</h2>
+            <p class="text-slate-400 mb-6 text-lg">Standard navigation tools like Google Maps or Komoot are designed for simple "lines on a map." <strong>BikeScout</strong> is built for <strong>Mission Planning</strong>, bridging the gap between raw data and technical reality.</p>
+
+            <div class="overflow-x-auto">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Generic Navigators</th>
+                        <th>BikeScout Tactical AI</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><strong>Elevation Accuracy</strong></td>
+                        <td>Raw & Inflated</td>
+                        <td class="text-[#bef264] font-bold">Filtered & Realistic (SMA)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Surface Analysis</strong></td>
+                        <td>Basic (Paved/Dirt)</td>
+                        <td class="text-[#bef264] font-bold">Technical (S-Scale/Tracktype)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Effort Calculation</strong></td>
+                        <td>Time-based average</td>
+                        <td class="text-[#bef264] font-bold">Physics-based (Weight/Friction)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Condition Prediction</strong></td>
+                        <td>Future Weather only</td>
+                        <td class="text-[#bef264] font-bold">Mud Risk (72h Rain + Soil Memory)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Climb Categorization</strong></td>
+                        <td>None</td>
+                        <td class="text-[#bef264] font-bold">UCI-Standard (Cat 4 to HC)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Logistics</strong></td>
+                        <td>Sponsored / Restaurants</td>
+                        <td class="text-[#bef264] font-bold">Tactical (Water/Repair/Shelter)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AI Integration</strong></td>
+                        <td>Manual / External</td>
+                        <td class="text-[#bef264] font-bold">Native MCP Tooling</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+    </section>
+
+    <!-- ==========================================
+         API REFERENCE SECTION
+         ========================================== -->
+    <section id="api-reference" class="tab-content">
+        <header class="mb-10">
+            <h2 class="text-4xl font-black neon-text mb-4">API & Tools Reference</h2>
+        </header>
+
+        <!-- Schemas -->
+        <div class="mb-12">
+            <details class="group mb-6 border-b border-slate-700 pb-4">
+                <summary class="flex items-center justify-between cursor-pointer list-none">
+                    <h3 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">Object Schemas</h3>
+                        <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </span>
+                </summary>
+
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">RiderProfile</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>weight_kg</code></td><td><code>float</code></td><td>-</td><td>Total weight (rider + gear) for PSI and energy calculations.</td></tr>
+                            <tr><td><code>fitness_level</code></td><td><code>string</code></td><td>-</td><td>Affects difficulty grading. Options: <code>beginner</code>, <code>intermediate</code>, <code>advanced</code>, <code>pro</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">BikeSetup</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>bike_type</code></td><td><code>string</code></td><td>-</td><td>Geometry profile (Road, Gravel, MTB, Enduro, E-MTB).</td></tr>
+                            <tr><td><code>tire_size</code></td><td><code>string</code></td><td>29</td><td>Diameter (26, 27.5, 29, 32, 700c, 650b).</td></tr>
+                            <tr><td><code>tire_width_mm</code></td><td><code>int</code></td><td>54</td><td>Actual width in mm (18 to 75).</td></tr>
+                            <tr><td><code>is_ebike</code></td><td><code>bool</code></td><td>false</td><td>Triggers battery consumption logic.</td></tr>
+                            <tr><td><code>battery_wh</code></td><td><code>int</code></td><td>-</td><td>Battery capacity in Wh (required if is_ebike is true).</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MissionConstraints</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>radius_km</code></td><td><code>int</code></td><td>-</td><td>Total target distance for the loop.</td></tr>
+                            <tr><td><code>profile</code></td><td><code>string</code></td><td>cycling-mountain</td><td>ORS Routing profile (cycling-mountain, cycling-road, cycling-regular, cycling-electric).</td></tr>
+                            <tr><td><code>surface_preference</code></td><td><code>string</code></td><td>string</td><td>Complexity of the loop (higher = more circular).</td></tr>
+                            <tr><td><code>complexity</code></td><td><code>int</code></td><td>3</td><td>Triggers battery consumption logic.</td></tr>
+                            <tr><td><code>seed</code></td><td><code>int</code></td><td>42</td><td>Randomizer seed to reproduce specific route variations.</td></tr>
+                            <tr><td><code>assist_mode</code></td><td><code>string</code></td><td>Eco</td><td>Defines the motor's power output profile (Eco, Trail, Boost). This tactical parameter scales the energy consumption model by adjusting the motor-to-rider assistance ratio, directly impacting predicted battery range and "Safety Buffer" alerts based on terrain resistance.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">RouteGeometry</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>coordinates</code></td><td><code>list[list[float]]</code></td><td><code>...</code></td><td>
+                            A list of GPS points in GeoJSON format. Each sub-list represents a coordinate triplet:
+                            <code>[longitude, latitude, elevation]</code>. This sequence is used by the SMA Filter
+                            to sanitize elevation and by the Haversine formula for geodesic accuracy.
+                            </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">WeatherSnapshot</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>time</code></td><td><code>string</code></td><td>-</td><td>Local time of the forecast snapshot in ISO or HH:MM format.</td></tr>
+                            <tr><td><code>temp</code></td><td><code>string</code></td><td>-</td><td>Ambient air temperature (e.g., "15.3°C").</td></tr>
+                            <tr><td><code>app_temp</code></td><td><code>string</code></td><td>-</td><td>Apparent (feels-like) temperature considering humidity and wind chill.</td></tr>
+                            <tr><td><code>rain_prob</code></td><td><code>string</code></td><td>-</td><td>Probability of precipitation expressed as a percentage (e.g., "15%").</td></tr>
+                            <tr><td><code>rain_mm</code></td><td><code>string</code></td><td>-</td><td>Expected rainfall volume measured in millimeters.</td></tr>
+                            <tr><td><code>wind</code></td><td><code>string</code></td><td>-</td><td>Average sustained wind speed for the snapshot period.</td></tr>
+                            <tr><td><code>gusts</code></td><td><code>string</code></td><td>-</td><td>Maximum predicted wind gust speed.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">SafetyAdvice</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Visual alert status indicator (e.g., 🟡 [WATCH], 🔴 [DANGER]).</td></tr>
+                            <tr><td><code>message</code></td><td><code>string</code></td><td>-</td><td>Human-readable safety assessment and environmental briefing.</td></tr>
+                            <tr><td><code>wind_risk_score</code></td><td><code>float</code></td><td>-</td><td>Numeric risk index (0.0 to 10.0) specifically for crosswinds and stability.</td></tr>
+                            <tr><td><code>gear_advice</code></td><td><code>string</code></td><td>-</td><td>Recommended clothing layers and mechanical equipment for the conditions.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MudTactical</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>surface_type</code></td><td><code>string</code></td><td>-</td><td>The primary soil or surface type analyzed for saturation (e.g., 'Clay', 'Loam').</td></tr>
+                            <tr><td><code>mud_risk_numeric</code></td><td><code>float</code></td><td>-</td><td>Raw TAEL™ moisture index representing the calculated ground water saturation.</td></tr>
+                            <tr><td><code>mud_risk_score</code></td><td><code>string</code></td><td>-</td><td>Qualitative risk label derived from the numeric index (e.g., 'Moderate', 'Extreme').</td></tr>
+                            <tr><td><code>traction_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Detailed grip assessment including specific tire tread and compound advice.</td></tr>
+                            <tr><td><code>trail_damage_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Risk of trail degradation, including probability of rut formation and erosion.</td></tr>
+                            <tr><td><code>dry_time_eta</code></td><td><code>string</code></td><td>-</td><td>Estimated time until the trail surface is considered 'ready' or 'optimal' for riding.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MudRiskAnalysis</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>status</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The operational status of the soil saturation predictive model.</td>
+                    </tr>
+                    <tr>
+                        <td><code>metadata</code></td>
+                        <td><code>object</code></td>
+                        <td>-</td>
+                        <td>Technical metadata containing model version, weights, and predictive flags.</td>
+                    </tr>
+                    <tr>
+                        <td><code>environmental_context</code></td>
+                        <td><code>object</code></td>
+                        <td>-</td>
+                        <td>Environmental data including current soil moisture and 72-hour cumulative rainfall.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tactical_analysis</code></td>
+                        <td><code>MudTactical</code></td>
+                        <td>-</td>
+                        <td>The granular tactical breakdown of how ground conditions will affect the ride.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MudIntelligence</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>score</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>TAEL™ mud score (0.0 to 10.0) indicating soil saturation levels.</td>
+                    </tr>
+                    <tr>
+                        <td><code>label</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Qualitative risk label based on the score (e.g., 'Low', 'High', 'Extreme').</td>
+                    </tr>
+                    <tr>
+                        <td><code>traction_risk</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Assessment of mechanical tire grip and slip probability on the predicted surface.</td>
+                    </tr>
+                    <tr>
+                        <td><code>trail_damage_risk</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Risk of creating ruts or damaging trail integrity due to soft ground conditions.</td>
+                    </tr>
+                    <tr>
+                        <td><code>dry_time_eta</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Estimated time (e.g., '24h', 'Ready Now') until the trail returns to dry/optimal conditions.</td>
+                    </tr>
+                    <tr>
+                        <td><code>safety_advice</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Tactical advice for riding and bike maintenance in the current soil conditions.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TacticalBriefing</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>distance_km</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Total route distance calculated in kilometers.</td>
+                    </tr>
+                    <tr>
+                        <td><code>elevation_gain_m</code></td>
+                        <td><code>int</code></td>
+                        <td>-</td>
+                        <td>Total positive altitude gain (D+) measured in meters.</td>
+                    </tr>
+                    <tr>
+                        <td><code>climb_category</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>UCI standard or HC climb categorization based on total physical effort.</td>
+                    </tr>
+                    <tr>
+                        <td><code>avg_gradient</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Average gradient percentage calculated over the entire route distance.</td>
+                    </tr>
+                    <tr>
+                        <td><code>avg_climb_gradient</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Average gradient considering exclusively the uphill/ascending sectors.</td>
+                    </tr>
+                    <tr>
+                        <td><code>mud_intelligence</code></td>
+                        <td><code>MudIntelligence</code></td>
+                        <td>-</td>
+                        <td>Ground saturation analytics, soil condition, and TAEL™ index prediction.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MechanicalSetup</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>compatible</code></td>
+                        <td><code>boolean</code></td>
+                        <td>-</td>
+                        <td>Flag indicating if the user's bike setup is safely suitable for the route terrain.</td>
+                    </tr>
+                    <tr>
+                        <td><code>setup_details</code></td>
+                        <td><code>list[any]</code></td>
+                        <td>-</td>
+                        <td>Technical specifics including tire width in mm and localized setup recommendations.</td>
+                    </tr>
+                    <tr>
+                        <td><code>bike_type</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The specific category of bicycle analyzed (e.g., 'mtb', 'road', 'gravel').</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">SurfaceEntry</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>type</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Normalized surface classification (e.g., 'Paved', 'Grass', 'Unpaved').</td>
+                    </tr>
+                    <tr>
+                        <td><code>percentage</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The portion of total distance represented by this surface type (e.g., "35.8%").</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">EmtbMetrics</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>estimated_drain_wh</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Predicted total energy consumption for the mission in Watt-hours.</td>
+                    </tr>
+                    <tr>
+                        <td><code>remaining_battery_pct</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Estimated battery percentage remaining upon reaching the destination.</td>
+                    </tr>
+                    <tr>
+                        <td><code>safety_buffer_status</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Safety assessment (e.g., 'SAFE', 'CRITICAL') based on remaining capacity.</td>
+                    </tr>
+                    <tr>
+                        <td><code>usable_wh_at_temp</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Battery capacity (Wh) adjusted for thermal impact on cell efficiency.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">EmtbPower</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>gravity_resistance</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Power in Watts required to overcome elevation gain based on total system weight.</td>
+                    </tr>
+                    <tr>
+                        <td><code>rolling_resistance</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Power in Watts required to overcome friction based on surface type and tires.</td>
+                    </tr>
+                    <tr>
+                        <td><code>aerodynamic_drag</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Power in Watts required to overcome air resistance at predicted speeds.</td>
+                    </tr>
+                    <tr>
+                        <td><code>rider_contribution</code></td>
+                        <td><code>int</code></td>
+                        <td>-</td>
+                        <td>Estimated average human power output (Watts) provided by the cyclist.</td>
+                    </tr>
+                    <tr>
+                        <td><code>motor_net_output</code></td>
+                        <td><code>int</code></td>
+                        <td>-</td>
+                        <td>Required average motor assistance (Watts) to maintain the mission pace.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">EmtbTactical</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>status</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Analysis status indicating if E-MTB simulation was successful.</td>
+                    </tr>
+                    <tr>
+                        <td><code>battery_metrics</code></td>
+                        <td><code>EmtbMetrics</code></td>
+                        <td>-</td>
+                        <td>Detailed battery drain, safety buffers, and thermal capacity adjustments.</td>
+                    </tr>
+                    <tr>
+                        <td><code>power_breakdown_w</code></td>
+                        <td><code>EmtbPower</code></td>
+                        <td>-</td>
+                        <td>Physical force breakdown (Watts) including drag, gravity, and friction.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tactical_advice</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>E-MTB specific guidance on mode selection, pacing, and battery management.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">RouteSurface</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>profile_used</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The specific routing profile applied (e.g., 'cycling-mountain', 'cycling-gravel').</td>
+                    </tr>
+                    <tr>
+                        <td><code>metadata</code></td>
+                        <td><code>object</code></td>
+                        <td>-</td>
+                        <td>Technical metadata containing timestamps, engine versions, and API flags.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tactical_briefing</code></td>
+                        <td><code>TacticalBriefing</code></td>
+                        <td>-</td>
+                        <td>Core metrics including distance, elevation gain, and TAEL™ mud intelligence.</td>
+                    </tr>
+                    <tr>
+                        <td><code>mechanical_setup</code></td>
+                        <td><code>MechanicalSetup</code></td>
+                        <td>-</td>
+                        <td>Technical recommendations for tire pressure and setup compatibility for the terrain.</td>
+                    </tr>
+                    <tr>
+                        <td><code>surface_breakdown</code></td>
+                        <td><code>list[SurfaceEntry]</code></td>
+                        <td>-</td>
+                        <td>A detailed statistical breakdown of normalized surface types along the route.</td>
+                    </tr>
+                    <tr>
+                        <td><code>emtb_tactical</code></td>
+                        <td><code>EmtbTactical</code></td>
+                        <td><code>null</code></td>
+                        <td>Optional battery and power physics metrics for E-MTB profiles.</td>
+                    </tr>
+                    <tr>
+                        <td><code>safety_warnings</code></td>
+                        <td><code>list[string]</code></td>
+                        <td>-</td>
+                        <td>Critical alerts regarding technical difficulty or environmental hazards.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MissionConditions</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>weather</code></td><td><code>list[WeatherSnapshot]</code></td><td>-</td><td>Hourly weather forecast snapshots for the mission duration.</td></tr>
+                    <tr><td><code>mud_risk</code></td><td><code>MudRiskAnalysis</code></td><td>-</td><td>Technical analysis of soil saturation and trail rideability.</td></tr>
+                    <tr><td><code>max_temp_detected</code></td><td><code>string</code></td><td>-</td><td>The peak temperature identified within the activity window.</td></tr>
+                    <tr><td><code>safety_advice</code></td><td><code>SafetyAdvice</code></td><td>-</td><td>Critical safety briefing including gear recommendations and wind risk.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">Amenity</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>name</code></td><td><code>string</code></td><td>-</td><td>The name of the point of interest (e.g., 'Water Fountain', 'Bike Shop').</td></tr>
+                    <tr><td><code>type</code></td><td><code>string</code></td><td>-</td><td>The category of the amenity for tactical filtering.</td></tr>
+                    <tr><td><code>distance_m</code></td><td><code>int</code></td><td>-</td><td>The geodesic distance from the route path in meters.</td></tr>
+                    <tr><td><code>location</code></td><td><code>dict[string, float]</code></td><td>-</td><td>The exact GPS coordinates (lat/lon) of the amenity.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">NutritionBriefing</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>fluids</code></td><td><code>object</code></td><td>-</td><td>Total liters and hourly intake rate (ml/h).</td></tr>
+                    <tr><td><code>carbohydrates</code></td><td><code>object</code></td><td>-</td><td>Total grams and hourly target (g/h) with absorption ratio.</td></tr>
+                    <tr><td><code>electrolytes</code></td><td><code>object</code></td><td>-</td><td>Total and hourly sodium/salt requirements (mg).</td></tr>
+                    <tr><td><code>tactical_advice</code></td><td><code>list[string]</code></td><td>-</td><td>Critical nutrition alerts (e.g., Bonk Risk, Heat Stress).</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MissionLogistics</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>nutrition_plan</code></td><td><code>NutritionPlanWrapper</code></td><td>-</td><td>The physiological fueling plan including fluids, carbs, and electrolytes.</td></tr>
+                    <tr><td><code>nearby_amenities</code></td><td><code>list[Amenity]</code></td><td>-</td><td>A list of strategic points detected along or near the route.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">EnvironmentalBriefing</h4>
+
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>rain_avg</code></td><td><code>string</code></td><td>-</td><td>Average probability of precipitation during the mission window.</td></tr>
+                    <tr><td><code>wind_max</code></td><td><code>string</code></td><td>-</td><td>Maximum expected wind speed (sustained or gust peak).</td></tr>
+                    <tr><td><code>temp_avg</code></td><td><code>string</code></td><td>-</td><td>Average ambient temperature predicted for the activity duration.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">PlannerReport</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>verdict</code></td><td><code>string</code></td><td>-</td><td>Final tactical decision: <strong>GO</strong>, <strong>WATCH</strong>, or <strong>NO-GO</strong>.</td></tr>
+                    <tr><td><code>tactical_color</code></td><td><code>string</code></td><td>-</td><td>Visual risk indicator (e.g., 'GREEN', 'YELLOW', 'RED').</td></tr>
+                    <tr><td><code>confidence_score</code></td><td><code>string</code></td><td>-</td><td>AI confidence level (0-100) in the accuracy of the prediction.</td></tr>
+                    <tr><td><code>best_window</code></td><td><code>string</code></td><td>-</td><td>The optimal time range identified for the best possible riding conditions.</td></tr>
+                    <tr><td><code>environmental_briefing</code></td><td><code>EnvironmentalBriefing</code></td><td>-</td><td>Aggregated summary of primary weather conditions.</td></tr>
+                    <tr><td><code>mud_risk_impact</code></td><td><code>string</code></td><td>-</td><td>Predicted soil saturation impact on speed, safety, and trail integrity.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">ClimbMetrics</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>km_start</code></td><td><code>float</code></td><td>-</td><td>Distance from the start of the track where the climb begins.</td></tr>
+                    <tr><td><code>dist_km</code></td><td><code>float</code></td><td>-</td><td>Total length of the specific climbing sector in kilometers.</td></tr>
+                    <tr><td><code>gain_m</code></td><td><code>float</code></td><td>-</td><td>Total vertical ascent (D+) of the climb in meters.</td></tr>
+                    <tr><td><code>avg_grade</code></td><td><code>float</code></td><td>-</td><td>Average gradient percentage for the entire duration of the sector.</td></tr>
+                    <tr><td><code>category</code></td><td><code>string</code></td><td>-</td><td>UCI standard classification (e.g., 'Cat 4', 'Cat 1', 'HC').</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">PerformanceSim</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>climb</code></td><td><code>string</code></td><td>-</td><td>Identifier for the climb including location name and UCI category.</td></tr>
+                    <tr><td><code>est_time_min</code></td><td><code>float</code></td><td>-</td><td>Estimated time in minutes to complete the sector at the given intensity.</td></tr>
+                    <tr><td><code>est_vam</code></td><td><code>int</code></td><td>-</td><td>Vertical Ascent Meters per hour (VAM) prediction.</td></tr>
+                    <tr><td><code>target_wkg</code></td><td><code>float</code></td><td>-</td><td>Required Power-to-Weight ratio (W/kg) for the baseline simulation.</td></tr>
+                    <tr><td><code>weather_adjusted_wkg</code></td><td><code>float</code></td><td>-</td><td>W/kg requirement adjusted for wind resistance and air density.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TacticalActionZone</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>km</code></td><td><code>float</code></td><td>-</td><td>Exact kilometer mark where the zone or incident starts.</td></tr>
+                    <tr><td><code>grade</code></td><td><code>float</code></td><td>-</td><td>Local extreme gradient (steepest ramp) within the zone.</td></tr>
+                    <tr><td><code>type</code></td><td><code>string</code></td><td>-</td><td>Classification (e.g., 'Explosive Wall', 'Technical Descent', 'Cobbled Sector').</td></tr>
+                    <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>Combined technical and physical difficulty assessment.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">RecommendedSetup</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>tire_width_ref</code></td><td><code>string</code></td><td>-</td><td>Reference tire width used for the calculation (e.g., '2.3"' or '28mm').</td></tr>
+                    <tr><td><code>pressure_bar</code></td><td><code>string</code></td><td>-</td><td>Recommended inflation pressure range measured in Bar.</td></tr>
+                    <tr><td><code>pressure_psi</code></td><td><code>string</code></td><td>-</td><td>Recommended inflation pressure range measured in PSI.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">GeocodingResponse</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>payload_version</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The BikeScout protocol version for client-side compatibility.</td>
+                    </tr>
+                    <tr>
+                        <td><code>status</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Operation status indicator (e.g., 'Success', 'Error').</td>
+                    </tr>
+                    <tr>
+                        <td><code>lat</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>WGS84 Latitude of the identified location.</td>
+                    </tr>
+                    <tr>
+                        <td><code>lon</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>WGS84 Longitude of the identified location.</td>
+                    </tr>
+                    <tr>
+                        <td><code>display_name</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Full human-readable address or localized place name.</td>
+                    </tr>
+                    <tr>
+                        <td><code>place_class</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>OSM Top-level classification (mapped from <code>class</code>).</td>
+                    </tr>
+                    <tr>
+                        <td><code>place_type</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Specific location sub-type (mapped from <code>type</code>).</td>
+                    </tr>
+                    <tr>
+                        <td><code>importance</code></td>
+                        <td><code>float</code></td>
+                        <td>-</td>
+                        <td>Search relevance score (0.0 to 1.0) based on location popularity.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TacticalForecastResponse</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>payload_version</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The BikeScout protocol version for client-side compatibility.</td>
+                    </tr>
+                    <tr>
+                        <td><code>status</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Current status of the weather service provider and data availability.</td>
+                    </tr>
+                    <tr>
+                        <td><code>metadata</code></td>
+                        <td><code>object</code></td>
+                        <td>-</td>
+                        <td>Contextual location data, elevation of source, and timezone metadata.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tactical_forecast</code></td>
+                        <td><code>list[WeatherSnapshot]</code></td>
+                        <td>-</td>
+                        <td>Hourly weather breakdown specifically windowed for the mission or race duration.</td>
+                    </tr>
+                    <tr>
+                        <td><code>reference_conditions</code></td>
+                        <td><code>object</code></td>
+                        <td>-</td>
+                        <td>Aggregated weather metrics used as baselines for performance and physiological adjustments.</td>
+                    </tr>
+                    <tr>
+                        <td><code>safety_advice</code></td>
+                        <td><code>SafetyAdvice</code></td>
+                        <td>-</td>
+                        <td>Strategic safety briefing covering risks like crosswinds, thermal strain, or lightning.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">RouteSurfaceResponse</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>payload_version</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The BikeScout protocol version for client-side compatibility.</td>
+                    </tr>
+                    <tr>
+                        <td><code>status</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>Overall operation status indicator (e.g., 'Success', 'Error').</td>
+                    </tr>
+                    <tr>
+                        <td><code>profile_used</code></td>
+                        <td><code>string</code></td>
+                        <td>-</td>
+                        <td>The specific routing profile applied to the analysis (e.g., 'cycling-mountain').</td>
+                    </tr>
+                    <tr>
+                        <td><code>metadata</code></td>
+                        <td><code>object</code></td>
+                        <td>-</td>
+                        <td>Technical metadata including timestamps, API flags, and processing logs.</td>
+                    </tr>
+                    <tr>
+                        <td><code>tactical_briefing</code></td>
+                        <td><code>TacticalBriefing</code></td>
+                        <td>-</td>
+                        <td>Core mission metrics including distance, elevation gain, and mud/soil intelligence.</td>
+                    </tr>
+                    <tr>
+                        <td><code>mechanical_setup</code></td>
+                        <td><code>MechanicalSetup</code></td>
+                        <td>-</td>
+                        <td>Specific recommendations for tire pressure, casing, and setup compatibility.</td>
+                    </tr>
+                    <tr>
+                        <td><code>surface_breakdown</code></td>
+                        <td><code>list[SurfaceEntry]</code></td>
+                        <td>-</td>
+                        <td>Aggregated and normalized statistics of all terrain types encountered.</td>
+                    </tr>
+                    <tr>
+                        <td><code>emtb_tactical</code></td>
+                        <td><code>EmtbTactical</code></td>
+                        <td><code>null</code></td>
+                        <td>Optional power and battery metrics; only populated if <code>is_ebike</code> is true.</td>
+                    </tr>
+                    <tr>
+                        <td><code>safety_warnings</code></td>
+                        <td><code>list[string]</code></td>
+                        <td>-</td>
+                        <td>List of critical alerts regarding hazardous segments, technical risks, or weather impact.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">FullMissionBriefingResponse</h4>
+
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>payload_version</code></td><td><code>string</code></td><td>-</td><td>BikeScout protocol version.</td></tr>
+                    <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Operation status (Success/Error).</td></tr>
+                    <tr><td><code>info</code></td><td><code>RouteInfo</code></td><td>-</td><td>Structured data regarding the route's morphology and difficulty.</td></tr>
+                    <tr><td><code>conditions</code></td><td><code>MissionConditions</code></td><td>-</td><td>Environmental analysis synchronized with the mission time window.</td></tr>
+                    <tr><td><code>logistics</code></td><td><code>MissionLogistics</code></td><td>-</td><td>Tactical recommendations for mechanical setup, nutrition, and timing.</td></tr>
+                    <tr><td><code>map_path</code></td><td><code>string</code></td><td>-</td><td>The local file path for the static map image of the route.</td></tr>
+                    <tr><td><code>mcp_resource_uri_map</code></td><td><code>string</code></td><td>-</td><td>The MCP URI for direct map layer access.</td></tr>
+                    <tr><td><code>gpx_export_path</code></td><td><code>string</code></td><td>-</td><td>The local file path of the generated GPX file.</td></tr>
+                    <tr><td><code>mcp_resource_uri_gpx</code></td><td><code>string</code></td><td>-</td><td>The MCP URI for downloading the GPX mission file.</td></tr>
+                    <tr><td><code>elevation_profile_path</code></td><td><code>string</code></td><td>-</td><td>The local file path for the elevation profile chart.</td></tr>
+                    <tr><td><code>mcp_resource_uri_elevation_profile</code></td><td><code>string</code></td><td>-</td><td>The MCP URI for the visual altimetry analysis.</td></tr>
+                    <tr><td><code>gpx_stats</code></td><td><code>dict[string, int]</code></td><td>-</td><td>Dictionary of raw metadata extracted from the GPX file.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">HydrationScoutResponse</h4>
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>payload_version</code></td><td><code>string</code></td><td>-</td><td>BikeScout protocol version.</td></tr>
+                    <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Operation status (Success/Error).</td></tr>
+                    <tr><td><code>weather_context</code></td><td><code>WeatherContext</code></td><td>-</td><td>Environmental factors that influenced the hydration/sodium calculation.</td></tr>
+                    <tr><td><code>mission_nutrition_briefing</code></td><td><code>NutritionBriefing</code></td><td>-</td><td>Detailed fluid, carb, and electrolyte plan.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">StrategicPlannerResponse</h4>
+
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>payload_version</code></td><td><code>string</code></td><td>-</td><td>The BikeScout protocol version for client-side compatibility.</td></tr>
+                    <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Operation status indicator (e.g., 'Success', 'Error').</td></tr>
+                    <tr><td><code>metadata</code></td><td><code>object</code></td><td>-</td><td>Contextual metadata including analyzed date, surface type, and location.</td></tr>
+                    <tr><td><code>planner_report</code></td><td><code>PlannerReport</code></td><td>-</td><td>The final strategic assessment and tactical timing recommendations.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">GpxRaceAuditResponse</h4>
+
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>payload_version</code></td><td><code>string</code></td><td>-</td><td>The BikeScout Protocol version for client-side compatibility.</td></tr>
+                    <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Overall success/error indicator of the race analysis engine.</td></tr>
+                    <tr><td><code>mode</code></td><td><code>string</code></td><td>-</td><td>Selected activity mode for physics engine logic ('ROAD' or 'MTB').</td></tr>
+                    <tr><td><code>target_date</code></td><td><code>string</code></td><td>-</td><td>Date used for synchronizing weather, wind, and mud impact models.</td></tr>
+                    <tr><td><code>track_metrics</code></td><td><code>dict</code></td><td>-</td><td>Dictionary of core track data: distance, total ascent, and peak altitude.</td></tr>
+                    <tr><td><code>planning_tools</code></td><td><code>object</code></td><td>-</td><td>Container for weather snapshots, nutrition strategy, and mud risk analysis.</td></tr>
+                    <tr><td><code>climb_analysis</code></td><td><code>list[ClimbMetrics]</code></td><td>-</td><td>List of all detected climbing sectors with UCI categorization.</td></tr>
+                    <tr><td><code>performance_simulation</code></td><td><code>list[PerformanceSim]</code></td><td>-</td><td>Climb-by-climb power, VAM, and timing estimates.</td></tr>
+                    <tr><td><code>tactical_alerts</code></td><td><code>list[dict]</code></td><td>-</td><td>Specific alerts for race dynamics (e.g., 'ECHELON RISK', 'HEADWIND SECTOR').</td></tr>
+                    <tr><td><code>pre_climb_positioning</code></td><td><code>list[dict]</code></td><td>-</td><td>Strategic points where the rider should optimize pack position.</td></tr>
+                    <tr><td><code>tactical_action_zones</code></td><td><code>list[TacticalActionZone]</code></td><td>-</td><td>Key points designated for potential attacks or extreme technical caution.</td></tr>
+                    <tr><td><code>report_path</code></td><td><code>string</code></td><td><code>null</code></td><td>File path to the generated high-fidelity PDF race book/roadbook.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MechanicalBaselineResponse</h4>
+
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>payload_version</code></td><td><code>string</code></td><td><code>"1.0"</code></td><td>The BikeScout protocol version for client-side compatibility.</td></tr>
+                    <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Operation status indicator (e.g., 'Success', 'Error').</td></tr>
+                    <tr><td><code>category</code></td><td><code>string</code></td><td>-</td><td>The detected bike category used for calculation (mtb, road, gravel).</td></tr>
+                    <tr><td><code>recommended_setup</code></td><td><code>RecommendedSetup</code></td><td>-</td><td>Detailed specifications for tires, wheels, and baseline pressures.</td></tr>
+                    <tr><td><code>full_guide_reference</code></td><td><code>string</code></td><td>-</td><td>URL or documentation link regarding international pressure standards.</td></tr>
+                    <tr><td><code>setup_notes</code></td><td><code>string</code></td><td>-</td><td>Tactical engineering notes regarding tire casing and tube vs. tubeless efficiency.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+
+
+                    <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">SafetyProtocolResponse</h4>
+
+            <div class="overflow-x-auto mb-6">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Default</th>
+                        <th>Description</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td><code>payload_version</code></td><td><code>string</code></td><td>-</td><td>The BikeScout protocol version for client-side compatibility.</td></tr>
+                    <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Overall operation status (Success/Error).</td></tr>
+                    <tr><td><code>mission_type_applied</code></td><td><code>string</code></td><td>-</td><td>The category of ride the protocol was tailored for (e.g., mtb, road).</td></tr>
+                    <tr><td><code>standard_checklist</code></td><td><code>string</code></td><td>-</td><td>Markdown formatted global safety checks (M-Check, Brakes, Bolt-check).</td></tr>
+                    <tr><td><code>tactical_pre_ride_commands</code></td><td><code>list[string]</code></td><td>-</td><td>Specific mechanical and gear actions to perform (e.g., Sag check, GPS sync).</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+
+            </details>
+
+        </div>
+
+
+        <!-- Tool: geocode_location -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">geocode_location</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        Primary resolution engine for geographical names. Finds latitude and longitude for any natural language place name (cities, mountain passes, specific addresses, or points of interest).
+                        <strong>Crucial Step:</strong> Use this tool to resolve coordinates before calling any routing or weather tools if you only have a location name.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>location_name</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>The natural language name of the place (e.g., "Passo dello Stelvio", "Courmayeur").</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>language</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "en"</td>
+                                <td>Language for localized results (e.g., 'it', 'fr', 'es'). Maps to Accept-Language header.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">GeocodingResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>lat/lon:</strong> Precise floating-point coordinates for routing engines.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>display_name:</strong> The full, formal localized name of the resolved location.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>importance:</strong> A reliability score (0.0 to 1.0) to evaluate the match quality.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>place_class/type:</strong> Contextual tags (e.g., 'city', 'mountain', 'peak') used to distinguish between different types of landmarks.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: trail_scout -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">trail_scout</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        Advanced trail discovery engine. Returns comprehensive route data, technical difficulty assessment, navigation files (GPX), and visual altimetry reports.
+                        Supports both <strong>Round Trips</strong> (single point) and <strong>A to B</strong> routing. Synchronizes with weather and soil models to provide
+                        real-time tactical advice. If <code>target_date</code> is omitted, it defaults to the current day.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>latitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Starting point latitude (WGS84).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>longitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Starting point longitude (WGS84).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>rider</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>RiderProfile</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Rider's physiological profile (weight, FTP, etc.).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>bike</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>BikeSetup</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Bike technical setup (weight, tires, e-bike specs).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>mission</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>MissionConstraints</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Activity constraints (start time, intensity).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>dest_latitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Destination latitude for A-B routing.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>dest_longitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Destination longitude for A-B routing.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_gpx</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: true</td>
+                                <td>Generate and export a navigation GPX file.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_map</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a static PNG map of the route.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>style</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">"filled"</td>
+                                <td>Chart style: <code>sparkline</code>, <code>filled</code>, <code>bars</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>output_level</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">"standard"</td>
+                                <td>Verbosity: <code>summary</code>, <code>standard</code>, <code>full</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Custom date (YYYY-MM-DD) for predictive analysis.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">FullMissionBriefingResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>info:</strong> Route morphology, surface analysis (TAEL™ mud risk), and mechanical/PSI guides.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>conditions:</strong> Hourly synchronized weather, rain probability, and safety gear briefings.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>logistics:</strong> Hydration/Nutrition plan and strategic amenities (water fountains, etc.) detected along the path.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Visual Assets:</strong> Native URIs for Map, Elevation Profile, and GPX navigation file for direct chat rendering.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>gpx_stats:</strong> Technical summary of trace integrity (point count, segment healing).</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: check_trail_weather -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">check_trail_weather</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        Advanced cycling-specific weather assistant designed for both real-time decisions and long-term event planning.
+                        It provides hyper-localized analysis of temperature, precipitation risk, and wind dynamics.
+                        <strong>Smart Window:</strong> If <code>target_date</code> is provided, it analyzes the full event window (ideal for races);
+                        otherwise, it focuses on the immediate 4-hour tactical window.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>lat</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Latitude of the specific trail or event sector.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>lon</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Longitude of the specific trail or event sector.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>The date of the event (YYYY-MM-DD). Defaults to the current tactical window.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">TacticalForecastResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>status:</strong> Confirmation of the API operation and data freshness.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>metadata:</strong> Contextual data including timezone synchronization and resolved location coordinates.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_forecast:</strong> A granular hourly breakdown of temperature, rain probability (%), and wind speed/direction.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>reference_conditions:</strong> Aggregated key metrics (Min/Max/Avg) for the selected analysis window.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>safety_advice:</strong> Mission-critical briefing covering wind risk scores, thermal stress alerts, and suggested gear/clothing.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: ride_window_planner -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">ride_window_planner</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong>Tactical Go/No-Go Decision Engine.</strong> This tool identifies the optimal time range for an activity by cross-referencing weather stability with
+                        the <strong>TAEL™ soil drainage efficiency</strong>. It calculates the "drying lag" based on the specific surface type to ensure the mission
+                        doesn't coincide with peak mud risk or dangerous environmental shifts.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>lat</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Latitude of the mission area.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>lon</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Longitude of the mission area.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>ride_duration_hours</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 2.0</td>
+                                <td>Planned duration of the cycling session in decimal hours.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>surface_type</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">"dirt"</td>
+                                <td>Surface type: <code>dirt</code>, <code>gravel</code>, <code>asphalt</code>, <code>sand</code>, <code>clay</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>The date of the event (YYYY-MM-DD). Defaults to today's schedule.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">StrategicPlannerResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>metadata:</strong> Contextual info including the local solar window (sunrise/sunset) to avoid riding in the dark.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planner_report:</strong> The final <strong>GO/WATCH/NO-GO</strong> verdict with a visual risk color (Green/Yellow/Red).</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>environmental_briefing:</strong> Aggregated summary of rain probability, max wind gusts, and average temperature.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>best_window:</strong> The specific time range (e.g., 09:00 - 11:00) identified as safest and driest.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mud_risk_impact:</strong> A percentage indicating how soil saturation levels might affect traction and overall mission success.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: analyze_route_surfaces -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">analyze_route_surfaces</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong>Terrain Intelligence & Setup Optimizer.</strong> This tool performs a deep audit of the route's ground composition and morphology.
+                        It categorizes all climbs according to UCI standards and calculates the <strong>dynamic mechanical setup</strong> (ideal PSI/Bar)
+                        cross-referencing total system weight (rider + bike) with the specific tire width and surface roughness.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>lat</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Latitude of the center point for route analysis.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>lon</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Longitude of the center point for route analysis.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>rider</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>RiderProfile</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Physiological data (weight, power) used for PSI and climb timing.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>bike</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>BikeSetup</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Mechanical specifications (bike weight, tire width, e-bike status).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>mission</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>MissionConstraints</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Route requirements, including radius and preferred profile.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>The date of the event (YYYY-MM-DD). Defaults to current date for mud risk.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">RouteSurfaceResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_briefing:</strong> Detailed climb categorization (UCI categories) and mud risk assessment.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mechanical_setup:</strong> Specific tire pressure recommendations (PSI/Bar) and equipment compatibility flags.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>surface_breakdown:</strong> Statistical distribution of normalized surface types (e.g., % Asphalt, % Dirt).</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>emtb_tactical:</strong> (Optional) Specific power/battery analytics for e-assisted missions.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>safety_warnings:</strong> Critical alerts regarding hazardous gradients, technical sectors, or surface-related risks.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: hydration_scout -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">hydration_scout</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong>Physiological Intelligence Engine.</strong> This tool generates a mission-specific fueling strategy by cross-referencing localized weather dynamics
+                        (heat index, humidity, and solar radiation) with the predicted intensity of the effort. It calculates sweat rates and glycogen depletion
+                        to provide precise targets for fluids, carbohydrates, and sodium.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>lat</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Latitude of the mission area.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>lon</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Longitude of the mission area.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>duration_hours</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 2.0</td>
+                                <td>Estimated time in the saddle (decimal hours).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>intensity_score</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 3</td>
+                                <td>Perceived effort (1: Recovery, 3: Tempo, 5: Race/Max effort).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Event date (YYYY-MM-DD). Used to analyze race-day thermal peaks.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">HydrationScoutResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>weather_context:</strong> Environmental factors (Temp, Humidity, Wind) that influenced the physiological stress calculation.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>fluids:</strong> Total volume required and hourly intake rate (ml/h) to maintain hydration.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>carbohydrates:</strong> Total grams and hourly target (g/h) based on intensity and duration.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>electrolytes:</strong> Sodium and salt requirements (mg) to prevent cramping and hyponatremia.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_advice:</strong> Critical alerts regarding heat stress, bonk risk, or specific absorption strategies.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: analyze_gpx_track -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">analyze_gpx_track</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong>High-Fidelity Professional Race Audit.</strong> This is the most advanced analysis engine, designed to transform a raw GPX file into a
+                        complete tactical roadbook. It simulates professional racing dynamics, calculating <strong>UCI climb categories</strong>,
+                        <strong>VAM (Vertical Ascent Meters)</strong>, and specific <strong>W/kg requirements</strong> adjusted for environmental friction
+                        (wind and air density). It also identifies strategic risks such as echelon (crosswind) zones and optimal attack points.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>gpx_url</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Remote URL or local path of the GPX file.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>rider_weight_kg</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Body mass for Power-to-Weight (W/kg) calculations.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>bike_weight_kg</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 7.5</td>
+                                <td>Mass of the bike.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>pro_intensity</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 1.6</td>
+                                <td>Effort multiplier (1.0: Amateur, 1.6: Pro, 2.0: Attack).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>activity_type</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">"road"</td>
+                                <td><code>road</code> or <code>mtb</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Race date (YYYY-MM-DD) for weather/mud prediction.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>start_hour / end_hour</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Race window (0-23) for time-averaged metrics.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>report</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a professional PDF race book.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">GpxRaceAuditResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>track_metrics:</strong> Core telemetry (distance, total ascent, peak altitude).</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>climb_analysis:</strong> Granular breakdown of every climb with UCI categorization.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>performance_simulation:</strong> Predicted sector times, VAM, and weather-adjusted W/kg targets.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_alerts:</strong> Critical warnings for echelons (crosswinds), technical action zones, and positioning cues.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planning_tools:</strong> Integrated nutrition plan and environmental risk summaries.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>report_path:</strong> URI to the generated professional PDF roadbook (if <code>report=True</code>).</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: apply_safety_protocol -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">apply_safety_protocol</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong>Official BikeScout Safety Protocol.</strong> This tool executes the mandatory risk assessment and safety checklist.
+                        It <strong>MUST</strong> be invoked before finalizing any "Go" decision. The protocol dynamically adapts the safety requirements
+                        based on the terrain intensity, mechanical complexity (e.g., battery safety for e-bikes), and environmental exposure.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>mission_type</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Mission category: <code>mtb</code>, <code>ebike</code>, <code>road</code>, <code>gravel</code>, <code>general</code>.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">SafetyProtocolResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-red-400">●</span> <strong>mandatory_checklist:</strong> A markdown-formatted list of essential safety checks (Mechanical, Personal, Communication).</li>
+                        <li class="flex gap-2"><span class="text-red-400">●</span> <strong>risk_assessment:</strong> A tactical breakdown of potential hazards specific to the mission type.</li>
+                        <li class="flex gap-2"><span class="text-red-400">●</span> <strong>tactical_commands:</strong> Immediate procedural instructions (e.g., "Check tire sealants", "Verify battery firmware", "Sync emergency contacts").</li>
+                        <li class="flex gap-2"><span class="text-red-400">●</span> <strong>emergency_briefing:</strong> Protocol-driven steps for incident management and SOS signals.</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: get_baseline_mechanics -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">get_baseline_mechanics</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        <strong>Standardized Mechanical Reference.</strong> Extracts baseline tire pressures and mechanical configurations from the <strong>BikeScout Registry</strong>.
+                        This tool is designed to be the <strong>initial baseline</strong>: use it to establish a safe starting point before applying advanced
+                        terrain-specific optimizations via <code>analyze_route_surfaces</code>.
+                    </p>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>bike_category</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>The bike family: <code>mtb</code>, <code>ebike</code>, <code>road</code>, <code>gravel</code>, <code>general</code>.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">MechanicalBaselineResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>recommended_setup:</strong> Standardized pressure values (PSI/Bar) based on the bike category.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>markdown_guide:</strong> A comprehensive technical manual for the specific bike type, including suspension sag and bolt torque basics.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_setup_notes:</strong> Contextual tips for optimizing the baseline for varied conditions (e.g., tubeless vs tubes).</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <div>
+
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-green-400 font-mono text-sm rounded border border-blue-500/30">RESOURCE</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">Local Guides</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+            <div class="overflow-x-auto">
+                <table>
+                    <thead>
+                    <tr><th>Knowledge Base</th><th>Destination</th><th>Tactical Specialization</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800 text-slate-400 font-mono text-xs">
+                    <!-- Moab, USA -->
+                    <tr>
+                        <td class="py-3 px-3 text-blue-400"><code>bikescout://knowledge/explore-moab-usa</code></td>
+                        <td class="py-3 px-3 text-white">🇺🇸 Moab, Utah</td>
+                        <td class="py-3 px-3 italic">High-desert survival, Slickrock traction, extreme hydration dynamics.</td>
+                    </tr>
+                    <!-- Dolomites, Italy -->
+                    <tr>
+                        <td class="py-3 px-3 text-blue-400"><code>bikescout://knowledge/explore-dolomiti-italy</code></td>
+                        <td class="py-3 px-3 text-white">🇮🇹 Dolomites, Italy</td>
+                        <td class="py-3 px-3 italic">High-altitude weather vigilance, UNESCO limestone grip & vertical gain.</td>
+                    </tr>
+                    <!-- Arenberg Forest, France -->
+                    <tr>
+                        <td class="py-3 px-3 text-blue-400"><code>bikescout://knowledge/explore-trouee-darenberg-france</code></td>
+                        <td class="py-3 px-3 text-white">🇫🇷 Arenberg Forest</td>
+                        <td class="py-3 px-3 italic">Vibration damping on Pavé, stone humidity risk & TAEL™ soil lag.</td>
+                    </tr>
+                    <!-- Finale Ligure, Italy -->
+                    <tr>
+                        <td class="py-3 px-3 text-blue-400"><code>bikescout://knowledge/explore-finale-ligure-italy</code></td>
+                        <td class="py-3 px-3 text-white">🇮🇹 Finale Ligure</td>
+                        <td class="py-3 px-3 italic">EWS standards, brake fade management, maritime limestone tuning.</td>
+                    </tr>
+                    <!-- Castelli Romani, Italy -->
+                    <tr>
+                        <td class="py-3 px-3 text-blue-400"><code>bikescout://knowledge/explore-castelliromani-italy</code></td>
+                        <td class="py-3 px-3 text-white">🇮🇹 Castelli Romani</td>
+                        <td class="py-3 px-3 italic">Volcanic soil drainage (clay/sand), technical volcanic rock descents.</td>
+                    </tr>
+                    <!-- Derby, Australia -->
+                    <tr>
+                        <td class="py-3 px-3 text-blue-400"><code>bikescout://knowledge/explore-derby-australia</code></td>
+                        <td class="py-3 px-3 text-white">🇦🇺 Derby, Tasmania</td>
+                        <td class="py-3 px-3 italic">Granite slab traction, temperate rainforest mud-risk, flow-state mechanics.</td>
+                    </tr>
+                    <!-- Shimanami Kaido, Japan -->
+                    <tr>
+                        <td class="py-3 px-3 text-blue-400"><code>bikescout://knowledge/explore-shimanamikaido-japan</code></td>
+                        <td class="py-3 px-3 text-white">🇯🇵 Shimanami Kaido</td>
+                        <td class="py-3 px-3 italic">Salt-air corrosion notes, bridge crosswind analysis, multi-island logistics.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            </details>
+
+        </div>
+
+    </section>
+</main>
+
+<footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em] leading-relaxed">
+    <div class="mb-4">
+        BikeScout @ 2026 // <span class="text-white"><a href="mailto:bikescout.mcp@gmail.com">hifly81</a></span>
+    </div>
+
+    <div class="mb-4">
+        Licensed under <a href="https://github.com/hifly81/bikescout/blob/main/LICENSE" class="text-slate-400 hover:text-white transition-colors">AGPL-3.0</a> //
+        Data by <span class="text-slate-500">OSM - ORS - Open-Meteo</span>
+    </div>
+
+    <div class="max-w-2xl mx-auto opacity-50">
+        Disclaimer: Tactical models are simulations // Verify conditions in person // Ride at your own risk
+    </div>
+</footer>
+
+<script>
+    // Tab switching logic
+    function switchTab(tabId) {
+        // Hide all contents
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        // Remove active state from buttons
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+        // Show selected content
+        document.getElementById(tabId).classList.add('active');
+
+        // Add active state to clicked button
+        const btnId = tabId === 'user-guide' ? 'tab-guide' : 'tab-api';
+        document.getElementById(btnId).classList.add('active');
+
+        window.scrollTo(0,0);
+    }
+
+
+</script>
+</body>
+</html>

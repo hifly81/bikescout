@@ -328,7 +328,6 @@ def get_complete_trail_scout(
 
         # --- 8. FINAL PAYLOAD CONSTRUCTION ---
         response_payload = {
-            "payload_version": "1.3",
             "status": "Success",
             "info": {
                 "route_type": "A to B" if (dest_latitude and dest_longitude) else "Round Trip",

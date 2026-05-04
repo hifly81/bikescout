@@ -153,7 +153,6 @@ def calculate_ride_windows(
         else: verdict, color = "NO-GO", "RED"
 
         return {
-            "payload_version": "1.1",
             "status": "Success",
             "metadata": {
                 "analyzed_date": t_date.isoformat(),

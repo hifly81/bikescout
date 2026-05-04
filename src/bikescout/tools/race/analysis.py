@@ -28,8 +28,6 @@ from fpdf import FPDF
 from typing import List, Dict, Any, Optional, Literal
 from datetime import date
 from geopy.distance import geodesic
-
-# Internal tools imports
 from bikescout.tools.weather import get_weather_forecast
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.nutrition import get_nutrition_plan

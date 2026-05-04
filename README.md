@@ -20,7 +20,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ## Explore BikeScout
 
-* **[BikeScout Documentation](docs/md/api_docs.md)** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
+* **[User Guide](https://hifly81.github.io/bikescout/documentation/index.html)** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
 
 * **[Official Website](https://hifly81.github.io/bikescout)** A high-level overview of our predictive algorithms. Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
 

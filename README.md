@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Version](https://img.shields.io/badge/Version-1.3.0-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.1-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 [![Discord](https://img.shields.io/badge/Discord-7289DA?style=flat&logo=discord&logoColor=white)](https://discord.gg/TCetrnAM5b)
@@ -20,7 +20,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ## Explore BikeScout
 
-* **[BikeScout Documentation](docs/md/api_docs.md)** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
+* **[User Guide](https://hifly81.github.io/bikescout/documentation/index.html)** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
 
 * **[Official Website](https://hifly81.github.io/bikescout)** A high-level overview of our predictive algorithms. Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
 

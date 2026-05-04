@@ -74,19 +74,13 @@ def calculate_ride_windows(
         normalized_forecasts = []
         for h in raw_forecasts:
             try:
-                def clean_val(v):
-                    if isinstance(v, str):
-                        return float(v.replace('°C', '').replace('C', '').replace('%', '').replace(' km/h', '').strip())
-                    return float(v or 0)
-
                 hour_int = int(h.get("time", "00:00").split(":")[0])
-
                 normalized_forecasts.append({
                     "time": h.get("time", "N/A"),
                     "hour": hour_int,
-                    "precip_prob": clean_val(h.get("rain_prob", 0)),
-                    "wind_speed": clean_val(h.get("wind", 0)),
-                    "temp": clean_val(h.get("temp", 15))
+                    "precip_prob": _clean_weather_value(h.get("rain_prob", 0)),
+                    "wind_speed": _clean_weather_value(h.get("wind", 0)),
+                    "temp": _clean_weather_value(h.get("temp", 15))
                 })
             except Exception:
                 continue
@@ -159,7 +153,6 @@ def calculate_ride_windows(
         else: verdict, color = "NO-GO", "RED"
 
         return {
-            "payload_version": "1.1",
             "status": "Success",
             "metadata": {
                 "analyzed_date": t_date.isoformat(),
@@ -178,3 +171,15 @@ def calculate_ride_windows(
 
     except Exception as e:
         return {"status": "Error", "message": f"Tactical Planner failed: {str(e)}"}
+
+def _clean_weather_value(v) -> float:
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        for char in ['°C', 'C', '%', ' km/h']:
+            v = v.replace(char, '')
+        try:
+            return float(v.strip())
+        except ValueError:
+            return 0.0
+    return 0.0

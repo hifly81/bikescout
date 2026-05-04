@@ -59,6 +59,22 @@
         }
     </script>
 
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const icon = document.getElementById('menu-icon');
+
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                icon.classList.replace('fa-bars', 'fa-xmark');
+            } else {
+                menu.classList.add('hidden');
+                icon.classList.replace('fa-xmark', 'fa-bars');
+            }
+        }
+
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -85,16 +101,40 @@
 <body class="bg-[#0b0f1a] text-slate-200 selection:bg-[#bef264] selection:text-[#0b0f1a]">
 
 <!-- Navigation Navbar -->
-<nav class="fixed top-0 left-0 w-full bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 z-50">
-    <div class="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <i class="fa-solid fa-mountain-sun text-2xl neon-text"></i>
-            <a href="https://hifly81.github.io/bikescout"><span class="text-6xl md:text-2xl font-black mb-6 tracking-tighter italic uppercase text-white leading-none">Bike<span class="neon-text">Scout</span></span></a>
+<nav class="fixed top-0 left-0 w-full bg-[#0b0f1a]/95 backdrop-blur-md border-b border-slate-800 z-50">
+    <div class="max-w-6xl mx-auto px-4 h-16 md:h-20 flex items-center justify-between">
+        <!-- Logo -->
+        <div class="flex items-center gap-2 md:gap-3">
+            <i class="fa-solid fa-mountain-sun text-xl md:text-2xl neon-text"></i>
+            <a href="https://hifly81.github.io/bikescout">
+                <span class="text-xl md:text-2xl font-black tracking-tighter italic uppercase text-white">
+                    Bike<span class="neon-text">Scout</span>
+                </span>
+            </a>
         </div>
-        <div class="flex gap-6">
-            <button onclick="switchTab('user-guide')" id="tab-guide" class="nav-btn active text-slate-300 font-bold hover:text-white transition-colors pb-1">User Guide</button>
-            <button onclick="switchTab('api-reference')" id="tab-api" class="nav-btn text-slate-300 font-bold hover:text-white transition-colors pb-1">API Reference</button>
+
+        <!-- Desktop Tabs -->
+        <div class="hidden md:flex gap-8">
+            <button onclick="switchTab('user-guide')" id="tab-guide" class="nav-btn active text-slate-300 font-bold hover:text-white transition-all pb-1 border-b-2 border-transparent">User Guide</button>
+            <button onclick="switchTab('api-reference')" id="tab-api" class="nav-btn text-slate-300 font-bold hover:text-white transition-all pb-1 border-b-2 border-transparent">API Reference</button>
         </div>
+
+        <!-- Mobile Menu Button -->
+        <div class="md:hidden">
+            <button onclick="toggleMobileMenu()" class="text-slate-300 p-2">
+                <i id="menu-icon" class="fa-solid fa-bars text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" class="hidden md:hidden bg-[#0b0f1a] border-b border-slate-800 px-4 py-6 space-y-4 shadow-2xl">
+        <button onclick="switchTab('user-guide'); toggleMobileMenu()" class="block w-full text-left text-lg font-bold text-slate-300 hover:text-white transition-colors">
+            <i class="fa-solid fa-book-open mr-3 text-emerald-400"></i> User Guide
+        </button>
+        <button onclick="switchTab('api-reference'); toggleMobileMenu()" class="block w-full text-left text-lg font-bold text-slate-300 hover:text-white transition-colors">
+            <i class="fa-solid fa-code mr-3 text-emerald-400"></i> API Reference
+        </button>
     </div>
 </nav>
 

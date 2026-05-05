@@ -22,7 +22,6 @@ from bikescout.tools.geophysic import calculate_geodetic_segment
 from bikescout.tools.bike_setup import analyze_compatibility
 from bikescout.tools.bike_setup import get_tire_setup
 from bikescout.tools.battery import calculate_battery_drain
-from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints
 
 def _sanitize_elevation_profile(geometry, window_size=7, threshold=0.5):
     """
@@ -193,15 +192,15 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
               surface breakdown, and E-MTB analytics.
     """
 
-    # 1. Parameter Normalization
+    # Parameter Normalization
     safe_complexity = max(3, min(int(getattr(mission, 'complexity', 10)), 30))
     safe_length = int(mission.radius_km * 1000)
 
-    # 2. Strategic fallback system
+    # fallback system
     attempts = [
         (mission.profile, ["surface", "waytype"]),
-        (mission.profile, ["surface", "waytype"]),
-        ("cycling-regular", ["surface", "waytype"])
+        (mission.profile, ["surface"]),
+        ("cycling-regular", ["surface"])
     ]
 
     last_error = ""
@@ -246,7 +245,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             # Extras can contain 'surface', 'waytype', etc.
             extras = props.get('extras', {})
 
-            # 3. Terrain Intelligence
+            # Terrain Intelligence
             clean_ascent = _sanitize_elevation_profile(geometry, 7, 0.5)
 
             # Distance calculation (Geodesic)
@@ -267,7 +266,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             raw_mud = t_analysis.get("mud_risk_numeric")
             mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
 
-            # 4. Mechanical & Performance Audit
+            # Mechanical & Performance Audit
             tire_display = get_tire_setup(
                 bike_type=bike.bike_type,
                 tire_size_option=bike.tire_size,
@@ -279,7 +278,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
             breakdown, warnings, compatible = analyze_compatibility(bike.bike_type, bike.tire_width_mm, extras, surface_map)
 
-            # --- 5. E-MTB Power Management (Safe Detection) ---
+            # --- E-MTB Power Management (Safe Detection) ---
             emtb_analysis = None
 
             # Check if it's an E-Bike: must have "E-" in name AND a valid battery capacity

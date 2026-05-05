@@ -66,6 +66,7 @@
         function toggleMobileMenu() {
             const menu = document.getElementById('mobile-menu');
             const icon = document.getElementById('menu-icon');
+
             if (menu.classList.contains('hidden')) {
                 menu.classList.remove('hidden');
                 icon.classList.replace('fa-bars', 'fa-xmark');
@@ -74,6 +75,7 @@
                 icon.classList.replace('fa-xmark', 'fa-bars');
             }
         }
+
     </script>
 
     <style>
@@ -89,9 +91,10 @@
         .nav-link { transition: all 0.2s; border-left: 2px solid transparent; padding-left: 1rem; }
         .nav-link:hover { color: #bef264; border-left-color: #bef264; }
     </style>
+
 </head>
 
-<body class="bg-[#0b0f1a] text-slate-200">
+<body class="bg-[#0b0f1a] text-slate-200 selection:bg-[#bef264] selection:text-[#0b0f1a]">
 
 <!-- Navigation Navbar -->
 <nav class="fixed top-0 left-0 w-full bg-[#0b0f1a]/95 backdrop-blur-md border-b border-slate-800 z-50">
@@ -104,27 +107,41 @@
                     Bike<span class="neon-text">Scout</span>
                 </span>
             </a>
+
+            <div class="md:hidden ml-auto">
+                <button onclick="toggleMobileMenu()" class="text-slate-300 p-2">
+                    <i id="menu-icon" class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Mobile Menu Overlay -->
+            <div id="mobile-menu" class="hidden absolute top-full left-0 w-full bg-[#0b0f1a] border-b border-slate-800 px-4 py-6 space-y-4 shadow-2xl z-50 md:hidden">
+
+                <button onclick="switchTab('user-guide'); toggleMobileMenu()" class="block w-full text-left text-lg font-bold text-slate-300 hover:text-white transition-colors">
+                    <i class="fa-solid fa-book-open mr-3 text-emerald-400"></i> User Guide
+                </button>
+                <a href="api-reference.html" onclick="toggleMobileMenu()" class="block w-full text-left text-lg font-bold text-slate-300 hover:text-white transition-colors">
+                    <i class="fa-solid fa-code mr-3 text-emerald-400"></i> API Reference
+                </a>
+            </div>
+
         </div>
 
-        <!-- Desktop Menu -->
-        <div class="hidden md:flex gap-8">
-            <a href="index.html" class="text-white font-bold border-b-2 border-[#bef264] pb-1">User Guide</a>
-            <a href="api-reference.html" class="text-slate-300 font-bold hover:text-white transition-all pb-1">API Reference</a>
+        <!-- Desktop Tabs -->
+        <div class="hidden md:flex gap-8 items-center">
+            <button onclick="switchTab('api-reference')" id="tab-guide" class="text-white font-bold border-b-2 border-[#bef264] pb-1">
+                User Guide
+            </button>
+            <a href="api-reference.html" class="text-slate-300 font-bold hover:text-white transition-all pb-1 border-b-2 border-transparent">
+                API Reference
+            </a>
         </div>
 
         <!-- Mobile Menu Button -->
-        <button onclick="toggleMobileMenu()" class="md:hidden text-white text-2xl p-2">
-            <i id="menu-icon" class="fa-solid fa-bars"></i>
-        </button>
+
     </div>
 
-    <!-- Mobile Dropdown Menu -->
-    <div id="mobile-menu" class="hidden md:hidden bg-[#111827] border-b border-slate-800">
-        <div class="flex flex-col p-4 gap-4">
-            <a href="index.html" class="text-white font-bold py-2 border-b border-slate-800">User Guide</a>
-            <a href="api-reference.html" class="text-slate-300 font-bold py-2">API Reference</a>
-        </div>
-    </div>
+
 </nav>
 
 <div class="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-12">
@@ -491,6 +508,7 @@
 
 
 
+
 <footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em] leading-relaxed">
     <div class="mb-4">
         BikeScout @ 2026 // <span class="text-white"><a href="mailto:bikescout.mcp@gmail.com">hifly81</a></span>
@@ -507,5 +525,37 @@
 </footer>
 
 
+
+
+                    <script>
+                        // Tab switching logic
+                        function switchTab(tabId) {
+                            // Hide all contents
+                            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                            // Remove active state from buttons
+                            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+                            // Show selected content
+                            document.getElementById(tabId).classList.add('active');
+
+                            // Add active state to clicked button
+                            const btnId = tabId === 'user-guide' ? 'tab-guide' : 'tab-api';
+                            document.getElementById(btnId).classList.add('active');
+
+                            window.scrollTo(0,0);
+                        }
+
+
+                    </script>
+
+                </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
 
 </html>

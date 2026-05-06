@@ -102,6 +102,7 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "precipitation",
                 "windspeed_10m",
                 "windgusts_10m",
+                "winddirection_10m",
                 "weathercode"
             ],
             "timezone": "UTC", # Kept UTC for raw data consistency
@@ -143,7 +144,8 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "rain_prob": f"{hourly['precipitation_probability'][i]}%",
                 "rain_mm": f"{hourly['precipitation'][i]} mm",
                 "wind": f"{hourly['windspeed_10m'][i]} km/h",
-                "gusts": f"{hourly['windgusts_10m'][i]} km/h"
+                "gusts": f"{hourly['windgusts_10m'][i]} km/h",
+                "wind_direction": f"{hourly['winddirection_10m'][i]}°"
             })
 
         # 5. Extract Baseline Reference Conditions (Target Hour)
@@ -152,6 +154,7 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
         curr_rain_mm = hourly['precipitation'][ref_idx]
         curr_wind = hourly['windspeed_10m'][ref_idx]
         curr_gusts = hourly['windgusts_10m'][ref_idx]
+        curr_wind_dir = hourly['winddirection_10m'][ref_idx]
 
         # 6. Return Structured Multi-Temporal Payload
         return {
@@ -170,6 +173,7 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "precipitation_mm": curr_rain_mm,
                 "wind_speed": curr_wind,
                 "wind_gusts": curr_gusts,
+                "wind_direction": curr_wind_dir,
                 "reference_hour_local": f"{target_hour}:00"
             },
             "safety_advice": get_safety_advice(

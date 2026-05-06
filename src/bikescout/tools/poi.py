@@ -19,6 +19,76 @@ import sys
 
 # OpenRouteService POIs API endpoint
 ORS_POIS_URL = "https://api.openrouteservice.org/pois"
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+
+def get_poi_scout_free(lat: float, lon: float, radius_km: float):
+    """
+    Finds cycling POIs using Overpass API (No API Key required).
+    Features: Water, Bike Repair, Shelters, and Picnic areas.
+    """
+
+    # 1. Parameter Normalization
+    # Overpass handles large radii better than ORS
+    radius_m = radius_km * 1000
+
+    # 2. Overpass QL (Query Language)
+    # We search for specific OSM tags:
+    # - drinking_water / water_point
+    # - bicycle_repair_station / bicycle_shop
+    # - shelter / picnic_site
+    query = f"""
+    [out:json][timeout:25];
+    (
+      node["amenity"="drinking_water"](around:{radius_m},{lat},{lon});
+      node["amenity"="bicycle_repair_station"](around:{radius_m},{lat},{lon});
+      node["shop"="bicycle"](around:{radius_m},{lat},{lon});
+      node["amenity"="shelter"](around:{radius_m},{lat},{lon});
+      node["leisure"="picnic_table"](around:{radius_m},{lat},{lon});
+    );
+    out body;
+    """
+
+    try:
+        # 3. Execution
+        response = requests.post(OVERPASS_URL, data={'data': query})
+
+        if response.status_code != 200:
+            print(f"Overpass Error: {response.status_code}", file=sys.stderr)
+            return {"status": "Error", "message": "Overpass server busy"}
+
+        data = response.json()
+        elements = data.get('elements', [])
+
+        all_amenities = []
+        for el in elements:
+            tags = el.get('tags', {})
+
+            # 4. Tactical Labeling
+            label = "Point of Interest"
+            if tags.get('amenity') == 'drinking_water':
+                label = "Water Fountain 💧"
+            elif 'bicycle' in tags.get('amenity', '') or 'bicycle' in tags.get('shop', ''):
+                label = "Bike Support 🔧"
+            elif tags.get('amenity') == 'shelter' or tags.get('leisure') == 'picnic_table':
+                label = "Rest Area 🧺"
+
+            all_amenities.append({
+                "name": tags.get('name') or tags.get('operator') or label,
+                "type": label,
+                "location": {"lat": el.get('lat'), "lon": el.get('lon')},
+                "osm_id": el.get('id')
+            })
+
+        return {
+            "status": "Success",
+            "search_radius": f"{radius_m}m",
+            "total_found": len(all_amenities),
+            "amenities": all_amenities
+        }
+
+    except Exception as e:
+        print(f"Overpass Critical Exception: {str(e)}", file=sys.stderr)
+        return {"status": "Error", "message": str(e)}
 
 def get_poi_scout(api_key: str, lat: float, lon: float, radius_km: float):
     """

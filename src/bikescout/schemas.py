@@ -31,7 +31,7 @@ class RiderProfile(BaseModel):
         75.0,
         description="Rider weight in kilograms. Critical for tire pressure and energy modeling.",
         json_schema_extra={"examples": [70.0, 85.5]}
-    ),
+    )
     gender: Literal["male", "female"] = Field(
         "male",
         description="User's gender.",
@@ -41,7 +41,7 @@ class RiderProfile(BaseModel):
         "intermediate",
         description="User's athletic preparation level. Affects fatigue and climbing logic.",
         json_schema_extra={"examples": ["intermediate"]}
-    ),
+    )
     sweat_profile: Literal["standard", "low", "high", "extreme"] = Field(
         "standard",
         description="Genetic sodium loss classification. low: ~400mg/L (Diluted sweat), standard: ~800mg/L (Population average), high: ~1200mg/L (Salty sweater), extreme: ~1800mg/L (Genetic outlier/Heavy loser).",

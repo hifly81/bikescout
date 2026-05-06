@@ -177,6 +177,7 @@
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
                         <tr><td><code>weight_kg</code></td><td><code>float</code></td><td>-</td><td>Total weight (rider + gear) for PSI and energy calculations.</td></tr>
+                        <tr><td><code>gender</code></td><td><code>string</code></td><td>-</td><td>Gender.</td></tr>
                         <tr><td><code>fitness_level</code></td><td><code>string</code></td><td>-</td><td>Affects difficulty grading. Options: <code>beginner</code>, <code>intermediate</code>, <code>advanced</code>, <code>pro</code>.</td></tr>
                         </tbody>
                     </table>
@@ -1660,10 +1661,16 @@
                                 <td>Perceived effort (1: Recovery, 3: Tempo, 5: Race/Max effort).</td>
                             </tr>
                             <tr>
-                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3"><code>weight</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 70</td>
+                                <td>Weight in KG.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>gender</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
-                                <td class="text-slate-500">Optional</td>
-                                <td>Event date (YYYY-MM-DD). Used to analyze race-day thermal peaks.</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: male</td>
+                                <td>Gender.</td>
                             </tr>
                             </tbody>
                         </table>
@@ -1736,6 +1743,12 @@
                                 <td class="py-2 px-3 text-blue-300"><code>float</code></td>
                                 <td class="text-orange-400 font-semibold">Required</td>
                                 <td>Body mass for Power-to-Weight (W/kg) calculations.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>rider_gender</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Gender.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>bike_weight_kg</code></td>

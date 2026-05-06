@@ -14,12 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-def get_nutrition_plan(duration_hours: float, temp_c: float, intensity_score: int):
+def get_nutrition_plan(duration_hours: float, temp_c: float, intensity_score: int, weight_kg: float = 70.0, gender: str = "male"):
     """
-    Advanced Nutrition & Hydration Logic v2.0
+    Nutrition & Hydration Logic
     Correlates Glycogen Depletion with Thermoregulatory Strain to provide pro-grade
     fueling intelligence based on Intensity Factor (IF), Heat Stress, and Duration.
     """
+
+    gender_factor = 1.0 if gender.lower() == "male" else 0.85
 
     # --- 1. Intensity Normalization (The "Human Engine" Map) ---
     # Maps the orchestrator's 1-5 scale into a standardized Intensity Factor (IF)
@@ -36,11 +38,11 @@ def get_nutrition_plan(duration_hours: float, temp_c: float, intensity_score: in
     # --- 2. Continuous Hydration & Sweat Rate Modeling ---
     # Replaces the step-function with a continuous linear equation.
     # Base fluid + Temp coefficient (+30ml per degree > 15C) + Intensity kinetic heat.
-    base_rate = 300
-    temp_coeff = max(0, temp_c - 15) * 30
-    intensity_coeff = intensity_factor * 300
+    base_rate = weight_kg * 10
+    temp_coeff = max(0, temp_c - 15) * (weight_kg * 0.4)
+    intensity_coeff = intensity_factor * (weight_kg * 4)
 
-    hourly_fluid = base_rate + temp_coeff + intensity_coeff
+    hourly_fluid = (base_rate + temp_coeff + intensity_coeff) * gender_factor
     total_fluid = (hourly_fluid * duration_hours) / 1000 # Convert to Liters
 
     # --- 3. Advanced Carbohydrate Optimization ---
@@ -89,6 +91,9 @@ def get_nutrition_plan(duration_hours: float, temp_c: float, intensity_score: in
 
     if hourly_sodium >= 800:
         alerts.append(f"ELECTROLYTE CRITICAL: High sodium output detected. Add {round(hourly_sodium)}mg/hr directly to your bottles to prevent cramping.")
+
+    if total_fluid > (weight_kg * 0.03 * duration_hours):
+        alerts.append(f"HYPER-HYDRATION RISK: Fluid targets are high relative to body mass. Sip steadily and ensure sodium intake matches targets to avoid hyponatremia.")
 
     return {
         "status": "Success",

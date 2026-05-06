@@ -31,6 +31,11 @@ class RiderProfile(BaseModel):
         75.0,
         description="Rider weight in kilograms. Critical for tire pressure and energy modeling.",
         json_schema_extra={"examples": [70.0, 85.5]}
+    ),
+    gender: Literal["male", "female"] = Field(
+        "male",
+        description="User's gender.",
+        json_schema_extra={"examples": ["male", "female"]}
     )
     fitness_level: Literal["beginner", "intermediate", "pro"] = Field(
         "intermediate",

@@ -326,6 +326,8 @@ def hydration_scout(
         lon: float,
         duration_hours: float = 2,
         intensity_score: int = 3,
+        weight_kg: float = 70.0,
+        gender: str = "male",
         target_date: Optional[str] = None
 ) -> HydrationScoutResponse:
     """
@@ -341,6 +343,8 @@ def hydration_scout(
         lon: Longitude of the mission area.
         duration_hours: Estimated time in the saddle.
         intensity_score: Physiological effort (1 to 5) 5 = Max Effort/Race.
+        weight_kg: Weight in Kg.
+        gender: Default "male",
         target_date: Optional. The date of the event in YYYY-MM-DD format.
     Returns:
         A HydrationScoutResponse containing the tactical weather context and
@@ -370,7 +374,7 @@ def hydration_scout(
 
     # 3. Execute the Nutrition Logic
     # The engine calculates carbs/hour and ml/hour based on heat and intensity
-    data = get_nutrition_plan(duration_hours, max_temp, intensity_score)
+    data = get_nutrition_plan(duration_hours, max_temp, intensity_score, weight_kg, gender)
 
     context = WeatherContext(
         date_referenced=weather_data.get("metadata", {}).get("date_analyzed", target_date),
@@ -388,6 +392,7 @@ def hydration_scout(
 def analyze_gpx_track(
         gpx_url: str,
         rider_weight_kg: float,
+        rider_gender: Literal["male", "female"] = "male",
         bike_weight_kg: float = 7.5,
         pro_intensity: float = 1.6,
         activity_type: Literal["road", "mtb"] = "road",
@@ -404,13 +409,14 @@ def analyze_gpx_track(
     Args:
         gpx_url: Remote URL or local path of the GPX file to analyze.
         rider_weight_kg: Body mass of the rider for Power-to-Weight calculations.
+        rider_gender: Default "male",
         bike_weight_kg: Mass of the bike (default 7.5kg for pro road bikes).
         pro_intensity: Effort multiplier (1.0 = amateur, 1.6 = pro pace, 2.0 = world-class attack).
         activity_type: Type of activity ('road' or 'mtb').
         target_date: Optional race date (YYYY-MM-DD). If provided, fetches historical or forecast weather.
         start_hour: Expected start time (0-23). If provided with end_hour, calculates window-averaged metrics.
         end_hour: Expected finish time (0-23). Used to average weather conditions during the event.
-        report: True or False, geenarte a pdf report with the analysis.
+        report: True or False, generate a pdf report with the analysis.
     Returns:
         A GpxRaceAuditResponse object containing:
         - track_metrics: Core distance and elevation data.
@@ -424,6 +430,7 @@ def analyze_gpx_track(
     data = analyze_track(
             gpx_url=gpx_url,
             rider_weight_kg=rider_weight_kg,
+            rider_gender=rider_gender,
             bike_weight_kg=bike_weight_kg,
             pro_intensity=pro_intensity,
             activity_type=activity_type,

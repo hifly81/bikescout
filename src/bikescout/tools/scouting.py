@@ -343,7 +343,7 @@ def get_complete_trail_scout(
                 response_payload["conditions"]["mud_risk"] = mud_analysis
 
         if include_nutrition_plan:
-            nutrition_plan = get_nutrition_plan(estimated_hours, max_temp, intensity_score, rider.weight_kg, rider.gender)
+            nutrition_plan = get_nutrition_plan(estimated_hours, max_temp, intensity_score, rider.weight_kg, rider.gender, rider.sweat_profile)
             if nutrition_plan.get('status') == 'Success':
                 if "logistics" not in response_payload or response_payload["logistics"] is None:
                     response_payload["logistics"] = {}

@@ -41,7 +41,11 @@ class RiderProfile(BaseModel):
         "intermediate",
         description="User's athletic preparation level. Affects fatigue and climbing logic.",
         json_schema_extra={"examples": ["intermediate"]}
-    )
+    ),
+    sweat_profile: Literal["standard", "low", "high", "extreme"] = Field(
+        "standard",
+        description="Genetic sodium loss classification. low: ~400mg/L (Diluted sweat), standard: ~800mg/L (Population average), high: ~1200mg/L (Salty sweater), extreme: ~1800mg/L (Genetic outlier/Heavy loser).",
+        json_schema_extra={"examples": ["default", "extreme", "low", "high"]})
 
 class BikeSetup(BaseModel):
     """

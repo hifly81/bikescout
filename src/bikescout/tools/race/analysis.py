@@ -42,6 +42,7 @@ def analyze_track(
         gpx_url: str,
         rider_weight_kg: float = 70,
         rider_gender: Literal["male", "female"] = "male",
+        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
         bike_weight_kg: float = 7.5,
         pro_intensity: float = 1.6,
         activity_type: Literal["road", "mtb"] = "road",
@@ -110,7 +111,7 @@ def analyze_track(
             mapped_surface = "gravel" if "gravel" in activity_type.lower() else "dirt"
             mud_risk = get_mud_risk_analysis(start_lat, start_lon, mapped_surface, t_date)
 
-        nutrition_plan = get_nutrition_plan(duration_hours, ref_temp, intensity_score, rider_weight_kg, rider_gender)
+        nutrition_plan = get_nutrition_plan(duration_hours, ref_temp, intensity_score, rider_weight_kg, rider_gender, sweat_profile)
         performance = _calculate_performance(uci_climbs, rider_weight_kg, bike_weight_kg, pro_intensity, ref_temp, ref_wind_speed)
 
         # 5. Strategic Zone Identification (Weighted for the finale)

@@ -176,9 +176,10 @@
                     <table>
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
-                        <tr><td><code>weight_kg</code></td><td><code>float</code></td><td>-</td><td>Total weight (rider + gear) for PSI and energy calculations.</td></tr>
-                        <tr><td><code>gender</code></td><td><code>string</code></td><td>-</td><td>Gender.</td></tr>
-                        <tr><td><code>fitness_level</code></td><td><code>string</code></td><td>-</td><td>Affects difficulty grading. Options: <code>beginner</code>, <code>intermediate</code>, <code>advanced</code>, <code>pro</code>.</td></tr>
+                        <tr><td><code>weight_kg</code></td><td><code>float</code></td><td>75</td><td>Total weight (rider + gear) for PSI and energy calculations.</td></tr>
+                        <tr><td><code>gender</code></td><td><code>string</code></td><td>male</td><td>Gender.</td></tr>
+                        <tr><td><code>fitness_level</code></td><td><code>string</code></td><td>intermediate</td><td>Affects difficulty grading. Options: <code>beginner</code>, <code>intermediate</code>, <code>advanced</code>, <code>pro</code>.</td></tr>
+                        <tr><td><code>sweat_profile</code></td><td><code>string</code></td><td>default</td><td>Genetic sodium loss classification. low: ~400mg/L (Diluted sweat), standard: ~800mg/L (Population average), high: ~1200mg/L (Salty sweater), extreme: ~1800mg/L (Genetic outlier/Heavy loser).</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1670,7 +1671,17 @@
                                 <td class="py-2 px-3"><code>gender</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
                                 <td class="text-blue-400/70 italic text-xs">Default: male</td>
-                                <td>Gender.</td>
+                                <td>"male" or "female". Scales sweat rate based on plasma volume variances.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>sweat_profile</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: default</td>
+                                <td>Genetic sodium loss classification.
+                                    - "low": ~400mg/L (Diluted sweat).
+                                    - "standard": ~800mg/L (Population average).
+                                    - "high": ~1200mg/L (Salty sweater).
+                                    - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).</td>
                             </tr>
                             </tbody>
                         </table>
@@ -1749,6 +1760,16 @@
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
                                 <td class="text-orange-400 font-semibold">Required</td>
                                 <td>Gender.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>sweat_profile</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: default</td>
+                                <td>Genetic sodium loss classification.
+                                    - "low": ~400mg/L (Diluted sweat).
+                                    - "standard": ~800mg/L (Population average).
+                                    - "high": ~1200mg/L (Salty sweater).
+                                    - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>bike_weight_kg</code></td>

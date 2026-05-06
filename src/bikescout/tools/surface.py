@@ -224,7 +224,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                 }
             }
 
-            res = requests.post(url, json=body, headers=headers, timeout=15)
+            res = requests.post(url, json=body, headers=headers, timeout=7)
 
             if res.status_code != 200:
                 # Capture the specific reason for failure
@@ -249,9 +249,11 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             clean_ascent = _sanitize_elevation_profile(geometry, 7, 0.5)
 
             # Distance calculation (Geodesic)
+            # FIXME very slow
+            step = 5
             real_dist_m = 0
-            for i in range(len(geometry) - 1):
-                p1, p2 = geometry[i], geometry[i+1]
+            for i in range(0, len(geometry) - step, step):
+                p1, p2 = geometry[i], geometry[i + step]
                 real_dist_m += calculate_geodetic_segment(p1[1], p1[0], p2[1], p2[0])["distance"]
 
             # Surface Mapping

@@ -1746,19 +1746,25 @@
                             <tr>
                                 <td class="py-2 px-3"><code>rider_weight_kg</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>float</code></td>
-                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 75</td>
                                 <td>Body mass for Power-to-Weight (W/kg) calculations.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>rider_gender</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
-                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: male</td>
                                 <td>Gender.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>rider_fitness_level</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: intermediate</td>
+                                <td>User's athletic preparation level. Affects fatigue and climbing logic. Default "intermediate"</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>sweat_profile</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
-                                <td class="text-blue-400/70 italic text-xs">Default: default</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: standard</td>
                                 <td>Genetic sodium loss classification.
                                     - "low": ~400mg/L (Diluted sweat).
                                     - "standard": ~800mg/L (Population average).
@@ -1768,13 +1774,13 @@
                             <tr>
                                 <td class="py-2 px-3"><code>bike_weight_kg</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>float</code></td>
-                                <td class="text-blue-400/70 italic text-xs">Default: 7.5</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 8.5</td>
                                 <td>Mass of the bike.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>pro_intensity</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>float</code></td>
-                                <td class="text-blue-400/70 italic text-xs">Default: 1.6</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 1.3</td>
                                 <td>Effort multiplier (1.0: Amateur, 1.6: Pro, 2.0: Attack).</td>
                             </tr>
                             <tr>

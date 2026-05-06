@@ -401,11 +401,12 @@ def hydration_scout(
 @mcp.tool()
 def analyze_gpx_track(
         gpx_url: str,
-        rider_weight_kg: float = 70,
+        rider_weight_kg: float = 75,
         rider_gender: Literal["male", "female"] = "male",
+        rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
         sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-        bike_weight_kg: float = 7.5,
-        pro_intensity: float = 1.6,
+        bike_weight_kg: float = 8.5,
+        pro_intensity: float = 1.3,
         activity_type: Literal["road", "mtb"] = "road",
         target_date: Optional[str] = None,
         start_hour: Optional[int] = None,
@@ -419,14 +420,15 @@ def analyze_gpx_track(
 
     Args:
         gpx_url: Remote URL or local path of the GPX file to analyze.
-        rider_weight_kg: Body mass of the rider for Power-to-Weight calculations.
+        rider_weight_kg: Body mass of the rider for Power-to-Weight calculations. Default: 75
         rider_gender: Default "male",
+        rider_fitness_level: User's athletic preparation level. Affects fatigue and climbing logic. Default "intermediate"
         sweat_profile: Genetic sodium loss classification.
             - "low": ~400mg/L (Diluted sweat).
             - "standard": ~800mg/L (Population average).
             - "high": ~1200mg/L (Salty sweater).
             - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).
-        bike_weight_kg: Mass of the bike (default 7.5kg for pro road bikes).
+        bike_weight_kg: Mass of the bike (default 8.5kg for road bikes).
         pro_intensity: Effort multiplier (1.0 = amateur, 1.6 = pro pace, 2.0 = world-class attack).
         activity_type: Type of activity ('road' or 'mtb').
         target_date: Optional race date (YYYY-MM-DD). If provided, fetches historical or forecast weather.
@@ -447,6 +449,7 @@ def analyze_gpx_track(
             gpx_url=gpx_url,
             rider_weight_kg=rider_weight_kg,
             rider_gender=rider_gender,
+            rider_fitness_level=rider_fitness_level,
             sweat_profile=sweat_profile,
             bike_weight_kg=bike_weight_kg,
             pro_intensity=pro_intensity,

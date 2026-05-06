@@ -40,11 +40,12 @@ CDA_CLIMB = 0.35    # Aerodynamic drag coefficient for climbing position
 
 def analyze_track(
         gpx_url: str,
-        rider_weight_kg: float = 70,
+        rider_weight_kg: float = 75,
         rider_gender: Literal["male", "female"] = "male",
+        rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
         sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-        bike_weight_kg: float = 7.5,
-        pro_intensity: float = 1.6,
+        bike_weight_kg: float = 8.5,
+        pro_intensity: float = 1.3,
         activity_type: Literal["road", "mtb"] = "road",
         target_date: Optional[str] = None,
         start_hour: Optional[int] = None,
@@ -100,8 +101,7 @@ def analyze_track(
 
         # 4. Environmental and Tactical Assessment
         intensity_score = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
-        est_speed = 35.0 if activity_type.lower() == "road" else 20.0
-        duration_hours = (distance_km / est_speed) + (total_ascent / 1000)
+        duration_hours,est_speed = _estimate_ride_duration(distance_km, total_ascent, rider_fitness_level, activity_type)
 
         tactical_alerts = []
         mud_risk = None
@@ -151,6 +151,36 @@ def analyze_track(
     except Exception as e:
         sys.stderr.write(f"ANALYSIS FAILURE: {traceback.format_exc()}\n")
         return {"status": "Error", "message": str(e)}
+
+def _estimate_ride_duration(distance_km: float, total_ascent_m: float, rider_fitness_level: str, activity_type: str):
+    """
+    Calculates a realistic estimated speed to avoid under-fueling.
+    Adjusts base speed based on fitness level and climbing intensity.
+    """
+    # 1. Base speed mapping (Conservative estimates for amateurs)
+    base_speeds = {
+        "beginner": {"road": 20.0, "gravel": 15.0, "mtb": 12.0},
+        "intermediate": {"road": 26.0, "gravel": 20.0, "mtb": 15.0},
+        "pro": {"road": 34.0, "gravel": 27.0, "mtb": 22.0}
+    }
+
+    # Get speeds for the specific rider profile
+    rider_speeds = base_speeds.get(rider_fitness_level, base_speeds["intermediate"])
+    est_speed = rider_speeds.get(activity_type.lower(), rider_speeds["road"])
+
+    # 2. Climbing Penalty (The "Gravity Tax")
+    # Every 100m of climbing per 10km significantly reduces average speed
+    climbing_density = total_ascent_m / (distance_km / 10)
+    # Penalty: reduce speed by ~1% for every 50m of climbing density
+    climbing_penalty = (climbing_density / 50.0) * 0.01
+
+    final_est_speed = est_speed * (1.0 - climbing_penalty)
+
+    # Ensure speed doesn't drop below a walking pace (safety floor)
+    final_est_speed = max(final_est_speed, 8.0)
+
+    duration_hours = distance_km / final_est_speed
+    return duration_hours, final_est_speed
 
 def _load_gpx_content(gpx_path: str) -> str:
     """Fetches GPX content from the web or local file system."""

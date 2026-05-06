@@ -24,6 +24,12 @@
         <changefreq>daily</changefreq>
         <priority>0.8</priority>
    </url>
+    <url>
+        <loc>https://hifly81.github.io/bikescout/race_analysis.html</loc>
+        <lastmod>2026-05-08</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>
    <url>
         <loc>https://hifly81.github.io/bikescout/blog/hello_bikers.html</loc>
         <lastmod>2026-04-13</lastmod>
@@ -38,12 +44,6 @@
     </url>
     <url>
         <loc>https://hifly81.github.io/bikescout/blog/why_mcp.html</loc>
-        <lastmod>2026-04-13</lastmod>
-        <changefreq>daily</changefreq>
-        <priority>0.8</priority>
-    </url>
-    <url>
-        <loc>https://hifly81.github.io/bikescout/blog/tael.html</loc>
         <lastmod>2026-04-13</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.8</priority>

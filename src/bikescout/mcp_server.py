@@ -83,7 +83,6 @@ def trail_scout(
         target_date: Optional[str] = None,
         include_gpx: bool = True,
         include_map: bool = False,
-        include_surface_analysis: bool = False,
         include_poi: bool = False,
         include_altimetry: bool = False,
         include_weather: bool = False,
@@ -109,7 +108,6 @@ def trail_scout(
         target_date: Optional. The date of the event in YYYY-MM-DD format.
         include_gpx: If True, generates a GPX file for navigation.
         include_map: If True, generates a visual map image.
-        include_surface_analysis: If True, generates surface analysis report.
         include_poi: If True, includes amenities and points of interest.
         include_altimetry: If True, generates the altimetry profile.
         include_weather: If True, includes weather conditions.
@@ -134,8 +132,7 @@ def trail_scout(
 
     data = get_complete_trail_scout(
         ORS_API_KEY, latitude, longitude, rider, bike, mission, dest_latitude, dest_longitude,
-        style, target_date, include_gpx, include_map,
-        include_surface_analysis, include_poi, include_altimetry, include_weather, include_mud_analysis, include_nutrition_plan)
+        style, target_date, include_gpx, include_map, include_poi, include_altimetry, include_weather, include_mud_analysis, include_nutrition_plan)
     return FullMissionBriefingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
 
 @mcp.tool()
@@ -161,7 +158,6 @@ def trail_scout_simple(
         style: Literal["sparkline", "filled", "bars"] = "filled",
         include_gpx: bool = True,
         include_map: bool = False,
-        include_surface_analysis: bool = False,
         include_poi: bool = False,
         include_altimetry: bool = False,
         include_weather: bool = False,
@@ -199,7 +195,6 @@ def trail_scout_simple(
         style: Visual style for the elevation profile graphic.
         include_gpx: If True, generates a downloadable navigation file.
         include_map: If True, generates a tactical map image.
-        include_surface_analysis: If True, generates surface analysis report.
         include_poi: If True, includes amenities and points of interest.
         include_altimetry: If True, generates the altimetry profile.
         include_weather: If True, includes weather conditions.
@@ -259,7 +254,6 @@ def trail_scout_simple(
             style=style,
             include_gpx=include_gpx,
             include_map=include_map,
-            include_surface_analysis = include_surface_analysis,
             include_poi = include_poi,
             include_altimetry = include_altimetry,
             include_weather = include_weather,
@@ -407,7 +401,7 @@ def hydration_scout(
 @mcp.tool()
 def analyze_gpx_track(
         gpx_url: str,
-        rider_weight_kg: float,
+        rider_weight_kg: float = 70,
         rider_gender: Literal["male", "female"] = "male",
         sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
         bike_weight_kg: float = 7.5,

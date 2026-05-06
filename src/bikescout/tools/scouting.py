@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Literal, Optional
 from bikescout.tools.maps import save_local_tactical_map
-from bikescout.tools.weather import get_weather_forecast
+from bikescout.tools.weather import get_weather_forecast, apply_weather_windowing
 from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.poi import get_poi_scout, get_poi_scout_free
 from bikescout.tools.mud import get_mud_risk_analysis
@@ -212,7 +212,6 @@ def get_complete_trail_scout(
         target_date: str = None,
         include_gpx: bool = True,
         include_map: bool = False,
-        include_surface_analysis: bool = False,
         include_poi: bool = False,
         include_altimetry: bool = False,
         include_weather: bool = False,
@@ -291,29 +290,32 @@ def get_complete_trail_scout(
             }
         }
 
-        if include_surface_analysis:
-            try:
-                surface_report = get_surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
-            except Exception as e:
-                surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
+        try:
+            surface_report = get_surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
+        except Exception as e:
+            surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
 
-            if surface_report.get("status") == "Success":
-                t_brief = surface_report.get("tactical_briefing", {})
-                dist_km = t_brief.get("distance_km")
-                ascent_m = t_brief.get("elevation_gain_m")
-                dominant_surface = surface_report.get("mechanical_setup", {}).get("surface_detected", "Unknown")
+        if surface_report.get("status") == "Success":
+            t_brief = surface_report.get("tactical_briefing", {})
+            dist_km = t_brief.get("distance_km")
+            ascent_m = t_brief.get("elevation_gain_m")
+            dominant_surface = surface_report.get("mechanical_setup", {}).get("surface_detected", "Unknown")
 
-                response_payload["info"]["distance_km"] = dist_km
-                response_payload["info"]["ascent_m"] = ascent_m
-                response_payload["info"]["difficulty"] = calculate_detailed_difficulty(dist_km, ascent_m)
+            response_payload["info"]["distance_km"] = dist_km
+            response_payload["info"]["ascent_m"] = ascent_m
+            response_payload["info"]["difficulty"] = calculate_detailed_difficulty(dist_km, ascent_m)
 
-                response_payload["info"]["surface_analysis"] = surface_report
+            response_payload["info"]["surface_analysis"] = surface_report
 
         if include_weather:
             max_temp = 20.0
+            s_hour =  9
+            e_hour = 19
             weather_report = get_weather_forecast(latitude, longitude, target_date)
 
             if weather_report.get('status') == 'Success':
+                weather_report = apply_weather_windowing(weather_report, s_hour, e_hour)
+
                 # OPTION A: Use the pre-calculated reference temperature (Fastest)
                 # This uses the specific hour matched by the engine
                 max_temp = weather_report.get('reference_conditions', {}).get('temp_actual', 20.0)
@@ -379,7 +381,6 @@ def get_complete_trail_scout(
                 if gpx_report["status"] == "Success":
                     response_payload["gpx_export_path"] = gpx_report["file_location"]
                     response_payload["mcp_resource_uri_gpx"] = gpx_report["mcp_resource_uri"]
-                    response_payload["gpx_stats"] = gpx_report.get("tactical_stats")
             except Exception as e:
                 response_payload["gpx_error"] = f"GPX failed: {str(e)}"
 

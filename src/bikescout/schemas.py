@@ -382,7 +382,7 @@ class FullMissionBriefingResponse(BaseModel):
     mcp_resource_uri_gpx: Optional[str] = Field(None, description="The MCP URI for downloading the GPX mission file.")
     elevation_profile_path: Optional[str] = Field(None, description="The local file path for the elevation profile chart.")
     mcp_resource_uri_elevation_profile: Optional[str] = Field(None, description="The MCP URI for the visual altimetry analysis.")
-    gpx_stats: Optional[Dict[str, int]] = Field(None, description="Dictionary of raw metadata extracted from the GPX file.")
+    gpx_stats: Union[Dict[str, int], None] = Field(None, description="Dictionary of raw metadata extracted from the GPX file.")
 
 class HydrationScoutResponse(BaseModel):
     """Response schema for the Physiological Intelligence Engine."""

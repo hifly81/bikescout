@@ -189,3 +189,37 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
         return {"status": "Error", "message": f"Weather API Connection Error: {str(e)}"}
     except Exception as e:
         return {"status": "Error", "message": f"Unexpected Weather Engine Error: {str(e)}"}
+
+def apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
+    """Averages weather metrics within the specified race time window."""
+    filtered_forecast = []
+    window_temps, window_winds, window_dirs = [], [], []
+
+    if "reference_conditions" not in weather_data:
+        weather_data["reference_conditions"] = {}
+
+    for hour_info in weather_data.get("tactical_forecast", []):
+        try:
+            h_int = int(hour_info["time"].split(":")[0])
+            if start <= h_int <= end:
+                filtered_forecast.append(hour_info)
+                t_val = float(str(hour_info["temp"]).replace("°C", "").replace("C", "").strip())
+                w_val = float(str(hour_info["wind"]).replace(" km/h", "").strip())
+                w_dir = hour_info.get("wind_dir", 90)
+
+                window_temps.append(t_val)
+                window_winds.append(w_val)
+                window_dirs.append(w_dir)
+        except (ValueError, KeyError):
+            continue
+
+    if window_temps:
+        weather_data["reference_conditions"].update({
+            "temp": round(sum(window_temps) / len(window_temps), 1),
+            "wind_speed": round(sum(window_winds) / len(window_winds), 1),
+            "wind_dir_degrees": int(sum(window_dirs) / len(window_dirs)),
+            "reference_hour": f"Calculated window {start:02d}-{end:02d}"
+        })
+
+    weather_data["tactical_forecast"] = filtered_forecast
+    return weather_data

@@ -64,16 +64,12 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Inter', sans-serif; padding-top: 80px; overflow-x: hidden; line-height: 1.8; }
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
         .mono { font-family: 'JetBrains Mono', monospace; }
         .neon-text { color: #bef264; }
-        .bg-neon { background-color: #bef264; }
-
         .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
-        .article-content p { margin-bottom: 2rem; color: #cbd5e1; font-size: 1.25rem; }
-        .article-content strong { color: white; font-weight: 800; }
-        .article-content .dropcap { float: left; font-size: 5rem; line-height: 0.8; font-weight: 900; color: #bef264; margin-right: 0.75rem; font-style: italic; margin-top: 0.5rem; }
-
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
         .tactical-box { background: rgba(190, 242, 100, 0.05); border: 1px dashed #bef264; padding: 2rem; margin: 3rem 0; border-radius: 2px; }
         .hero-mesh {
             background-color: #0f172a;
@@ -95,6 +91,21 @@
 </head>
 <body class="bg-[#0b0f1a] text-slate-200">
 
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="../blog.html">Blog</a>
+        <a href="../cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="../race_analysis.html">Race Analysis</a>
+        <a href="../about.html">About</a>
+    </div>
+</div>
+
+
 <nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
         <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
@@ -103,8 +114,10 @@
         <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
             <a href="../blog.html" class="text-neon-text">Blog</a>
             <a href="../cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="../race_analysis.html" class="hover:text-neon-text transition-colors">Race Analysis</a>
             <a href="../about.html" class="hover:text-neon-text transition-colors">About</a>
         </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
     </div>
 </nav>
 
@@ -197,6 +210,31 @@
         Disclaimer: Tactical models are simulations // Verify conditions in person // Ride at your own risk
     </div>
 </footer>
+
+<script>
+    // Mobile Menu logic
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+
+
+    mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+    });
+</script>
 
 </body>
 </html>

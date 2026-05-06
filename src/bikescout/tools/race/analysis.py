@@ -28,7 +28,7 @@ from fpdf import FPDF
 from typing import List, Dict, Any, Optional, Literal
 from datetime import date
 from geopy.distance import geodesic
-from bikescout.tools.weather import get_weather_forecast
+from bikescout.tools.weather import get_weather_forecast, apply_weather_windowing
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.nutrition import get_nutrition_plan
 
@@ -92,7 +92,7 @@ def analyze_track(
         ref_temp, ref_wind_speed, ref_wind_dir = 20.0, 10.0, 90
 
         if weather_data.get("status") == "Success":
-            weather_data = _apply_weather_windowing(weather_data, s_hour, e_hour)
+            weather_data = apply_weather_windowing(weather_data, s_hour, e_hour)
             ref_cond = weather_data.get("reference_conditions", {})
             ref_temp = ref_cond.get("temp", ref_temp)
             ref_wind_speed = ref_cond.get("wind_speed", ref_wind_speed)
@@ -375,40 +375,6 @@ def _calculate_aero_risks(segments, wind_dir, wind_speed) -> List[Dict]:
                 "detail": f"{round(wind_speed, 1)}km/h Crosswind"
             })
     return alerts[:4]
-
-def _apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
-    """Averages weather metrics within the specified race time window."""
-    filtered_forecast = []
-    window_temps, window_winds, window_dirs = [], [], []
-
-    if "reference_conditions" not in weather_data:
-        weather_data["reference_conditions"] = {}
-
-    for hour_info in weather_data.get("tactical_forecast", []):
-        try:
-            h_int = int(hour_info["time"].split(":")[0])
-            if start <= h_int <= end:
-                filtered_forecast.append(hour_info)
-                t_val = float(str(hour_info["temp"]).replace("°C", "").replace("C", "").strip())
-                w_val = float(str(hour_info["wind"]).replace(" km/h", "").strip())
-                w_dir = hour_info.get("wind_dir", 90)
-
-                window_temps.append(t_val)
-                window_winds.append(w_val)
-                window_dirs.append(w_dir)
-        except (ValueError, KeyError):
-            continue
-
-    if window_temps:
-        weather_data["reference_conditions"].update({
-            "temp": round(sum(window_temps) / len(window_temps), 1),
-            "wind_speed": round(sum(window_winds) / len(window_winds), 1),
-            "wind_dir_degrees": int(sum(window_dirs) / len(window_dirs)),
-            "reference_hour": f"Calculated window {start:02d}-{end:02d}"
-        })
-
-    weather_data["tactical_forecast"] = filtered_forecast
-    return weather_data
 
 def _generate_elevation_plot(segments: List[Dict], target_date: str) -> str:
     """Uses matplotlib to generate a track elevation profile image."""

@@ -17,7 +17,7 @@
 import uuid
 import time
 from pathlib import Path
-from typing import List, Optional, Literal, Dict, Any
+from typing import List, Optional, Literal, Dict, Any, Union
 from pydantic import BaseModel, Field, model_validator, field_validator
 
 # --- BIKE SCOUT CORE SCHEMAS (PYDANTIC V2) ---
@@ -287,10 +287,10 @@ class PlannerReport(BaseModel):
     mud_risk_impact: str = Field(..., description="Predicted soil saturation impact on the mission")
 
 class MissionConditions(BaseModel):
-    weather: List[WeatherSnapshot] = Field(..., description="Hourly weather forecast snapshots for the mission duration.")
-    mud_risk: MudRiskAnalysis = Field(..., description="Technical analysis of soil saturation and trail rideability.")
+    weather: Union[List[WeatherSnapshot], None] = Field(None, description="Hourly weather forecast snapshots for the mission duration.")
+    mud_risk: Union[MudRiskAnalysis, None] = Field(None, description="Technical analysis of soil saturation and trail rideability.")
     max_temp_detected: str = Field(..., description="The peak temperature identified within the activity window.")
-    safety_advice: SafetyAdvice = Field(..., description="Critical safety briefing including gear recommendations and wind risk.")
+    safety_advice: Union[SafetyAdvice, None] = Field(None, description="Critical safety briefing including gear recommendations and wind risk.")
 
 class Amenity(BaseModel):
     name: str = Field(..., description="The name of the point of interest (e.g., 'Water Fountain', 'Bike Shop').")
@@ -303,8 +303,8 @@ class NutritionPlanWrapper(BaseModel):
     mission_nutrition_briefing: NutritionBriefing = Field(..., description="The detailed fueling and hydration strategy.")
 
 class MissionLogistics(BaseModel):
-    nutrition_plan: NutritionPlanWrapper = Field(..., description="The physiological fueling plan including fluids, carbs, and electrolytes.")
-    nearby_amenities: List[Amenity] = Field(..., description="A list of strategic points detected along or near the route.")
+    nutrition_plan: Union[NutritionPlanWrapper, None] = Field(None, description="The physiological fueling plan including fluids, carbs, and electrolytes.")
+    nearby_amenities: Union[List[Amenity], None] = Field(None, description="A list of strategic points detected along or near the route.")
 
 class RouteSurface(BaseModel):
     profile_used: str = Field(..., description="Routing profile used (e.g., cycling-mountain)")
@@ -357,22 +357,22 @@ class RouteInfo(BaseModel):
     distance_km: float = Field(..., description="The total length of the route measured in kilometers.")
     ascent_m: int = Field(..., description="The total vertical elevation gain in meters.")
     difficulty: str = Field(..., description="The overall challenge rating based on gradient, surface, and distance.")
-    surface_analysis: RouteSurface = Field(..., description="A detailed breakdown of surface compositions and traction indices.")
+    surface_analysis: Union[RouteSurface, None] = Field(None, description="A detailed breakdown of surface compositions and traction indices.")
 
 class FullMissionBriefingResponse(BaseModel):
     """Response schema for trail scout: Tactical, Environmental, and Logistical."""
     payload_version: str = Field(..., description="BikeScout protocol version")
     status: str = Field(..., description="Operation status (Success/Error)")
-    info: RouteInfo = Field(..., description="Structured data regarding the route's morphology and difficulty.")
-    conditions: MissionConditions = Field(..., description="Environmental analysis synchronized with the mission time window.")
-    logistics: MissionLogistics = Field(..., description="Tactical recommendations for mechanical setup, nutrition, and timing.")
+    info: Optional[RouteInfo] = Field(None, description="Structured data regarding the route's morphology and difficulty.")
+    conditions: Optional[MissionConditions] = Field(None, description="Environmental analysis synchronized with the mission time window.")
+    logistics: Optional[MissionLogistics] = Field(None, description="Tactical recommendations for mechanical setup, nutrition, and timing.")
     map_path: Optional[str] = Field(None, description="The local file path for the static map image of the route.")
     mcp_resource_uri_map: Optional[str] = Field(None, description="The MCP URI for direct map layer access.")
     gpx_export_path: Optional[str] = Field(None, description="The local file path of the generated GPX file.")
     mcp_resource_uri_gpx: Optional[str] = Field(None, description="The MCP URI for downloading the GPX mission file.")
-    elevation_profile_path: str = Field(..., description="The local file path for the elevation profile chart.")
-    mcp_resource_uri_elevation_profile: str = Field(..., description="The MCP URI for the visual altimetry analysis.")
-    gpx_stats: Dict[str, int] = Field(..., description="Dictionary of raw metadata extracted from the GPX file.")
+    elevation_profile_path: Optional[str] = Field(None, description="The local file path for the elevation profile chart.")
+    mcp_resource_uri_elevation_profile: Optional[str] = Field(None, description="The MCP URI for the visual altimetry analysis.")
+    gpx_stats: Optional[Dict[str, int]] = Field(None, description="Dictionary of raw metadata extracted from the GPX file.")
 
 class HydrationScoutResponse(BaseModel):
     """Response schema for the Physiological Intelligence Engine."""

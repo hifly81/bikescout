@@ -24,7 +24,6 @@ from typing import Literal, Optional
 from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints, RouteSurfaceResponse, MechanicalBaselineResponse, SafetyProtocolResponse, GpxRaceAuditResponse, WeatherContext, HydrationScoutResponse, StrategicPlannerResponse, TacticalForecastResponse, FullMissionBriefingResponse, GeocodingResponse
 from bikescout.tools.scouting import get_complete_trail_scout
 from bikescout.tools.weather import get_weather_forecast
-from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.geocoding import get_coordinates
 from bikescout.tools.gonogo import calculate_ride_windows
 from bikescout.tools.altimetry import get_elevation_profile_image
@@ -80,11 +79,16 @@ def trail_scout(
         mission: MissionConstraints,
         dest_latitude: Optional[float] = None,
         dest_longitude: Optional[float] = None,
+        style: Literal["sparkline", "filled", "bars"] = "filled",
+        target_date: Optional[str] = None,
         include_gpx: bool = True,
         include_map: bool = False,
-        style: Literal["sparkline", "filled", "bars"] = "filled",
-        output_level: Literal["summary", "standard", "full"] = "standard",
-        target_date: Optional[str] = None
+        include_surface_analysis: bool = False,
+        include_poi: bool = False,
+        include_altimetry: bool = False,
+        include_weather: bool = False,
+        include_mud_analysis: bool = False,
+        include_nutrition_plan: bool = False
 ) -> FullMissionBriefingResponse:
     """
     Advanced trail discovery.
@@ -101,11 +105,16 @@ def trail_scout(
         mission: Constraints like search radius and surface preference.
         dest_latitude: Latitude of the ending point.
         dest_longitude: Longitude of the ending point.
+        style: Visual style of the profile "sparkline", "filled", "bars".
+        target_date: Optional. The date of the event in YYYY-MM-DD format.
         include_gpx: If True, generates a GPX file for navigation.
         include_map: If True, generates a visual map image.
-        style: Visual style of the profile "sparkline", "filled", "bars".
-        output_level: Detail level of the report ("summary", "standard", "full").
-        target_date: Optional. The date of the event in YYYY-MM-DD format.
+        include_surface_analysis: If True, generates surface analysis report.
+        include_poi: If True, includes amenities and points of interest.
+        include_altimetry: If True, generates the altimetry profile.
+        include_weather: If True, includes weather conditions.
+        include_mud_analysis: If True, generates a report including mud analysis.
+        include_nutrition_plan: If True, generates nutrition plan report.
     Returns:
         FullMissionBriefingResponse: A comprehensive tactical intelligence report containing:
         - info: Route metrics (distance, ascent, difficulty) and deep surface analysis
@@ -124,7 +133,9 @@ def trail_scout(
     """
 
     data = get_complete_trail_scout(
-        ORS_API_KEY, latitude, longitude, rider, bike, mission, dest_latitude, dest_longitude, include_gpx, include_map, style, output_level, target_date)
+        ORS_API_KEY, latitude, longitude, rider, bike, mission, dest_latitude, dest_longitude,
+        style, target_date, include_gpx, include_map,
+        include_surface_analysis, include_poi, include_altimetry, include_weather, include_mud_analysis, include_nutrition_plan)
     return FullMissionBriefingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
 
 @mcp.tool()
@@ -145,10 +156,15 @@ def trail_scout_simple(
         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
         dest_latitude: Optional[float] = None,
         dest_longitude: Optional[float] = None,
-        include_gpx: bool = True,
-        include_map: bool = True,
         style: Literal["sparkline", "filled", "bars"] = "filled",
-        output_level: Literal["summary", "standard", "full"] = "standard"
+        include_gpx: bool = True,
+        include_map: bool = False,
+        include_surface_analysis: bool = False,
+        include_poi: bool = False,
+        include_altimetry: bool = False,
+        include_weather: bool = False,
+        include_mud_analysis: bool = False,
+        include_nutrition_plan: bool = False
 ) -> FullMissionBriefingResponse:
     """
     Simplified tactical scout for cycling routes.
@@ -172,10 +188,15 @@ def trail_scout_simple(
         assist_mode: E-bike motor support level (affects range estimation).
         dest_latitude: Optional. Latitude of the finish line (for A-to-B missions).
         dest_longitude: Optional. Longitude of the finish line (for A-to-B missions).
+        style: Visual style for the elevation profile graphic.
         include_gpx: If True, generates a downloadable navigation file.
         include_map: If True, generates a tactical map image.
-        style: Visual style for the elevation profile graphic.
-        output_level: Detail level of the returned briefing ("summary", "standard", "full").
+        include_surface_analysis: If True, generates surface analysis report.
+        include_poi: If True, includes amenities and points of interest.
+        include_altimetry: If True, generates the altimetry profile.
+        include_weather: If True, includes weather conditions.
+        include_mud_analysis: If True, generates a report including mud analysis.
+        include_nutrition_plan: If True, generates nutrition plan report.
     Returns:
         FullMissionBriefingResponse: A comprehensive tactical intelligence report containing:
         - info: Route metrics (distance, ascent, difficulty) and deep surface analysis
@@ -225,10 +246,15 @@ def trail_scout_simple(
             mission=mission,
             dest_latitude=dest_latitude,
             dest_longitude=dest_longitude,
+            style=style,
             include_gpx=include_gpx,
             include_map=include_map,
-            style=style,
-            output_level=output_level
+            include_surface_analysis = include_surface_analysis,
+            include_poi = include_poi,
+            include_altimetry = include_altimetry,
+            include_weather = include_weather,
+            include_mud_analysis = include_mud_analysis,
+            include_nutrition_plan = include_nutrition_plan
         )
 
         return FullMissionBriefingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
@@ -293,44 +319,6 @@ def ride_window_planner(
 
     data = calculate_ride_windows(lat, lon, ride_duration_hours, surface_type, target_date)
     return StrategicPlannerResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
-
-@mcp.tool()
-def analyze_route_surfaces(
-    lat: float,
-    lon: float,
-    rider: RiderProfile,
-    bike: BikeSetup,
-    mission: MissionConstraints,
-    target_date: Optional[str] = None,
-) -> RouteSurfaceResponse:
-    """
-    Analyzes the route surface, technical difficulty, categorize climbs,
-    and provides dynamic mechanical setup (PSI/Bar) based on terrain and weight.
-    If target_date is None, it defaults to the current date.
-
-    Args:
-        lat: Latitude of the center point.
-        lon: Longitude of the center point.
-        rider: Profile of the cyclist.
-        bike: Current bicycle configuration.
-        mission: Route requirements and radius.
-        target_date: Optional. The date of the event in YYYY-MM-DD format.
-    Returns:
-        A RouteSurfaceResponse containing tactical briefing, mechanical setup,
-        surface breakdown (aggregated), e-bike analytics, and safety warnings.
-    """
-    data = get_surface_analyzer(
-        ORS_API_KEY,
-        lat,
-        lon,
-        rider,
-        bike,
-        mission,
-        target_date
-    )
-
-    return RouteSurfaceResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
-
 
 @mcp.tool()
 def hydration_scout(

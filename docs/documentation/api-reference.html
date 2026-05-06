@@ -1349,6 +1349,18 @@
                                 <td>Destination longitude for A-B routing.</td>
                             </tr>
                             <tr>
+                                <td class="py-2 px-3"><code>style</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">"filled"</td>
+                                <td>Chart style: <code>sparkline</code>, <code>filled</code>, <code>bars</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Custom date (YYYY-MM-DD) for predictive analysis.</td>
+                            </tr>
+                            <tr>
                                 <td class="py-2 px-3"><code>include_gpx</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
                                 <td class="text-blue-400/70 italic text-xs">Default: true</td>
@@ -1361,22 +1373,40 @@
                                 <td>Generate a static PNG map of the route.</td>
                             </tr>
                             <tr>
-                                <td class="py-2 px-3"><code>style</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
-                                <td class="text-blue-400/70 italic text-xs">"filled"</td>
-                                <td>Chart style: <code>sparkline</code>, <code>filled</code>, <code>bars</code>.</td>
+                                <td class="py-2 px-3"><code>include_surface_analysis</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a surface analysis report</td>
                             </tr>
                             <tr>
-                                <td class="py-2 px-3"><code>output_level</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
-                                <td class="text-blue-400/70 italic text-xs">"standard"</td>
-                                <td>Verbosity: <code>summary</code>, <code>standard</code>, <code>full</code>.</td>
+                                <td class="py-2 px-3"><code>include_poi</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate amenities and points of interest.</td>
                             </tr>
                             <tr>
-                                <td class="py-2 px-3"><code>target_date</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
-                                <td class="text-slate-500">Optional</td>
-                                <td>Custom date (YYYY-MM-DD) for predictive analysis.</td>
+                                <td class="py-2 px-3"><code>include_altimetry</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate the altimetry profile of the route.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_weather</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate weather conditions report.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_mud_analysis</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a report including mud analysis.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_nutrition_plan</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a nutrition plan report.</td>
                             </tr>
                             </tbody>
                         </table>
@@ -1562,101 +1592,6 @@
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>environmental_briefing:</strong> Aggregated summary of rain probability, max wind gusts, and average temperature.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>best_window:</strong> The specific time range (e.g., 09:00 - 11:00) identified as safest and driest.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mud_risk_impact:</strong> A percentage indicating how soil saturation levels might affect traction and overall mission success.</li>
-                    </ul>
-                </div>
-            </div>
-        </details>
-
-        <!-- Tool: analyze_route_surfaces -->
-        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
-            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
-                <div class="flex items-center gap-3">
-                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
-                    <h3 class="text-2xl font-bold text-white font-mono">analyze_route_surfaces</h3>
-                </div>
-                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </span>
-            </summary>
-
-            <div class="p-6 border-t border-slate-700 space-y-6">
-                <!-- Description -->
-                <div>
-                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
-                    <p class="text-slate-300 leading-relaxed">
-                        <strong>Terrain Intelligence & Setup Optimizer.</strong> This tool performs a deep audit of the route's ground composition and morphology.
-                        It categorizes all climbs according to UCI standards and calculates the <strong>dynamic mechanical setup</strong> (ideal PSI/Bar)
-                        cross-referencing total system weight (rider + bike) with the specific tire width and surface roughness.
-                    </p>
-                </div>
-
-                <!-- Parameters Table -->
-                <div>
-                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
-                    <div class="overflow-x-auto rounded border border-slate-800">
-                        <table class="min-w-full text-sm">
-                            <thead>
-                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
-                                <th class="text-left py-2 px-3">Parameter</th>
-                                <th class="text-left py-2 px-3">Type</th>
-                                <th class="text-left py-2 px-3">Status</th>
-                                <th class="text-left py-2 px-3">Description</th>
-                            </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-800 text-slate-400">
-                            <tr>
-                                <td class="py-2 px-3"><code>lat</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
-                                <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Latitude of the center point for route analysis.</td>
-                            </tr>
-                            <tr>
-                                <td class="py-2 px-3"><code>lon</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
-                                <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Longitude of the center point for route analysis.</td>
-                            </tr>
-                            <tr>
-                                <td class="py-2 px-3"><code>rider</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>RiderProfile</code></td>
-                                <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Physiological data (weight, power) used for PSI and climb timing.</td>
-                            </tr>
-                            <tr>
-                                <td class="py-2 px-3"><code>bike</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>BikeSetup</code></td>
-                                <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Mechanical specifications (bike weight, tire width, e-bike status).</td>
-                            </tr>
-                            <tr>
-                                <td class="py-2 px-3"><code>mission</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>MissionConstraints</code></td>
-                                <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Route requirements, including radius and preferred profile.</td>
-                            </tr>
-                            <tr>
-                                <td class="py-2 px-3"><code>target_date</code></td>
-                                <td class="py-2 px-3 text-blue-300"><code>string</code></td>
-                                <td class="text-slate-500">Optional</td>
-                                <td>The date of the event (YYYY-MM-DD). Defaults to current date for mud risk.</td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Returns Section -->
-                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
-                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
-                    <div class="flex items-center gap-2 mb-3">
-                        <span class="text-emerald-400 font-mono text-sm">RouteSurfaceResponse</span>
-                    </div>
-                    <ul class="space-y-2 text-sm text-slate-300">
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_briefing:</strong> Detailed climb categorization (UCI categories) and mud risk assessment.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mechanical_setup:</strong> Specific tire pressure recommendations (PSI/Bar) and equipment compatibility flags.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>surface_breakdown:</strong> Statistical distribution of normalized surface types (e.g., % Asphalt, % Dirt).</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>emtb_tactical:</strong> (Optional) Specific power/battery analytics for e-assisted missions.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>safety_warnings:</strong> Critical alerts regarding hazardous gradients, technical sectors, or surface-related risks.</li>
                     </ul>
                 </div>
             </div>

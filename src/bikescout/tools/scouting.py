@@ -208,11 +208,16 @@ def get_complete_trail_scout(
         mission: MissionConstraints,
         dest_latitude: Optional[float] = None,
         dest_longitude: Optional[float] = None,
+        style: Literal["sparkline", "filled", "bars"] = "sparkline",
+        target_date: str = None,
         include_gpx: bool = True,
         include_map: bool = False,
-        style: Literal["sparkline", "filled", "bars"] = "sparkline",
-        output_level: Literal["summary", "standard", "full"] = "standard",
-        target_date: str = None
+        include_surface_analysis: bool = False,
+        include_poi: bool = False,
+        include_altimetry: bool = False,
+        include_weather: bool = False,
+        include_mud_analysis: bool = False,
+        include_nutrition_plan: bool = False
 ):
     """
     The Master Orchestrator: Synchronized Technical Briefing.
@@ -221,7 +226,6 @@ def get_complete_trail_scout(
 
     Supports both single-point Round Trips and A->B separate destinations.
     """
-    # --- 1. CONFIGURATION ---
 
     # Switch payload logic based on whether a destination is provided
     if dest_latitude is not None and dest_longitude is not None:
@@ -241,84 +245,30 @@ def get_complete_trail_scout(
         }
 
     try:
-        # --- 2. EXECUTE PRIMARY ROUTING ---
         endpoint = f"{ORS_BASE_URL}/{mission.profile}/geojson"
         headers = {'Authorization': api_key, 'Content-Type': 'application/json'}
 
-        # ORS Request Body
         response = requests.post(endpoint, json=routing_payload, headers=headers, timeout=15)
         response.raise_for_status()
         data = response.json()
 
         feature = data['features'][0]
         props = feature['properties']
-
-        # Geometry baseline for all subsequent tools
         route_geo = RouteGeometry(coordinates=feature['geometry']['coordinates'])
 
-        # --- 3. CALL: SURFACE ANALYZER (The Source of Truth) ---
-        # Crucial: Cleans elevation and recalculates real geodesic distance
-        surface_report = {}
-        if output_level != "summary":
-            try:
-                surface_report = get_surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
-            except Exception as e:
-                surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
-
-        # --- 4. DATA SYNCHRONIZATION ---
-        # Align all stats to the "Tactical" version (SMA filtered)
-        if surface_report.get("status") == "Success":
-            t_brief = surface_report.get("tactical_briefing", {})
-            dist_km = t_brief.get("distance_km")
-            ascent_m = t_brief.get("elevation_gain_m")
-            dominant_surface = surface_report.get("mechanical_setup", {}).get("surface_detected", "Unknown")
-        else:
-            summary = props.get('summary', {})
-            dist_km = round(summary.get('distance', 0) / 1000, 2)
-            ascent_m = round(props.get('ascent', 0), 0)
-            dominant_surface = "Unknown"
-
-        # --- 5. CALL: WEATHER & MUD ---
-        # We query conditions at the starting coordinate as a baseline
-        weather_report = get_weather_forecast(latitude, longitude, target_date)
-        mud_analysis = get_mud_risk_analysis(latitude, longitude, dominant_surface, target_date)
-
+        summary = props.get('summary', {})
+        dist_km = round(summary.get('distance', 0) / 1000, 2)
+        ascent_m = round(props.get('ascent', 0), 0)
+        dominant_surface = "Unknown"
         max_temp = 20.0
 
-        if weather_report.get('status') == 'Success':
-            # OPTION A: Use the pre-calculated reference temperature (Fastest)
-            # This uses the specific hour matched by the engine
-            max_temp = weather_report.get('reference_conditions', {}).get('temp_actual', 20.0)
-
-            # OPTION B: Extract max from the tactical forecast list (More precise for long rides)
-            # We look at 'tactical_forecast' instead of 'next_4_hours'
-            forecast = weather_report.get('tactical_forecast', [])
-            if forecast:
-                try:
-                    # We use a robust list comprehension to clean the "°C" strings
-                    # and convert them to floats for comparison
-                    temps = [
-                        float(h["temp"].replace("°C", "").strip())
-                        for h in forecast
-                        if "temp" in h
-                    ]
-                    if temps:
-                        max_temp = max(temps)
-                except (ValueError, KeyError, TypeError):
-                    # Fallback already set to reference_conditions or 20.0
-                    pass
-
-        # --- 6. PERFORMANCE & LOGISTICS ---
-        # Calculate intensity and estimated duration using synchronized stats
+        # --- PERFORMANCE & LOGISTICS ---
         perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
         estimated_hours = perf["estimated_hours"]
         intensity_score = perf["intensity_score"]
 
-        nutrition_plan = get_nutrition_plan(estimated_hours, max_temp, intensity_score)
-
-        # --- 7. CALL: POI SCOUT ---
         amenities = []
-        if output_level == "full":
+        if include_poi:
             try:
                 # Queries POIs around the starting point based on the mission radius
                 poi_res = get_poi_scout(api_key, latitude, longitude, mission.radius_km)
@@ -326,31 +276,93 @@ def get_complete_trail_scout(
             except:
                 amenities = []
 
-        # --- 8. FINAL PAYLOAD CONSTRUCTION ---
         response_payload = {
             "status": "Success",
             "info": {
                 "route_type": "A to B" if (dest_latitude and dest_longitude) else "Round Trip",
                 "distance_km": dist_km,
                 "ascent_m": ascent_m,
-                "difficulty": calculate_detailed_difficulty(dist_km, ascent_m),
-                "surface_analysis": surface_report if output_level != "summary" else "Skipped"
+                "difficulty": calculate_detailed_difficulty(dist_km, ascent_m)
             },
             "conditions": {
-                "weather": forecast,
-                "mud_risk": mud_analysis,
-                "max_temp_detected": f"{max_temp}°C",
-                "safety_advice": weather_report.get('safety_advice', "")
-            },
-            "logistics": {
-                "nutrition_plan": nutrition_plan,
-                "nearby_amenities": amenities[:5] if amenities else "Available in Full report"
+                "max_temp_detected": f"{max_temp}°C"
             }
         }
 
+        if include_surface_analysis:
+            try:
+                surface_report = get_surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
+            except Exception as e:
+                surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
+
+            if surface_report.get("status") == "Success":
+                t_brief = surface_report.get("tactical_briefing", {})
+                dist_km = t_brief.get("distance_km")
+                ascent_m = t_brief.get("elevation_gain_m")
+                dominant_surface = surface_report.get("mechanical_setup", {}).get("surface_detected", "Unknown")
+
+                response_payload["info"]["distance_km"] = dist_km
+                response_payload["info"]["ascent_m"] = ascent_m
+                response_payload["info"]["difficulty"] = calculate_detailed_difficulty(dist_km, ascent_m)
+
+                response_payload["info"]["surface_analysis"] = surface_report
+
+        if include_weather:
+            max_temp = 20.0
+            weather_report = get_weather_forecast(latitude, longitude, target_date)
+
+            if weather_report.get('status') == 'Success':
+                # OPTION A: Use the pre-calculated reference temperature (Fastest)
+                # This uses the specific hour matched by the engine
+                max_temp = weather_report.get('reference_conditions', {}).get('temp_actual', 20.0)
+
+                # OPTION B: Extract max from the tactical forecast list (More precise for long rides)
+                # We look at 'tactical_forecast' instead of 'next_4_hours'
+                forecast = weather_report.get('tactical_forecast', [])
+                if forecast:
+                    try:
+                        # We use a robust list comprehension to clean the "°C" strings
+                        # and convert them to floats for comparison
+                        temps = [
+                            float(h["temp"].replace("°C", "").strip())
+                            for h in forecast
+                            if "temp" in h
+                        ]
+                        if temps:
+                            max_temp = max(temps)
+
+                        response_payload["conditions"]["weather"] = forecast
+                        response_payload["conditions"]["safety_advice"] = weather_report.get('safety_advice', "")
+                    except (ValueError, KeyError, TypeError):
+                        # Fallback already set to reference_conditions or 20.0
+                        pass
+
+        if include_mud_analysis:
+            mud_analysis = get_mud_risk_analysis(latitude, longitude, dominant_surface, target_date)
+            if mud_analysis.get('status') == 'Success':
+                response_payload["conditions"]["mud_risk"] = mud_analysis
+
+        if include_nutrition_plan:
+            nutrition_plan = get_nutrition_plan(estimated_hours, max_temp, intensity_score)
+            if nutrition_plan.get('status') == 'Success':
+                if "logistics" not in response_payload or response_payload["logistics"] is None:
+                    response_payload["logistics"] = {}
+                response_payload["logistics"]["nutrition_plan"] = nutrition_plan
+
+        if include_poi:
+            try:
+                # Queries POIs around the starting point based on the mission radius
+                poi_res = get_poi_scout(api_key, latitude, longitude, mission.radius_km)
+                amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
+                if poi_res.get('status') == 'Success':
+                    if "logistics" not in response_payload or response_payload["logistics"] is None:
+                        response_payload["logistics"] = {}
+                    response_payload["logistics"]["nearby_amenities"] = amenities
+            except:
+                amenities = []
+
         filename_part = uuid.uuid4().hex[:6]
 
-        # --- 9. ARTIFACTS: MAP, GPX, ALTIMETRY ---
         if include_map:
             map_payload = save_local_tactical_map(filename_part, data)
             if map_payload["status"] == "Success":
@@ -367,7 +379,7 @@ def get_complete_trail_scout(
             except Exception as e:
                 response_payload["gpx_error"] = f"GPX failed: {str(e)}"
 
-        if output_level != "summary":
+        if include_altimetry:
             try:
                 altimetry_report = get_elevation_profile_image(geometry=route_geo, uuid_input=filename_part, style=style)
                 if altimetry_report["status"] == "Success":
@@ -379,7 +391,7 @@ def get_complete_trail_scout(
         return response_payload
 
     except Exception as e:
-        return {"status": "Error", "message": f"Master Orchestrator failed: {str(e)}"}
+        return {"status": "Error", "error_message": f"Master Orchestrator failed: {str(e)}"}
 
 def calculate_performance_metrics(
         dist_km: float,

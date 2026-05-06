@@ -273,9 +273,10 @@ class WeatherContext(BaseModel):
 
 class EnvironmentalBriefing(BaseModel):
     """Aggregated environmental metrics for the selected mission window."""
-    rain_avg: str = Field(..., description="Average probability of precipitation (e.g., '0%')")
-    wind_max: str = Field(..., description="Maximum expected wind speed (e.g., '8 km/h')")
-    temp_avg: str = Field(..., description="Average temperature during the mission (e.g., '11°C')")
+    message: Union[str, None] = Field(None, description="No go message")
+    rain_avg: Union[str, None] = Field(None, description="Average probability of precipitation (e.g., '0%')")
+    wind_max: Union[str, None] = Field(None, description="Maximum expected wind speed (e.g., '8 km/h')")
+    temp_avg: Union[str, None] = Field(None, description="Average temperature during the mission (e.g., '11°C')")
 
 class PlannerReport(BaseModel):
     """The final tactical verdict and timing recommendations."""

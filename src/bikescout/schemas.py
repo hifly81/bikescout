@@ -67,7 +67,7 @@ class BikeSetup(BaseModel):
         ge=18,
         le=75,
         description="The actual width of the tire in mm. Critical for surface safety thresholds.",
-        json_schema_extra={"examples": 54}
+        json_schema_extra={"examples": [54]}
     )
     is_ebike: bool = Field(
         False,

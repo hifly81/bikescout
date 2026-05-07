@@ -15,10 +15,21 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 <details>
   <summary style="cursor: pointer;">
-    <h3 style="display: inline;">📸 Click to watch an Example interaction!</h3>
+    <h3 style="display: inline;">📸 Click to watch a Cursor interaction!</h3>
   </summary>
   <p align="center">
-    <img src="docs/images/collage.png" alt="Descrizione" width="100%">
+    <img src="docs/images/collage.png" alt="Cursor" width="100%">
+  </p>
+</details>
+
+<br>
+
+<details>
+  <summary style="cursor: pointer;">
+    <h3 style="display: inline;">📸 Click to watch a Google Antigravity interaction!</h3>
+  </summary>
+  <p align="center">
+    <img src="docs/images/collage-1.png" alt="Google Antigravity" width="100%">
   </p>
 </details>
 

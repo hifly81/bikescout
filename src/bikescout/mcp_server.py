@@ -243,7 +243,7 @@ def trail_scout_simple(
         )
 
         # Call the core logic (reusing the existing trail_scout logic)
-        data = trail_scout(
+        return trail_scout(
             latitude=latitude,
             longitude=longitude,
             rider=rider,
@@ -260,8 +260,6 @@ def trail_scout_simple(
             include_mud_analysis = include_mud_analysis,
             include_nutrition_plan = include_nutrition_plan
         )
-
-        return FullMissionBriefingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
 
     except Exception as e:
         return {"status": "Error", "message": f"Trail Scout Simple failed: {str(e)}"}

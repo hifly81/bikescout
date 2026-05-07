@@ -94,9 +94,9 @@ class MissionConstraints(BaseModel):
     """
     Tactical constraints for the specific ride/mission.
     """
-    radius_km: int = Field(
+    total_length_km: int = Field(
         30,
-        description="The desired search radius or loop length in kilometers.",
+        description="The total distance of the round trip in kilometers (e.g., 25.0).",
         json_schema_extra={"examples": [20, 50]}
     )
     profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = Field(
@@ -227,11 +227,6 @@ class EmtbTactical(BaseModel):
     battery_metrics: EmtbMetrics = Field(..., description="Detailed battery drain and safety data")
     power_breakdown_w: EmtbPower = Field(..., description="Breakdown of physical forces in Watts")
     tactical_advice: str = Field(..., description="E-MTB specific pacing and assistance advice")
-
-class RecommendedSetup(BaseModel):
-    tire_width_ref: str = Field(..., description="Reference tire width (e.g., '2.3\"' or '28mm')")
-    pressure_bar: str = Field(..., description="Recommended pressure range in Bar")
-    pressure_psi: str = Field(..., description="Recommended pressure range in PSI")
 
 class WeatherSnapshot(BaseModel):
     time: str = Field(..., description="Local time of the forecast snapshot")
@@ -412,23 +407,3 @@ class GpxRaceAuditResponse(BaseModel):
     pre_climb_positioning: List[Dict[str, Any]] = Field(..., description="Points where the rider must move to the front of the pack")
     tactical_action_zones: List[TacticalActionZone] = Field(..., description="Key points for attacks or technical caution")
     report_path: Optional[str] = Field(None, description="Path to the generated PDF race book, if requested")
-
-class MechanicalBaselineResponse(BaseModel):
-    """Response schema for baseline mechanical settings and pressure guides."""
-    payload_version: str = Field("1.0", description="The BikeScout protocol version for client-side compatibility.")
-    status: str = Field(..., description="Operation status indicator (e.g., 'Success', 'Error').")
-    category: str = Field(..., description="The detected bike category used for calculation (mtb, road, gravel).")
-    recommended_setup: RecommendedSetup = Field(..., description="Detailed technical specifications for tires, wheels, and baseline pressures.")
-    full_guide_reference: str = Field(..., description="URL or markdown documentation link regarding international pressure standards.")
-    setup_notes: str = Field(..., description="Tactical engineering notes regarding tire casing and tube vs. tubeless efficiency.")
-
-class SafetyProtocolResponse(BaseModel):
-    """Response schema for the official BikeScout Safety Protocol and mission-specific checklists."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
-    mission_type_applied: str = Field(..., description="The category of ride the protocol was tailored for (e.g., mtb, road)")
-    standard_checklist: str = Field(..., description="Markdown formatted global safety checks (M-Check, Brakes, etc.)")
-    tactical_pre_ride_commands: List[str] = Field(
-        ...,
-        description="Specific mechanical and gear actions to perform before departure (e.g., Sag check, GPS sync)"
-    )

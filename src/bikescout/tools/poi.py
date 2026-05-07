@@ -21,7 +21,7 @@ import sys
 ORS_POIS_URL = "https://api.openrouteservice.org/pois"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
-def get_poi_scout_free(lat: float, lon: float, radius_km: float):
+def get_poi_scout_free(lat: float, lon: float, total_length_km: float):
     """
     Finds cycling POIs using Overpass API (No API Key required).
     Features: Water, Bike Repair, Shelters, and Picnic areas.
@@ -29,7 +29,7 @@ def get_poi_scout_free(lat: float, lon: float, radius_km: float):
 
     # 1. Parameter Normalization
     # Overpass handles large radii better than ORS
-    radius_m = radius_km * 1000
+    total_length_m = total_length_km * 1000
 
     # 2. Overpass QL (Query Language)
     # We search for specific OSM tags:
@@ -39,11 +39,11 @@ def get_poi_scout_free(lat: float, lon: float, radius_km: float):
     query = f"""
     [out:json][timeout:25];
     (
-      node["amenity"="drinking_water"](around:{radius_m},{lat},{lon});
-      node["amenity"="bicycle_repair_station"](around:{radius_m},{lat},{lon});
-      node["shop"="bicycle"](around:{radius_m},{lat},{lon});
-      node["amenity"="shelter"](around:{radius_m},{lat},{lon});
-      node["leisure"="picnic_table"](around:{radius_m},{lat},{lon});
+      node["amenity"="drinking_water"](around:{total_length_m},{lat},{lon});
+      node["amenity"="bicycle_repair_station"](around:{total_length_m},{lat},{lon});
+      node["shop"="bicycle"](around:{total_length_m},{lat},{lon});
+      node["amenity"="shelter"](around:{total_length_m},{lat},{lon});
+      node["leisure"="picnic_table"](around:{total_length_m},{lat},{lon});
     );
     out body;
     """
@@ -81,7 +81,7 @@ def get_poi_scout_free(lat: float, lon: float, radius_km: float):
 
         return {
             "status": "Success",
-            "search_radius": f"{radius_m}m",
+            "search_km": f"{total_length_m}m",
             "total_found": len(all_amenities),
             "amenities": all_amenities
         }
@@ -90,7 +90,7 @@ def get_poi_scout_free(lat: float, lon: float, radius_km: float):
         print(f"Overpass Critical Exception: {str(e)}", file=sys.stderr)
         return {"status": "Error", "message": str(e)}
 
-def get_poi_scout(api_key: str, lat: float, lon: float, radius_km: float):
+def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
     """
     Finds cycling-specific POIs (Water, Repair, Rest Areas).
     Strictly follows ORS server constraints: Max 2000m buffer and 5 specific categories.
@@ -104,7 +104,7 @@ def get_poi_scout(api_key: str, lat: float, lon: float, radius_km: float):
 
     # 2. Parameter Normalization
     # Buffer MUST be an integer between 1 and 2000 meters.
-    safe_buffer = int(min(max(radius_km * 1000, 1), 2000))
+    safe_buffer = int(min(max(total_length_km * 1000, 1), 2000))
 
     # 3. Category Selection (STRICT LIMIT: 5 categories per request)
     # These IDs are verified from your server's whitelist:
@@ -180,7 +180,7 @@ def get_poi_scout(api_key: str, lat: float, lon: float, radius_km: float):
         # Return the clean payload sorted by proximity
         return {
             "status": "Success",
-            "search_radius": f"{safe_buffer}m",
+            "search_km": f"{safe_buffer}m",
             "total_found": len(all_amenities),
             "amenities": sorted(all_amenities, key=lambda x: x['distance_m'])
         }

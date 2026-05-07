@@ -238,7 +238,7 @@ def get_complete_trail_scout(
         # Round Trip
         routing_payload = {
             "coordinates": [[longitude, latitude]],
-            "options": {"round_trip": {"length": mission.radius_km * 1000, "seed": mission.seed}},
+            "options": {"round_trip": {"length": mission.total_length_km * 1000, "seed": mission.seed}},
             "elevation": "true",
             "extra_info": ["surface", "steepness"]
         }
@@ -270,9 +270,9 @@ def get_complete_trail_scout(
         if include_poi:
             try:
                 if api_key and api_key.strip():
-                    poi_res = get_poi_scout(api_key, latitude, longitude, mission.radius_km)
+                    poi_res = get_poi_scout(api_key, latitude, longitude, mission.total_length_km)
                 else:
-                    poi_res = get_poi_scout_free(latitude, longitude, mission.radius_km)
+                    poi_res = get_poi_scout_free(latitude, longitude, mission.total_length_km)
                 amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
             except:
                 amenities = []
@@ -356,9 +356,9 @@ def get_complete_trail_scout(
         if include_poi:
             try:
                 if api_key and api_key.strip():
-                    poi_res = get_poi_scout(api_key, latitude, longitude, mission.radius_km)
+                    poi_res = get_poi_scout(api_key, latitude, longitude, mission.total_length_km)
                 else:
-                    poi_res = get_poi_scout_free(latitude, longitude, mission.radius_km)
+                    poi_res = get_poi_scout_free(latitude, longitude, mission.total_length_km)
                 amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
                 if poi_res.get('status') == 'Success':
                     if "logistics" not in response_payload or response_payload["logistics"] is None:

@@ -183,7 +183,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
         lon (float): Starting longitude.
         rider (object): Contains rider-specific data (weight_kg, fitness_level).
         bike (object): Contains hardware specs (bike_type, tire_size, battery_wh).
-        mission (object): Contains mission parameters (radius_km, profile, complexity, seed).
+        mission (object): Contains mission parameters (total_length_km, profile, complexity, seed).
         target_date (str, optional): YYYY-MM-DD date for predictive mud analysis.
                                      Defaults to current date if None.
 
@@ -194,7 +194,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
 
     # Parameter Normalization
     safe_complexity = max(3, min(int(getattr(mission, 'complexity', 10)), 30))
-    safe_length = int(mission.radius_km * 1000)
+    safe_length = int(mission.total_length_km * 1000)
 
     # fallback system
     attempts = [

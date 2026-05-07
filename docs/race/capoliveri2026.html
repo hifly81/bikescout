@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BikeScout Blog | Tactical Analysis: Capoliveri Legend Cup 2026</title>
+    <meta name="description" content="Detailed tactical analysis of the Capoliveri Legend Cup 2026. MTB Marathon insights, climbing performance, and technical descent warnings by BikeScout TAEL© v3.2.">
+    <meta name="keywords" content="MCP Server, Capoliveri Legend Cup, MTB Marathon, Isola d'Elba, Cycling Data Analysis, GPX Tool, Pro MTB, Tactical Intelligence">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout">
+    <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+    <meta property="og:title" content="BikeScout | Capoliveri Legend Cup Tactical Analysis">
+    <meta property="og:description" content="Hardpack speed and -35% drops. See how BikeScout decoded the 2026 Legend Cup.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hifly81.github.io/bikescout">
+    <meta property="og:image" content="https://hifly81.github.io/bikescout/images/preview.png">
+    <meta http-equiv="content-language" content="en">
+
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "BikeScout",
+            "alternateName": "BikeScout Tactical Intelligence",
+            "description": "Advanced MCP server for tactical cycling intelligence. Features predictive mud logic, S-Scale terrain grading, and real-time OSM data analysis for AI-powered route planning.",
+            "applicationCategory": "MapApplication, HealthApplication",
+            "operatingSystem": "Independent (MCP Protocol)",
+            "downloadUrl": "https://github.com/hifly81/bikescout",
+            "license": "https://www.gnu.org/licenses/agpl-3.0-standalone.html",
+            "softwareVersion": "1.3.1",
+            "keywords": "MCP server, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
+            "author": {
+                "@type": "Person",
+                "name": "hifly81",
+                "url": "https://github.com/hifly81"
+            },
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "EUR",
+                "availability": "https://schema.org/InStock"
+            },
+            "featureList": [
+                "Predictive Mud Logic: AI analysis of soil and weather to predict trail conditions.",
+                "S-Scale Grading: Technical terrain classification from S0 to S5.",
+                "MCP Integration: Model Context Protocol for Claude, ChatGPT, and Cursor.",
+                "Tactical POI Discovery: Real-time identification of strategic water points and shelters.",
+                "Dynamic GPX Generation: Tailored routing based on technical skill and bike type."
+            ],
+            "screenshot": "https://hifly81.github.io/bikescout/images/preview.png",
+            "softwareRequirements": "Python 3.10+, MCP Client (Claude Desktop, etc.)"
+        }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content h3 { color: #bef264; font-weight: 700; margin-top: 2rem; font-size: 1.2rem; text-transform: uppercase; }
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
+        .article-content ul { list-style: none; padding-left: 0; margin-bottom: 1.5rem; }
+        .article-content li { position: relative; padding-left: 1.5rem; color: #94a3b8; margin-bottom: 0.5rem; }
+        .article-content li::before { content: ">"; position: absolute; left: 0; color: #bef264; font-family: 'JetBrains Mono', monospace; }
+        .tactical-box { background: rgba(190, 242, 100, 0.05); border: 1px dashed #bef264; padding: 2rem; margin: 3rem 0; border-radius: 2px; }
+        .hero-mesh {
+            background-color: #0f172a;
+            background-image: radial-gradient(#334155 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+        }
+
+        .download-btn {
+            transition: all 0.2s ease;
+            border: 1px solid rgba(190, 242, 100, 0.2);
+        }
+        .download-btn:hover {
+            background: #bef264;
+            color: #0b0f1a;
+            border-color: #bef264;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="../blog.html">Blog</a>
+        <a href="../cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="../race_analysis.html">Race Analysis</a>
+        <a href="../about.html">About</a>
+    </div>
+</div>
+
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="../blog.html" class="text-neon-text">Blog</a>
+            <a href="../cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="../race_analysis.html" class="hover:text-neon-text transition-colors">Race Analysis</a>
+            <a href="../about.html" class="hover:text-neon-text transition-colors">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">Capoliveri Legend Cup 2026: Mastering the Elba Island Hardpack.</h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Released: May 08, 2026</p>
+    </header>
+
+    <div class="article-content">
+        <p>Using the <b>BikeScout Engine</b>, we processed the 73.66 km course of the 2026 Capoliveri Legend Cup. <br>Our predictive models integrated recent rainfall data (23.4mm) with real-time soil evapotranspiration to decode the traction levels and identify critical tactical requirements for this World Cup MTB Marathon.</p>
+
+        <div class="mb-12 rounded overflow-hidden border border-slate-800 bg-slate-900/20">
+            <img src="../images/capoliveri2026.jpg" alt="Capoliveri Legend Cup 2026 Tactical Analysis" class="w-full h-auto opacity-90 hover:opacity-100 transition-opacity">
+            <div class="p-3 border-t border-slate-800 flex justify-between items-center mono text-[9px] uppercase tracking-widest text-slate-500">
+                <span>Fig 1.0: Marathon track</span>
+                <span>Source: <a href="https://www.legendcup.it" target="_blank" class="neon-text hover:underline">https://www.legendcup.it</a></span>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-6 items-stretch">
+            <div class="tactical-box m-0 h-full">
+                <h3 class="neon-text mono font-bold mb-4">MISSION TELEMETRY:</h3>
+                <ul class="mono text-xs space-y-2">
+                    <li>> TOTAL DISTANCE: 73.66 KM</li>
+                    <li>> TOTAL ASCENT: 2528.8 M</li>
+                    <li>> STARTING WALL: 2.78 KM @ 11.2%</li>
+                    <li>> PEAK DESCENT DETECTED: -35.0%</li>
+                    <li>> MUD RISK SCORE: 0.55 (LOW)</li>
+                </ul>
+            </div>
+
+            <div class="tactical-box m-0 h-full flex flex-col justify-between">
+                <div>
+                    <h3 class="text-white mono font-bold mb-4 uppercase">Mission Briefing:</h3>
+                    <p class="text-[10px] mono text-slate-500 mb-4 tracking-tighter">Download tactical PDF and raw JSON metrics for Capoliveri.</p>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <a href="capoliveri2026_report.pdf" download class="download-btn mono text-[10px] p-3 flex items-center justify-between group">
+                        <span><i class="fa-solid fa-file-pdf mr-2"></i> TACTICAL_REPORT.PDF</span>
+                        <i class="fa-solid fa-download opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                    </a>
+                    <a href="capoliveri2026_report.json" download class="download-btn mono text-[10px] p-3 flex items-center justify-between group">
+                        <span><i class="fa-solid fa-code mr-2"></i> MISSION_DATA.JSON</span>
+                        <i class="fa-solid fa-download opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <h2>Tactical Breakdown</h2>
+
+        <h3>1. Effort Profile: "The Vertical Wall Start"</h3>
+        <p>The race begins with unprecedented intensity. The first climb at <strong>KM 0</strong> features an average gradient of <strong>11.2%</strong> for nearly 3 km.</p>
+        <ul>
+            <li><strong>Extreme VAM:</strong> The estimated VAM of <strong>1846 m/h</strong> indicates that this section will be tackled at professional paces or in full anaerobic threshold.</li>
+            <li><strong>Risk:</strong> There is a very high risk of "blowing up" within the first 10 minutes. The <strong>6.08 W/kg</strong> value suggests an "all-out" start strategy.</li>
+        </ul>
+
+        <h3>2. Terrain Analysis: "Hardpack & Speed"</h3>
+        <p>Data from the <strong>TAEL© v3.2</strong> model regarding mud risk (0.55 - Low) indicates that evapotranspiration has been sufficient to compact the ground despite previous rain.</p>
+        <ul>
+            <li><strong>Traction:</strong> Traction will be at its peak. Use low-profile tread tires (semi-slicks on the rear) to favor rolling speed on the <strong>hardpack</strong> surface.</li>
+            <li><strong>Setup:</strong> Slightly higher tire pressures could reward riders on the fast, compact sections typical of Elba Island.</li>
+        </ul>
+
+        <h3>3. Final "Blind Spot" Alert</h3>
+        <p>The most striking data is hidden within the <strong>Tactical Action Zones (TAZ)</strong> of the final 10 km.</p>
+        <ul>
+            <li><strong>Extreme Gradients:</strong> We detected three descents with gradients of <strong>-34.5% and -35%</strong>. These are technical "drops" requiring the center of gravity to be shifted completely rearward.</li>
+            <li><strong>Fatigue vs. Technique:</strong> Arriving after 65 km and 2000m of gain, the probability of technical error is at its peak here.</li>
+        </ul>
+
+        <h3>4. Metabolic and Hydration Management</h3>
+        <p>The nutrition plan indicates a very high fluid intake requirement of <strong>953 ml/h</strong>.</p>
+        <ul>
+            <li><strong>Thermal Stress:</strong> With a "feels like" temperature of <strong>21.2°C</strong>, the May sun in Elba will require nearly one liter of fluids per hour.</li>
+            <li><strong>Sodium:</strong> <strong>763 mg/h</strong> of sodium is required to prevent cramping during the final explosive climbs (KM 72.24).</li>
+        </ul>
+
+        <div class="tactical-box">
+            <h2 style="margin-top: 0; color: #bef264;">Mission Strategy Summary</h2>
+            <p>This is a course for <strong>"powerful climbers"</strong> with a finale for <strong>"sharp-minded downhillers."</strong></p>
+            <ol class="mono text-sm space-y-4">
+                <li>1. <strong>Survive the initial wall</strong> without burning all your "matches."</li>
+                <li>2. <strong>Fuel heavily</strong> during the middle phase (KM 20-50).</li>
+                <li>3. <strong>Monitor tire pressure</strong> to avoid "bouncing" off the final -35% technical descents.</li>
+            </ol>
+        </div>
+
+        <h2>Conclusion: Ground Truth</h2>
+        <p>Capoliveri 2026 is a race of two halves. Success requires the raw power of a climber for the first 50km and the technical nerves of a downhiller for the final 10km.</p>
+    </div>
+
+    <div class="mt-20 flex flex-wrap gap-3">
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#LegendCup2026</span>
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#Elba-Hardpack</span>
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#MTB-Marathon</span>
+        <span class="px-4 py-1 border border-slate-800 mono text-[10px] uppercase text-slate-500 font-bold">#Tactical-Intelligence</span>
+    </div>
+
+</article>
+
+<footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em] leading-relaxed">
+    <div class="mb-4">
+        BikeScout @ 2026 // <span class="text-white"><a href="mailto:bikescout.mcp@gmail.com">hifly81</a></span>
+    </div>
+
+    <div class="mb-4">
+        Licensed under <a href="https://github.com/hifly81/bikescout/blob/main/LICENSE" class="text-slate-400 hover:text-white transition-colors">AGPL-3.0</a> //
+        Data by <span class="text-slate-500">OSM - ORS - Open-Meteo</span>
+    </div>
+
+    <div class="max-w-2xl mx-auto opacity-50">
+        Disclaimer: Tactical models are simulations // Verify conditions in person // Ride at your own risk
+    </div>
+</footer>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+
+    mobileMenu.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        });
+    });
+</script>
+
+</body>
+</html>

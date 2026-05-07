@@ -89,6 +89,12 @@ def trail_scout(
     that can be displayed directly in the chat.
     Supports both single-point Round Trips and A->B separate destinations.
     If target_date is None, it defaults to the current date.
+    OPERATIONAL NOTE FOR AGENTS:
+    - If the user requests a 'circular' route of a specific length (target_distance_km),
+      a variance of ±10% is considered a SUCCESSFUL MATCH.
+    - DO NOT re-invoke the tool or attempt to refine the 'total_length_km' if the
+      returned route falls within this 10% tolerance window.
+    - Example: For a 25km request, any result between 22.5km and 27.5km is optimal.
 
     Args:
         latitude: Latitude of the starting point.
@@ -162,6 +168,14 @@ def trail_scout_simple(
     Simplified tactical scout for cycling routes.
     Use this for quick route generation with sensible defaults.
     Only lat and lon are strictly required.
+    Supports both single-point Round Trips and A->B separate destinations.
+    If target_date is None, it defaults to the current date.
+    OPERATIONAL NOTE FOR AGENTS:
+    - If the user requests a 'circular' route of a specific length (target_distance_km),
+      a variance of ±10% is considered a SUCCESSFUL MATCH.
+    - DO NOT re-invoke the tool or attempt to refine the 'total_length_km' if the
+      returned route falls within this 10% tolerance window.
+    - Example: For a 25km request, any result between 22.5km and 27.5km is optimal.
 
     Args:
         latitude: Latitude of the starting point.

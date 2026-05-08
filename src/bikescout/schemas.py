@@ -20,6 +20,9 @@ from pathlib import Path
 from typing import List, Optional, Literal, Dict, Any, Union
 from pydantic import BaseModel, Field, model_validator, field_validator
 
+BIKESCOUT_PROTOCOL_VERSION_MSG = "BikeScout protocol version"
+BIKESCOUT_PROTOCOL_OPERATION_MSG = "Operation status (Success/Error)"
+
 # --- BIKE SCOUT CORE SCHEMAS (PYDANTIC V2) ---
 
 class RiderProfile(BaseModel):
@@ -223,7 +226,7 @@ class EmtbPower(BaseModel):
     motor_net_output: int = Field(..., description="Required average assistance from the motor")
 
 class EmtbTactical(BaseModel):
-    status: str = Field(..., description="Analysis status (Success or Error)")
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     battery_metrics: EmtbMetrics = Field(..., description="Detailed battery drain and safety data")
     power_breakdown_w: EmtbPower = Field(..., description="Breakdown of physical forces in Watts")
     tactical_advice: str = Field(..., description="E-MTB specific pacing and assistance advice")
@@ -324,8 +327,8 @@ class RouteSurface(BaseModel):
 
 class GeocodingResponse(BaseModel):
     """Response Schema for location lookup and geocoding results."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     lat: float = Field(..., description="Latitude of the identified location")
     lon: float = Field(..., description="Longitude of the identified location")
     display_name: str = Field(..., description="Full human-readable address or place name")
@@ -338,7 +341,7 @@ class GeocodingResponse(BaseModel):
 
 class TacticalForecastResponse(BaseModel):
     """Response schema for trail weather."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description="Weather service status")
     metadata: Dict[str, Any] = Field(..., description="Location and timezone metadata")
     tactical_forecast: List[WeatherSnapshot] = Field(..., description="Hourly weather breakdown for the race duration")
@@ -347,8 +350,8 @@ class TacticalForecastResponse(BaseModel):
 
 class RouteSurfaceResponse(BaseModel):
     """Response schema for route surfaces."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     profile_used: str = Field(..., description="Routing profile used (e.g., cycling-mountain)")
     metadata: Dict[str, Any] = Field(..., description="Technical metadata (dates, api flags)")
     tactical_briefing: TacticalBriefing = Field(..., description="Core route metrics including climb and mud analysis")
@@ -366,8 +369,8 @@ class RouteInfo(BaseModel):
 
 class FullMissionBriefingResponse(BaseModel):
     """Response schema for trail scout: Tactical, Environmental, and Logistical."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     info: Optional[RouteInfo] = Field(None, description="Structured data regarding the route's morphology and difficulty.")
     conditions: Optional[MissionConditions] = Field(None, description="Environmental analysis synchronized with the mission time window.")
     logistics: Optional[MissionLogistics] = Field(None, description="Tactical recommendations for mechanical setup, nutrition, and timing.")
@@ -381,21 +384,21 @@ class FullMissionBriefingResponse(BaseModel):
 
 class HydrationScoutResponse(BaseModel):
     """Response schema for the Physiological Intelligence Engine."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     weather_context: WeatherContext = Field(..., description="Environmental factors that influenced the hydration/sodium calculation")
     mission_nutrition_briefing: NutritionBriefing = Field(..., description="Detailed fluid, carb, and electrolyte plan")
 
 class StrategicPlannerResponse(BaseModel):
     """Response schema for mission planning and Go/No-Go decisions."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     metadata: Dict[str, Any] = Field(..., description="Metadata including analyzed date and surface type")
     planner_report: PlannerReport = Field(..., description="Strategic assessment and tactical timing")
 
 class GpxRaceAuditResponse(BaseModel):
     """Response schema high-fidelity audit for a professional GPX race analysis."""
-    payload_version: str = Field(..., description="BikeScout Protocol version")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description="Overall analysis status")
     mode: str = Field(..., description="Activity mode (ROAD or MTB)")
     target_date: str = Field(..., description="Date used for weather and mud prediction")

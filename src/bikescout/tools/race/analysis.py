@@ -101,7 +101,7 @@ def analyze_track(
 
         # 4. Environmental and Tactical Assessment
         intensity_score = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
-        duration_hours,est_speed = _estimate_ride_duration(distance_km, total_ascent, rider_fitness_level, activity_type)
+        duration_hours,_ = _estimate_ride_duration(distance_km, total_ascent, rider_fitness_level, activity_type)
 
         tactical_alerts = []
         mud_risk = None
@@ -184,7 +184,7 @@ def _estimate_ride_duration(distance_km: float, total_ascent_m: float, rider_fit
 
 def _load_gpx_content(gpx_path: str) -> str:
     """Fetches GPX content from the web or local file system."""
-    if gpx_path.startswith(('http://', 'https://')):
+    if gpx_path.startswith('https://'):
         res = requests.get(gpx_path, timeout=20)
         res.raise_for_status()
         return res.text
@@ -488,7 +488,6 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
     metrics = data.get('track_metrics', {})
     dist = float(metrics.get('distance_km', 0.0))
     asc = float(metrics.get('total_ascent', 0.0))
-    climbs = data.get('climb_analysis', [])
     zones = data.get('tactical_action_zones', [])
     weather = data.get("planning_tools", {}).get("weather_forecast", {}).get("reference_conditions", {})
 

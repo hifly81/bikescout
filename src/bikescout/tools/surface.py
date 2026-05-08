@@ -311,7 +311,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         surface_breakdown=breakdown,
                         mud_index=mud_score_val
                     )
-                except Exception as e_emtb:
+                except Exception:
                     emtb_analysis = {"error": "Battery calculation failed"}
 
             return {

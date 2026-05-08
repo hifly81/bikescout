@@ -493,7 +493,7 @@ def serve_gpx(filename: str) -> bytes:
 
 def main():
     """
-    Main entry point for the BikeScout MCP Server.
+    Main entry point for the BikeScout Server.
     Supports both 'stdio' for local clients
     and 'sse' for remote deployments/web interfaces.
     """
@@ -505,7 +505,7 @@ def main():
         host = os.getenv("BIKESCOUT_HOST", "0.0.0.0")
         port = int(os.getenv("BIKESCOUT_PORT", 8000))
 
-        print(f"Starting BikeScout MCP Server in SSE mode on {host}:{port}")
+        print(f"Starting BikeScout Server in SSE mode on {host}:{port}")
         mcp.run(transport='sse', host=host, port=port)
     else:
         # Local mode: Standard I/O transport

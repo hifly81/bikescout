@@ -7,7 +7,7 @@ services:
     environment:
       - ORS_API_KEY=${ORS_API_KEY}
     networks:
-      - mcp_network
+      - bs_network
 
   openclaw:
     image: openclaw/openclaw:latest
@@ -20,8 +20,8 @@ services:
     depends_on:
       - bikescout
     networks:
-      - mcp_network
+      - bs_network
 
 networks:
-  mcp_network:
+  bs_network:
     driver: bridge

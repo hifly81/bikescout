@@ -137,7 +137,7 @@ def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
         # Use json=body to ensure clean serialization and correct Content-Type
         response = requests.post(ORS_POIS_URL, json=body, headers=headers)
 
-        # 6. Detailed Error Handling for MCP Stability
+        # 6. Detailed Error Handling for Stability
         if not response.ok:
             # We log the specific API error message to stderr
             # This prevents breaking the MCP JSON-RPC protocol on stdout

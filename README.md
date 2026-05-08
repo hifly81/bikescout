@@ -1,11 +1,11 @@
-# BikeScout MCP Server
+# BikeScout
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Version](https://img.shields.io/badge/Version-1.3.2-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
-BikeScout is a specialized MCP server for MTB, Road, E-Bike, and Gravel mission planning.
+BikeScout is a specialized AI product for MTB, Road, E-Bike, and Gravel mission planning.
 It transforms raw map data into Tactical Intelligence, predicting terrain conditions and trail hazards.
 The system provides precise setup advice, tailoring your equipment to the demands of the specific route, identifying technical challenges and environmental risks before you even leave the garage.
 
@@ -54,7 +54,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ## Explore BikeScout
 
-* **[User Guide](https://hifly81.github.io/bikescout/documentation/index.html)** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
+* **[User Guide](https://hifly81.github.io/bikescout/documentation/index.html)** Detailed API references and step-by-step guides to deploy the BikeScout. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
 
 * **[Website](https://hifly81.github.io/bikescout)** Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
 

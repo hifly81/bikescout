@@ -8,12 +8,14 @@ version = "1.3.2"
 authors = [
     { name="Bikescout", email="bikescout.mcp@gmail.com" },
 ]
-description = "Professional MCP server for AI-powered cycling and mountain bike route discovery, terrain analysis, and GPX generation."
+description = "Professional product for AI-powered cycling and mountain bike route discovery, terrain analysis, and GPX generation."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "AGPL-3.0-only" }
 
 keywords = [
+    "ai",
+    "agent",
     "mcp",
     "mcp-server",
     "cycling",

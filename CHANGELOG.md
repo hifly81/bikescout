@@ -1,5 +1,16 @@
 # Changelog - BikeScout
 
+## [1.4.0]
+* release: prepare version 1.4.0 ([2656423](https://github.com/hifly81/bikescout/commit/2656423738ba84fa84609f7486faf6598ee4fff8))
+* tests: added pytest ([065a49b](https://github.com/hifly81/bikescout/commit/065a49b607a3a6d84a20273f4e26d28483daf404))
+* Update license classifier in pyproject.toml ([39494a1](https://github.com/hifly81/bikescout/commit/39494a19c797da0f8cd75acd5156856bddebcaaf))
+* Update README.md ([99ba251](https://github.com/hifly81/bikescout/commit/99ba25190a8e7b386cd2252aa5fa1ed503fd4b5c))
+* site: branding ([b3ee9d7](https://github.com/hifly81/bikescout/commit/b3ee9d7055163c5a077b26088d65bafcb07d1046))
+* Remove exclamation marks from interaction headers ([f44185c](https://github.com/hifly81/bikescout/commit/f44185cb56747297fcdb4d057e8ce1bc9fa30259))
+* Clean up README formatting by removing line breaks ([e685c37](https://github.com/hifly81/bikescout/commit/e685c37456be4097286e30252b6074c708866c9e))
+* added webfonts ([dfb7c70](https://github.com/hifly81/bikescout/commit/dfb7c7070bec74930ab221b9765f5c9576b62ea7))
+* Update CHANGELOG for version 1.3.2 release ([6053ba3](https://github.com/hifly81/bikescout/commit/6053ba385d13edf1bed6dfb555bdca08dda3b264))
+
 ## [1.3.2]
 * analysis - sonarcube revision ([4ec5e0a](https://github.com/hifly81/bikescout/commit/4ec5e0abd74b26ea556e34306e327d2930e7f36f))
 * release: prepare version 1.3.2 ([6677cbe](https://github.com/hifly81/bikescout/commit/6677cbe116d2e861acc6776d0ffb620cefc5f9e8))

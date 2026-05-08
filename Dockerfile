@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
@@ -7,12 +9,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-COPY README.md .
-
-COPY src/ ./src/
-
 RUN pip install --no-cache-dir .
 
-COPY . .
+COPY --chown=root:root --chmod=755 src/ ./src/
+
+USER appuser
 
 CMD ["bikescout"]

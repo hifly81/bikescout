@@ -1,7 +1,7 @@
 # BikeScout MCP Server
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Version](https://img.shields.io/badge/Version-1.3.1-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-1.3.2-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
@@ -9,10 +9,49 @@ BikeScout is a specialized MCP server for MTB, Road, E-Bike, and Gravel mission 
 It transforms raw map data into Tactical Intelligence, predicting terrain conditions and trail hazards.
 The system provides precise setup advice, tailoring your equipment to the demands of the specific route, identifying technical challenges and environmental risks before you even leave the garage.
 
-<div align="center">
-  <video src="https://github.com/user-attachments/assets/cd984f3d-0ba8-4590-9645-99f2b5e980b6" width="100%" controls autoplay muted loop>
-  </video>
-</div>
+---
+
+## Quickstart
+
+* **[Install BikeScout](https://hifly81.github.io/bikescout/documentation/index.html#quickstart)** using your favourite MCP Agent client:
+ - Claude Desktop
+ - Cursor
+ - Codex
+ - Google Antigravity
+ - Windsurf
+
+<details>
+  <summary style="cursor: pointer;">
+    <h3 style="display: inline;">📸 Click to watch a Cursor interaction!</h3>
+  </summary>
+  <p align="center">
+    <img src="docs/images/collage.png" alt="Cursor" width="100%">
+  </p>
+</details>
+
+<br>
+
+<details>
+  <summary style="cursor: pointer;">
+    <h3 style="display: inline;">📸 Click to watch a Google Antigravity interaction!</h3>
+  </summary>
+  <p align="center">
+    <img src="docs/images/collage-1.png" alt="Google Antigravity" width="100%">
+  </p>
+</details>
+
+<br>
+
+<details>
+  <summary style="cursor: pointer;">
+    <h3 style="display: inline; color: #0366d6;">🎥 Click to watch a Demo!</h3>
+  </summary>
+  <br>
+  <div align="center">
+    <video src="https://github.com/user-attachments/assets/cd984f3d-0ba8-4590-9645-99f2b5e980b6" width="100%" controls autoplay muted loop>
+    </video>
+  </div>
+</details>
 
 ---
 
@@ -20,7 +59,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 * **[User Guide](https://hifly81.github.io/bikescout/documentation/index.html)** Detailed API references and step-by-step guides to deploy the MCP server. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
 
-* **[Official Website](https://hifly81.github.io/bikescout)** A high-level overview of our predictive algorithms. Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
+* **[Website](https://hifly81.github.io/bikescout)** Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
 
 **Love BikeScout?** ⭐ Star this repo to support the development of the first open-source tactical cycling engine.
 

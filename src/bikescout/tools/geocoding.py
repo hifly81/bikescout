@@ -134,8 +134,6 @@ class GeoEngine:
 
         return {"status": "Error", "message": "Max retries exceeded for geocoding service."}
 
-# --- Standard Interface ---
-# Initializing with Nominatim as default provider
 engine = GeoEngine(NominatimProvider())
 
 def get_coordinates(location_name: str, lang: str = "en"):

@@ -41,7 +41,7 @@ def get_mud_risk_analysis(
         surface_type: Literal["asphalt", "sand", "gravel", "grass", "dirt", "earth", "clay"] = "dirt",
         target_date: str = None) -> Dict[str, Any]:
     """
-    Tactical Mud Risk Analysis v3.2: Time-Step Reservoir Model TAEL©.
+    Tactical Mud Risk Analysis v3.3: Time-Step Reservoir Model TAEL©.
 
     This engine simulates ground saturation by tracking moisture via an hourly recursive formula:
     Mt = Mt-1 * e^(-k * Dt) + Rt
@@ -108,7 +108,8 @@ def get_mud_risk_analysis(
         }
         base_k = soil_k_matrix.get(surface_type.lower(), 0.08)
 
-        M = 0.0               # Current reservoir moisture level (mm)
+        # Initialize the reservoir with seasonal memory before processing hourly rain
+        M = _get_seasonal_saturation_bias(reference_date, lat)
         pet_hours = 0         # Hours with significant solar drying potential
         total_raw_rain = 0.0  # Cumulative 72h precipitation
         recent_rain_12h = 0.0 # Recent rain impacting top-layer traction
@@ -233,3 +234,34 @@ def get_mud_risk_analysis(
             "message": f"Tactical Planner failure: {str(e)}",
             "tactical_analysis": None
         }
+def _get_seasonal_saturation_bias(reference_date: datetime, lat: float) -> float:
+    """
+    Calculates the initial soil moisture baseline (M_initial) based on
+    seasonal cycles and hemispheric location.
+
+    This prevents the 'amnesia effect' where the model assumes perfectly
+    dry soil (M=0.0) at the start of a 72h window, even in wet seasons.
+    """
+    month = reference_date.month
+    is_northern_hemisphere = lat >= 0
+
+    # Baseline saturation values in mm (Reservoir Moisture)
+    # High values (15-20) represent saturated/winter soils.
+    # Low values (0-2) represent dry/summer soils.
+    if is_northern_hemisphere:
+        seasonal_map = {
+            12: 18.0, 1: 20.0, 2: 18.0,  # Winter: High saturation/Frozen potential
+            3: 12.0, 4: 8.0, 5: 4.0,     # Spring: Thaw and progressive drying
+            6: 1.0, 7: 0.0, 8: 0.0,      # Summer: Arid/Baked soil
+            9: 2.0, 10: 6.0, 11: 14.0    # Autumn: Cumulative rainfall and low evapotranspiration
+        }
+    else:
+        # Southern Hemisphere (Inverted seasons)
+        seasonal_map = {
+            6: 18.0, 7: 20.0, 8: 18.0,
+            9: 12.0, 10: 8.0, 11: 4.0,
+            12: 1.0, 1: 0.0, 2: 0.0,
+            3: 2.0, 4: 6.0, 5: 14.0
+        }
+
+    return float(seasonal_map.get(month, 0.0))

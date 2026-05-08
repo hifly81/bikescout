@@ -16,13 +16,12 @@
 
 import requests
 import numpy as np
+import math
 from datetime import datetime, date
 from bikescout.tools.mud import get_mud_risk_analysis
-from bikescout.tools.geophysic import calculate_geodetic_segment
 from bikescout.tools.bike_setup import analyze_compatibility
 from bikescout.tools.bike_setup import get_tire_setup
 from bikescout.tools.battery import calculate_battery_drain
-from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints
 
 def _sanitize_elevation_profile(geometry, window_size=7, threshold=0.5):
     """
@@ -184,7 +183,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
         lon (float): Starting longitude.
         rider (object): Contains rider-specific data (weight_kg, fitness_level).
         bike (object): Contains hardware specs (bike_type, tire_size, battery_wh).
-        mission (object): Contains mission parameters (radius_km, profile, complexity, seed).
+        mission (object): Contains mission parameters (total_length_km, profile, complexity, seed).
         target_date (str, optional): YYYY-MM-DD date for predictive mud analysis.
                                      Defaults to current date if None.
 
@@ -193,15 +192,15 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
               surface breakdown, and E-MTB analytics.
     """
 
-    # 1. Parameter Normalization
+    # Parameter Normalization
     safe_complexity = max(3, min(int(getattr(mission, 'complexity', 10)), 30))
-    safe_length = int(mission.radius_km * 1000)
+    safe_length = int(mission.total_length_km * 1000)
 
-    # 2. Strategic fallback system
+    # fallback system
     attempts = [
         (mission.profile, ["surface", "waytype"]),
-        (mission.profile, ["surface", "waytype"]),
-        ("cycling-regular", ["surface", "waytype"])
+        (mission.profile, ["surface"]),
+        ("cycling-regular", ["surface"])
     ]
 
     last_error = ""
@@ -225,7 +224,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                 }
             }
 
-            res = requests.post(url, json=body, headers=headers, timeout=15)
+            res = requests.post(url, json=body, headers=headers, timeout=7)
 
             if res.status_code != 200:
                 # Capture the specific reason for failure
@@ -246,14 +245,21 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             # Extras can contain 'surface', 'waytype', etc.
             extras = props.get('extras', {})
 
-            # 3. Terrain Intelligence
+            # Terrain Intelligence
             clean_ascent = _sanitize_elevation_profile(geometry, 7, 0.5)
 
-            # Distance calculation (Geodesic)
+            R = 6371000
+            deg_to_rad = math.pi / 180
             real_dist_m = 0
-            for i in range(len(geometry) - 1):
-                p1, p2 = geometry[i], geometry[i+1]
-                real_dist_m += calculate_geodetic_segment(p1[1], p1[0], p2[1], p2[0])["distance"]
+            step = 1
+            for i in range(0, len(geometry) - step, step):
+                p1, p2 = geometry[i], geometry[i + step]
+                lat1, lon1 = p1[1] * deg_to_rad, p1[0] * deg_to_rad
+                lat2, lon2 = p2[1] * deg_to_rad, p2[0] * deg_to_rad
+                # Equirectangular Formula (fast and accurate for small segments)
+                x = (lon2 - lon1) * math.cos((lat1 + lat2) / 2)
+                y = (lat2 - lat1)
+                real_dist_m += math.sqrt(x*x + y*y) * R
 
             # Surface Mapping
             surface_map = {0: "Unknown", 1: "Asphalt", 2: "Unpaved", 3: "Paved", 5: "Gravel", 11: "Grass", 14: "Concrete"}
@@ -267,7 +273,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             raw_mud = t_analysis.get("mud_risk_numeric")
             mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
 
-            # 4. Mechanical & Performance Audit
+            # Mechanical & Performance Audit
             tire_display = get_tire_setup(
                 bike_type=bike.bike_type,
                 tire_size_option=bike.tire_size,
@@ -279,7 +285,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
             breakdown, warnings, compatible = analyze_compatibility(bike.bike_type, bike.tire_width_mm, extras, surface_map)
 
-            # --- 5. E-MTB Power Management (Safe Detection) ---
+            # --- E-MTB Power Management (Safe Detection) ---
             emtb_analysis = None
 
             # Check if it's an E-Bike: must have "E-" in name AND a valid battery capacity
@@ -305,7 +311,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         surface_breakdown=breakdown,
                         mud_index=mud_score_val
                     )
-                except Exception as e_emtb:
+                except Exception:
                     emtb_analysis = {"error": "Battery calculation failed"}
 
             return {

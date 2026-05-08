@@ -138,6 +138,11 @@ def calculate_ride_windows(
         if not best_slot:
             return {
                 "status": "Success",
+                "metadata": {
+                    "analyzed_date": t_date.isoformat(),
+                    "surface_type": surface_type,
+                    "solar_window": f"{int(sunrise_h)}:00 - {int(sunset_h)}:00"
+                },
                 "planner_report": {
                     "verdict": "NO-GO",
                     "tactical_color": "RED",

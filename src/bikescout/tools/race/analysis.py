@@ -28,7 +28,7 @@ from fpdf import FPDF
 from typing import List, Dict, Any, Optional, Literal
 from datetime import date
 from geopy.distance import geodesic
-from bikescout.tools.weather import get_weather_forecast
+from bikescout.tools.weather import get_weather_forecast, apply_weather_windowing
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.nutrition import get_nutrition_plan
 
@@ -40,9 +40,12 @@ CDA_CLIMB = 0.35    # Aerodynamic drag coefficient for climbing position
 
 def analyze_track(
         gpx_url: str,
-        rider_weight_kg: float,
-        bike_weight_kg: float = 7.5,
-        pro_intensity: float = 1.6,
+        rider_weight_kg: float = 75,
+        rider_gender: Literal["male", "female"] = "male",
+        rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
+        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+        bike_weight_kg: float = 8.5,
+        pro_intensity: float = 1.3,
         activity_type: Literal["road", "mtb"] = "road",
         target_date: Optional[str] = None,
         start_hour: Optional[int] = None,
@@ -90,7 +93,7 @@ def analyze_track(
         ref_temp, ref_wind_speed, ref_wind_dir = 20.0, 10.0, 90
 
         if weather_data.get("status") == "Success":
-            weather_data = _apply_weather_windowing(weather_data, s_hour, e_hour)
+            weather_data = apply_weather_windowing(weather_data, s_hour, e_hour)
             ref_cond = weather_data.get("reference_conditions", {})
             ref_temp = ref_cond.get("temp", ref_temp)
             ref_wind_speed = ref_cond.get("wind_speed", ref_wind_speed)
@@ -98,8 +101,7 @@ def analyze_track(
 
         # 4. Environmental and Tactical Assessment
         intensity_score = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
-        est_speed = 35.0 if activity_type.lower() == "road" else 20.0
-        duration_hours = (distance_km / est_speed) + (total_ascent / 1000)
+        duration_hours,_ = _estimate_ride_duration(distance_km, total_ascent, rider_fitness_level, activity_type)
 
         tactical_alerts = []
         mud_risk = None
@@ -109,7 +111,7 @@ def analyze_track(
             mapped_surface = "gravel" if "gravel" in activity_type.lower() else "dirt"
             mud_risk = get_mud_risk_analysis(start_lat, start_lon, mapped_surface, t_date)
 
-        nutrition_plan = get_nutrition_plan(duration_hours, ref_temp, intensity_score)
+        nutrition_plan = get_nutrition_plan(duration_hours, ref_temp, intensity_score, rider_weight_kg, rider_gender, sweat_profile)
         performance = _calculate_performance(uci_climbs, rider_weight_kg, bike_weight_kg, pro_intensity, ref_temp, ref_wind_speed)
 
         # 5. Strategic Zone Identification (Weighted for the finale)
@@ -150,9 +152,39 @@ def analyze_track(
         sys.stderr.write(f"ANALYSIS FAILURE: {traceback.format_exc()}\n")
         return {"status": "Error", "message": str(e)}
 
+def _estimate_ride_duration(distance_km: float, total_ascent_m: float, rider_fitness_level: str, activity_type: str):
+    """
+    Calculates a realistic estimated speed to avoid under-fueling.
+    Adjusts base speed based on fitness level and climbing intensity.
+    """
+    # 1. Base speed mapping (Conservative estimates for amateurs)
+    base_speeds = {
+        "beginner": {"road": 20.0, "gravel": 15.0, "mtb": 12.0},
+        "intermediate": {"road": 26.0, "gravel": 20.0, "mtb": 15.0},
+        "pro": {"road": 34.0, "gravel": 27.0, "mtb": 22.0}
+    }
+
+    # Get speeds for the specific rider profile
+    rider_speeds = base_speeds.get(rider_fitness_level, base_speeds["intermediate"])
+    est_speed = rider_speeds.get(activity_type.lower(), rider_speeds["road"])
+
+    # 2. Climbing Penalty (The "Gravity Tax")
+    # Every 100m of climbing per 10km significantly reduces average speed
+    climbing_density = total_ascent_m / (distance_km / 10)
+    # Penalty: reduce speed by ~1% for every 50m of climbing density
+    climbing_penalty = (climbing_density / 50.0) * 0.01
+
+    final_est_speed = est_speed * (1.0 - climbing_penalty)
+
+    # Ensure speed doesn't drop below a walking pace (safety floor)
+    final_est_speed = max(final_est_speed, 8.0)
+
+    duration_hours = distance_km / final_est_speed
+    return duration_hours, final_est_speed
+
 def _load_gpx_content(gpx_path: str) -> str:
     """Fetches GPX content from the web or local file system."""
-    if gpx_path.startswith(('http://', 'https://')):
+    if gpx_path.startswith('https://'):
         res = requests.get(gpx_path, timeout=20)
         res.raise_for_status()
         return res.text
@@ -374,40 +406,6 @@ def _calculate_aero_risks(segments, wind_dir, wind_speed) -> List[Dict]:
             })
     return alerts[:4]
 
-def _apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
-    """Averages weather metrics within the specified race time window."""
-    filtered_forecast = []
-    window_temps, window_winds, window_dirs = [], [], []
-
-    if "reference_conditions" not in weather_data:
-        weather_data["reference_conditions"] = {}
-
-    for hour_info in weather_data.get("tactical_forecast", []):
-        try:
-            h_int = int(hour_info["time"].split(":")[0])
-            if start <= h_int <= end:
-                filtered_forecast.append(hour_info)
-                t_val = float(str(hour_info["temp"]).replace("°C", "").replace("C", "").strip())
-                w_val = float(str(hour_info["wind"]).replace(" km/h", "").strip())
-                w_dir = hour_info.get("wind_dir", 90)
-
-                window_temps.append(t_val)
-                window_winds.append(w_val)
-                window_dirs.append(w_dir)
-        except (ValueError, KeyError):
-            continue
-
-    if window_temps:
-        weather_data["reference_conditions"].update({
-            "temp": round(sum(window_temps) / len(window_temps), 1),
-            "wind_speed": round(sum(window_winds) / len(window_winds), 1),
-            "wind_dir_degrees": int(sum(window_dirs) / len(window_dirs)),
-            "reference_hour": f"Calculated window {start:02d}-{end:02d}"
-        })
-
-    weather_data["tactical_forecast"] = filtered_forecast
-    return weather_data
-
 def _generate_elevation_plot(segments: List[Dict], target_date: str) -> str:
     """Uses matplotlib to generate a track elevation profile image."""
     x_dist = []
@@ -490,7 +488,6 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
     metrics = data.get('track_metrics', {})
     dist = float(metrics.get('distance_km', 0.0))
     asc = float(metrics.get('total_ascent', 0.0))
-    climbs = data.get('climb_analysis', [])
     zones = data.get('tactical_action_zones', [])
     weather = data.get("planning_tools", {}).get("weather_forecast", {}).get("reference_conditions", {})
 

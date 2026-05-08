@@ -19,8 +19,78 @@ import sys
 
 # OpenRouteService POIs API endpoint
 ORS_POIS_URL = "https://api.openrouteservice.org/pois"
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
-def get_poi_scout(api_key: str, lat: float, lon: float, radius_km: float):
+def get_poi_scout_free(lat: float, lon: float, total_length_km: float):
+    """
+    Finds cycling POIs using Overpass API (No API Key required).
+    Features: Water, Bike Repair, Shelters, and Picnic areas.
+    """
+
+    # 1. Parameter Normalization
+    # Overpass handles large radii better than ORS
+    total_length_m = total_length_km * 1000
+
+    # 2. Overpass QL (Query Language)
+    # We search for specific OSM tags:
+    # - drinking_water / water_point
+    # - bicycle_repair_station / bicycle_shop
+    # - shelter / picnic_site
+    query = f"""
+    [out:json][timeout:25];
+    (
+      node["amenity"="drinking_water"](around:{total_length_m},{lat},{lon});
+      node["amenity"="bicycle_repair_station"](around:{total_length_m},{lat},{lon});
+      node["shop"="bicycle"](around:{total_length_m},{lat},{lon});
+      node["amenity"="shelter"](around:{total_length_m},{lat},{lon});
+      node["leisure"="picnic_table"](around:{total_length_m},{lat},{lon});
+    );
+    out body;
+    """
+
+    try:
+        # 3. Execution
+        response = requests.post(OVERPASS_URL, data={'data': query})
+
+        if response.status_code != 200:
+            print(f"Overpass Error: {response.status_code}", file=sys.stderr)
+            return {"status": "Error", "message": "Overpass server busy"}
+
+        data = response.json()
+        elements = data.get('elements', [])
+
+        all_amenities = []
+        for el in elements:
+            tags = el.get('tags', {})
+
+            # 4. Tactical Labeling
+            label = "Point of Interest"
+            if tags.get('amenity') == 'drinking_water':
+                label = "Water Fountain 💧"
+            elif 'bicycle' in tags.get('amenity', '') or 'bicycle' in tags.get('shop', ''):
+                label = "Bike Support 🔧"
+            elif tags.get('amenity') == 'shelter' or tags.get('leisure') == 'picnic_table':
+                label = "Rest Area 🧺"
+
+            all_amenities.append({
+                "name": tags.get('name') or tags.get('operator') or label,
+                "type": label,
+                "location": {"lat": el.get('lat'), "lon": el.get('lon')},
+                "osm_id": el.get('id')
+            })
+
+        return {
+            "status": "Success",
+            "search_km": f"{total_length_m}m",
+            "total_found": len(all_amenities),
+            "amenities": all_amenities
+        }
+
+    except Exception as e:
+        print(f"Overpass Critical Exception: {str(e)}", file=sys.stderr)
+        return {"status": "Error", "message": str(e)}
+
+def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
     """
     Finds cycling-specific POIs (Water, Repair, Rest Areas).
     Strictly follows ORS server constraints: Max 2000m buffer and 5 specific categories.
@@ -34,7 +104,7 @@ def get_poi_scout(api_key: str, lat: float, lon: float, radius_km: float):
 
     # 2. Parameter Normalization
     # Buffer MUST be an integer between 1 and 2000 meters.
-    safe_buffer = int(min(max(radius_km * 1000, 1), 2000))
+    safe_buffer = int(min(max(total_length_km * 1000, 1), 2000))
 
     # 3. Category Selection (STRICT LIMIT: 5 categories per request)
     # These IDs are verified from your server's whitelist:
@@ -110,7 +180,7 @@ def get_poi_scout(api_key: str, lat: float, lon: float, radius_km: float):
         # Return the clean payload sorted by proximity
         return {
             "status": "Success",
-            "search_radius": f"{safe_buffer}m",
+            "search_km": f"{safe_buffer}m",
             "total_found": len(all_amenities),
             "amenities": sorted(all_amenities, key=lambda x: x['distance_m'])
         }

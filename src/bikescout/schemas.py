@@ -17,8 +17,11 @@
 import uuid
 import time
 from pathlib import Path
-from typing import List, Optional, Literal, Dict, Any
+from typing import List, Optional, Literal, Dict, Any, Union
 from pydantic import BaseModel, Field, model_validator, field_validator
+
+BIKESCOUT_PROTOCOL_VERSION_MSG = "BikeScout protocol version"
+BIKESCOUT_PROTOCOL_OPERATION_MSG = "Operation status (Success/Error)"
 
 # --- BIKE SCOUT CORE SCHEMAS (PYDANTIC V2) ---
 
@@ -32,11 +35,20 @@ class RiderProfile(BaseModel):
         description="Rider weight in kilograms. Critical for tire pressure and energy modeling.",
         json_schema_extra={"examples": [70.0, 85.5]}
     )
+    gender: Literal["male", "female"] = Field(
+        "male",
+        description="User's gender.",
+        json_schema_extra={"examples": ["male", "female"]}
+    )
     fitness_level: Literal["beginner", "intermediate", "pro"] = Field(
         "intermediate",
         description="User's athletic preparation level. Affects fatigue and climbing logic.",
         json_schema_extra={"examples": ["intermediate"]}
     )
+    sweat_profile: Literal["standard", "low", "high", "extreme"] = Field(
+        "standard",
+        description="Genetic sodium loss classification. low: ~400mg/L (Diluted sweat), standard: ~800mg/L (Population average), high: ~1200mg/L (Salty sweater), extreme: ~1800mg/L (Genetic outlier/Heavy loser).",
+        json_schema_extra={"examples": ["default", "extreme", "low", "high"]})
 
 class BikeSetup(BaseModel):
     """
@@ -58,7 +70,7 @@ class BikeSetup(BaseModel):
         ge=18,
         le=75,
         description="The actual width of the tire in mm. Critical for surface safety thresholds.",
-        json_schema_extra={"examples": 54}
+        json_schema_extra={"examples": [54]}
     )
     is_ebike: bool = Field(
         False,
@@ -85,9 +97,9 @@ class MissionConstraints(BaseModel):
     """
     Tactical constraints for the specific ride/mission.
     """
-    radius_km: int = Field(
+    total_length_km: int = Field(
         30,
-        description="The desired search radius or loop length in kilometers.",
+        description="The total distance of the round trip in kilometers (e.g., 25.0).",
         json_schema_extra={"examples": [20, 50]}
     )
     profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = Field(
@@ -214,15 +226,10 @@ class EmtbPower(BaseModel):
     motor_net_output: int = Field(..., description="Required average assistance from the motor")
 
 class EmtbTactical(BaseModel):
-    status: str = Field(..., description="Analysis status (Success or Error)")
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     battery_metrics: EmtbMetrics = Field(..., description="Detailed battery drain and safety data")
     power_breakdown_w: EmtbPower = Field(..., description="Breakdown of physical forces in Watts")
     tactical_advice: str = Field(..., description="E-MTB specific pacing and assistance advice")
-
-class RecommendedSetup(BaseModel):
-    tire_width_ref: str = Field(..., description="Reference tire width (e.g., '2.3\"' or '28mm')")
-    pressure_bar: str = Field(..., description="Recommended pressure range in Bar")
-    pressure_psi: str = Field(..., description="Recommended pressure range in PSI")
 
 class WeatherSnapshot(BaseModel):
     time: str = Field(..., description="Local time of the forecast snapshot")
@@ -273,9 +280,10 @@ class WeatherContext(BaseModel):
 
 class EnvironmentalBriefing(BaseModel):
     """Aggregated environmental metrics for the selected mission window."""
-    rain_avg: str = Field(..., description="Average probability of precipitation (e.g., '0%')")
-    wind_max: str = Field(..., description="Maximum expected wind speed (e.g., '8 km/h')")
-    temp_avg: str = Field(..., description="Average temperature during the mission (e.g., '11°C')")
+    message: Union[str, None] = Field(None, description="No go message")
+    rain_avg: Union[str, None] = Field(None, description="Average probability of precipitation (e.g., '0%')")
+    wind_max: Union[str, None] = Field(None, description="Maximum expected wind speed (e.g., '8 km/h')")
+    temp_avg: Union[str, None] = Field(None, description="Average temperature during the mission (e.g., '11°C')")
 
 class PlannerReport(BaseModel):
     """The final tactical verdict and timing recommendations."""
@@ -287,10 +295,10 @@ class PlannerReport(BaseModel):
     mud_risk_impact: str = Field(..., description="Predicted soil saturation impact on the mission")
 
 class MissionConditions(BaseModel):
-    weather: List[WeatherSnapshot] = Field(..., description="Hourly weather forecast snapshots for the mission duration.")
-    mud_risk: MudRiskAnalysis = Field(..., description="Technical analysis of soil saturation and trail rideability.")
+    weather: Union[List[WeatherSnapshot], None] = Field(None, description="Hourly weather forecast snapshots for the mission duration.")
+    mud_risk: Union[MudRiskAnalysis, None] = Field(None, description="Technical analysis of soil saturation and trail rideability.")
     max_temp_detected: str = Field(..., description="The peak temperature identified within the activity window.")
-    safety_advice: SafetyAdvice = Field(..., description="Critical safety briefing including gear recommendations and wind risk.")
+    safety_advice: Union[SafetyAdvice, None] = Field(None, description="Critical safety briefing including gear recommendations and wind risk.")
 
 class Amenity(BaseModel):
     name: str = Field(..., description="The name of the point of interest (e.g., 'Water Fountain', 'Bike Shop').")
@@ -303,8 +311,8 @@ class NutritionPlanWrapper(BaseModel):
     mission_nutrition_briefing: NutritionBriefing = Field(..., description="The detailed fueling and hydration strategy.")
 
 class MissionLogistics(BaseModel):
-    nutrition_plan: NutritionPlanWrapper = Field(..., description="The physiological fueling plan including fluids, carbs, and electrolytes.")
-    nearby_amenities: List[Amenity] = Field(..., description="A list of strategic points detected along or near the route.")
+    nutrition_plan: Union[NutritionPlanWrapper, None] = Field(None, description="The physiological fueling plan including fluids, carbs, and electrolytes.")
+    nearby_amenities: Union[List[Amenity], None] = Field(None, description="A list of strategic points detected along or near the route.")
 
 class RouteSurface(BaseModel):
     profile_used: str = Field(..., description="Routing profile used (e.g., cycling-mountain)")
@@ -319,8 +327,8 @@ class RouteSurface(BaseModel):
 
 class GeocodingResponse(BaseModel):
     """Response Schema for location lookup and geocoding results."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     lat: float = Field(..., description="Latitude of the identified location")
     lon: float = Field(..., description="Longitude of the identified location")
     display_name: str = Field(..., description="Full human-readable address or place name")
@@ -333,7 +341,7 @@ class GeocodingResponse(BaseModel):
 
 class TacticalForecastResponse(BaseModel):
     """Response schema for trail weather."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description="Weather service status")
     metadata: Dict[str, Any] = Field(..., description="Location and timezone metadata")
     tactical_forecast: List[WeatherSnapshot] = Field(..., description="Hourly weather breakdown for the race duration")
@@ -342,8 +350,8 @@ class TacticalForecastResponse(BaseModel):
 
 class RouteSurfaceResponse(BaseModel):
     """Response schema for route surfaces."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     profile_used: str = Field(..., description="Routing profile used (e.g., cycling-mountain)")
     metadata: Dict[str, Any] = Field(..., description="Technical metadata (dates, api flags)")
     tactical_briefing: TacticalBriefing = Field(..., description="Core route metrics including climb and mud analysis")
@@ -357,40 +365,40 @@ class RouteInfo(BaseModel):
     distance_km: float = Field(..., description="The total length of the route measured in kilometers.")
     ascent_m: int = Field(..., description="The total vertical elevation gain in meters.")
     difficulty: str = Field(..., description="The overall challenge rating based on gradient, surface, and distance.")
-    surface_analysis: RouteSurface = Field(..., description="A detailed breakdown of surface compositions and traction indices.")
+    surface_analysis: Union[RouteSurface, None] = Field(None, description="A detailed breakdown of surface compositions and traction indices.")
 
 class FullMissionBriefingResponse(BaseModel):
     """Response schema for trail scout: Tactical, Environmental, and Logistical."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
-    info: RouteInfo = Field(..., description="Structured data regarding the route's morphology and difficulty.")
-    conditions: MissionConditions = Field(..., description="Environmental analysis synchronized with the mission time window.")
-    logistics: MissionLogistics = Field(..., description="Tactical recommendations for mechanical setup, nutrition, and timing.")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    info: Optional[RouteInfo] = Field(None, description="Structured data regarding the route's morphology and difficulty.")
+    conditions: Optional[MissionConditions] = Field(None, description="Environmental analysis synchronized with the mission time window.")
+    logistics: Optional[MissionLogistics] = Field(None, description="Tactical recommendations for mechanical setup, nutrition, and timing.")
     map_path: Optional[str] = Field(None, description="The local file path for the static map image of the route.")
     mcp_resource_uri_map: Optional[str] = Field(None, description="The MCP URI for direct map layer access.")
     gpx_export_path: Optional[str] = Field(None, description="The local file path of the generated GPX file.")
     mcp_resource_uri_gpx: Optional[str] = Field(None, description="The MCP URI for downloading the GPX mission file.")
-    elevation_profile_path: str = Field(..., description="The local file path for the elevation profile chart.")
-    mcp_resource_uri_elevation_profile: str = Field(..., description="The MCP URI for the visual altimetry analysis.")
-    gpx_stats: Dict[str, int] = Field(..., description="Dictionary of raw metadata extracted from the GPX file.")
+    elevation_profile_path: Optional[str] = Field(None, description="The local file path for the elevation profile chart.")
+    mcp_resource_uri_elevation_profile: Optional[str] = Field(None, description="The MCP URI for the visual altimetry analysis.")
+    gpx_stats: Union[Dict[str, int], None] = Field(None, description="Dictionary of raw metadata extracted from the GPX file.")
 
 class HydrationScoutResponse(BaseModel):
     """Response schema for the Physiological Intelligence Engine."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     weather_context: WeatherContext = Field(..., description="Environmental factors that influenced the hydration/sodium calculation")
     mission_nutrition_briefing: NutritionBriefing = Field(..., description="Detailed fluid, carb, and electrolyte plan")
 
 class StrategicPlannerResponse(BaseModel):
     """Response schema for mission planning and Go/No-Go decisions."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     metadata: Dict[str, Any] = Field(..., description="Metadata including analyzed date and surface type")
     planner_report: PlannerReport = Field(..., description="Strategic assessment and tactical timing")
 
 class GpxRaceAuditResponse(BaseModel):
     """Response schema high-fidelity audit for a professional GPX race analysis."""
-    payload_version: str = Field(..., description="BikeScout Protocol version")
+    payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description="Overall analysis status")
     mode: str = Field(..., description="Activity mode (ROAD or MTB)")
     target_date: str = Field(..., description="Date used for weather and mud prediction")
@@ -402,23 +410,3 @@ class GpxRaceAuditResponse(BaseModel):
     pre_climb_positioning: List[Dict[str, Any]] = Field(..., description="Points where the rider must move to the front of the pack")
     tactical_action_zones: List[TacticalActionZone] = Field(..., description="Key points for attacks or technical caution")
     report_path: Optional[str] = Field(None, description="Path to the generated PDF race book, if requested")
-
-class MechanicalBaselineResponse(BaseModel):
-    """Response schema for baseline mechanical settings and pressure guides."""
-    payload_version: str = Field("1.0", description="The BikeScout protocol version for client-side compatibility.")
-    status: str = Field(..., description="Operation status indicator (e.g., 'Success', 'Error').")
-    category: str = Field(..., description="The detected bike category used for calculation (mtb, road, gravel).")
-    recommended_setup: RecommendedSetup = Field(..., description="Detailed technical specifications for tires, wheels, and baseline pressures.")
-    full_guide_reference: str = Field(..., description="URL or markdown documentation link regarding international pressure standards.")
-    setup_notes: str = Field(..., description="Tactical engineering notes regarding tire casing and tube vs. tubeless efficiency.")
-
-class SafetyProtocolResponse(BaseModel):
-    """Response schema for the official BikeScout Safety Protocol and mission-specific checklists."""
-    payload_version: str = Field(..., description="BikeScout protocol version")
-    status: str = Field(..., description="Operation status (Success/Error)")
-    mission_type_applied: str = Field(..., description="The category of ride the protocol was tailored for (e.g., mtb, road)")
-    standard_checklist: str = Field(..., description="Markdown formatted global safety checks (M-Check, Brakes, etc.)")
-    tactical_pre_ride_commands: List[str] = Field(
-        ...,
-        description="Specific mechanical and gear actions to perform before departure (e.g., Sag check, GPS sync)"
-    )

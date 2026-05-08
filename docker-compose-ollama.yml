@@ -23,7 +23,7 @@ services:
       - /dev/dri:/dev/dri
     volumes:
       - ollama:/root/.ollama
-      - /home/hifly/projects/bikescout:/build/bikescout:ro
+      - ./:/build/bikescout:ro
     networks:
       - bikescout_net
   mcpo:
@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./:/app/mcp_servers/bikescout_project
-      - ./mcp_config.json:/app/config/config.json
+      - ./cursor/mcp.json:/app/config/config.json
     ports:
       - 8000:8000
     environment:

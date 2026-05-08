@@ -29,8 +29,6 @@ The system provides precise setup advice, tailoring your equipment to the demand
   </p>
 </details>
 
-<br>
-
 <details>
   <summary style="cursor: pointer;">
     <h3 style="display: inline;">📸 Click to watch a Google Antigravity interaction!</h3>
@@ -40,7 +38,6 @@ The system provides precise setup advice, tailoring your equipment to the demand
   </p>
 </details>
 
-<br>
 
 <details>
   <summary style="cursor: pointer;">

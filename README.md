@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
-BikeScout is a specialized AI product for MTB, Road, E-Bike, and Gravel mission planning.
+BikeScout is a specialized AI engine for MTB, Road, E-Bike, and Gravel mission planning.
 It transforms raw map data into Tactical Intelligence, predicting terrain conditions and trail hazards.
 The system provides precise setup advice, tailoring your equipment to the demands of the specific route, identifying technical challenges and environmental risks before you even leave the garage.
 
@@ -56,7 +56,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 * **[User Guide](https://hifly81.github.io/bikescout/documentation/index.html)** Detailed API references and step-by-step guides to deploy the BikeScout. Essential for developers integrating BikeScout into Claude, ChatGPT, or custom AI agents.
 
-* **[Website](https://hifly81.github.io/bikescout)** Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel.
+* **[Website](https://hifly81.github.io/bikescout)** Explore the visual breakdown of Mud Logic, S-Scale terrain grading, and how we transform raw OSM data into mission-ready intel. Check the latest race analysis reports from the legendary routes.
 
 **Love BikeScout?** ⭐ Star this repo to support the development of the first open-source tactical cycling engine.
 

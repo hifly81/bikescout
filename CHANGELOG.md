@@ -1,4 +1,29 @@
-# Changelog - Bikescout
+# Changelog - BikeScout
+
+## [1.3.2]
+* analysis - sonarcube revision ([4ec5e0a](https://github.com/hifly81/bikescout/commit/4ec5e0abd74b26ea556e34306e327d2930e7f36f))
+* release: prepare version 1.3.2 ([6677cbe](https://github.com/hifly81/bikescout/commit/6677cbe116d2e861acc6776d0ffb620cefc5f9e8))
+* site/race - added capoliveri 2026 analysis ([aa6886a](https://github.com/hifly81/bikescout/commit/aa6886a76ee74b5dc58ddbb76f0cd31421d440de))
+* feat: added agents skills ([ff5bb70](https://github.com/hifly81/bikescout/commit/ff5bb708fb76a1dd4e8c3cdea36f0441734928e4))
+* fix: tool trail scout simple is not returning a validate result ([058c03f](https://github.com/hifly81/bikescout/commit/058c03ff8d565cb1ee65837468ea1e37543a697f))
+* docs: added configs for the popular MCP clients  - part 2 ([83db1eb](https://github.com/hifly81/bikescout/commit/83db1eb53f689e0511205186c10f33775abb941f))
+* docs: added configs for the popular MCP clients ([067b4df](https://github.com/hifly81/bikescout/commit/067b4df113a086c2517b77a0ced460ddc6871932))
+* refactor(logic): implement fitness-aware duration estimation to ensure nutritional safety ([e0ac201](https://github.com/hifly81/bikescout/commit/e0ac201b0ea722e2404a4ab3de09a599916e1f1d))
+* site: added race analysis section ([d21d04b](https://github.com/hifly81/bikescout/commit/d21d04bc775589d92ed62abfa69b1590c41a4011))
+* perf(core): replace slow geodetic loop with fast equirectangular distance approximation ([9b95207](https://github.com/hifly81/bikescout/commit/9b95207d1787394be3aaabac7ca23e1553693e14))
+* feat(weather): add wind direction data to enable alignment scoring ([6a1921f](https://github.com/hifly81/bikescout/commit/6a1921f2c57a0be24640e8b061d80a39ab492c2d))
+* refactor(nutrition): pivot to personalized physiological intelligence ([b314f9d](https://github.com/hifly81/bikescout/commit/b314f9d88ca665558b5daa6b551659addd2a781c))
+* feat: add weight and gender-aware sweat rate scaling to nutrition engine ([ef739de](https://github.com/hifly81/bikescout/commit/ef739defc5c4f61617fe29506ecb73a2b2754e36))
+* feat(mud): add seasonal saturation bias ([d6e6ab6](https://github.com/hifly81/bikescout/commit/d6e6ab6d1aade03db5324e869bfcaf1be8dc2336))
+* fix(logic): geodetic segmet impl with step = 5 ([8c30d62](https://github.com/hifly81/bikescout/commit/8c30d628184c46aeba517d80a145bce3aac64bba))
+* fix(logic): correctly override surface_analysis with None in response payload ([0b86b5d](https://github.com/hifly81/bikescout/commit/0b86b5df12bac1b5bb7300ac4b9e1232a8b81fc1))
+* fix(routing): diversify second fallback attempt by stripping waytype extras ([bf65eee](https://github.com/hifly81/bikescout/commit/bf65eeed4c2e872091b5f22e60df912fc73012b7))
+* fix pydantic validation error when map is excluded ([b112d1e](https://github.com/hifly81/bikescout/commit/b112d1e74b1423c276eadee558b06987e57b0764))
+* Update README to remove social media badges ([c45c357](https://github.com/hifly81/bikescout/commit/c45c3579eec5ac4c6d59a0a0e07590db7593de79))
+* doc site part2 ([575aebb](https://github.com/hifly81/bikescout/commit/575aebbbc07efd97fe70ea069d2cae250c38dbba))
+* doc site ([0cd0087](https://github.com/hifly81/bikescout/commit/0cd00875c68dac78cc781bbb91938f93f2da34a9))
+* Implement mobile menu toggle functionality ([3e20036](https://github.com/hifly81/bikescout/commit/3e2003603864289e49509d7bc166df242bf98fb5))
+* Update CHANGELOG for version 1.3.1 release ([b79c0b3](https://github.com/hifly81/bikescout/commit/b79c0b3de00f0e91160f359818f83c05c78d4ac6))
 
 ## [1.3.1]
 * release: prepare version 1.3.1 ([2e35ebf](https://github.com/hifly81/bikescout/commit/2e35ebf77503531715162b3bfbc857aca2a27d51))

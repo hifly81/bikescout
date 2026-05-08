@@ -1,4 +1,4 @@
-# BikeScout
+# BikeScout - AI for tactical cycling intelligence
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Version](https://img.shields.io/badge/Version-1.3.2-green.svg)](https://github.com/hifly81/bikescout/releases)

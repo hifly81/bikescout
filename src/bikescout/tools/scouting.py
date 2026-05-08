@@ -308,38 +308,37 @@ def get_complete_trail_scout(
             response_payload["info"]["surface_analysis"] = surface_report
 
         if include_weather:
-            max_temp = 20.0
-            s_hour =  9
-            e_hour = 19
-            weather_report = get_weather_forecast(latitude, longitude, target_date)
+            try:
+                weather_report = get_weather_forecast(latitude, longitude, target_date)
 
-            if weather_report.get('status') == 'Success':
-                weather_report = apply_weather_windowing(weather_report, s_hour, e_hour)
+                if weather_report.get('status') == 'Success':
+                    weather_report = apply_weather_windowing(weather_report, start_hour=9, end_hour=19)
 
-                # OPTION A: Use the pre-calculated reference temperature (Fastest)
-                # This uses the specific hour matched by the engine
-                max_temp = weather_report.get('reference_conditions', {}).get('temp_actual', 20.0)
+                    ref_temp = weather_report.get('reference_conditions', {}).get('temp_actual', 20.0)
 
-                # OPTION B: Extract max from the tactical forecast list (More precise for long rides)
-                # We look at 'tactical_forecast' instead of 'next_4_hours'
-                forecast = weather_report.get('tactical_forecast', [])
-                if forecast:
-                    try:
-                        # We use a robust list comprehension to clean the "°C" strings
-                        # and convert them to floats for comparison
-                        temps = [
-                            float(h["temp"].replace("°C", "").strip())
-                            for h in forecast
-                            if "temp" in h
-                        ]
-                        if temps:
-                            max_temp = max(temps)
+                    forecast = weather_report.get('tactical_forecast', [])
+                    if forecast:
+                        try:
+                            temps = [
+                                float(str(h["temp"]).replace("°C", "").strip())
+                                for h in forecast if "temp" in h
+                            ]
+                            max_temp = max(temps) if temps else ref_temp
+                        except (ValueError, TypeError, KeyError):
+                            max_temp = ref_temp
+                    else:
+                        max_temp = ref_temp
 
-                        response_payload["conditions"]["weather"] = forecast
-                        response_payload["conditions"]["safety_advice"] = weather_report.get('safety_advice', "")
-                    except (ValueError, KeyError, TypeError):
-                        # Fallback already set to reference_conditions or 20.0
-                        pass
+                    response_payload["conditions"].update({
+                        "weather": forecast,
+                        "safety_advice": weather_report.get('safety_advice', ""),
+                        "max_temp_detected": f"{max_temp}°C"
+                    })
+                else:
+                    response_payload["conditions"]["weather_status"] = "Unavailable"
+
+            except Exception as e:
+                response_payload["conditions"]["weather_error"] = f"Technical bypass: {str(e)}"
 
         if include_mud_analysis:
             mud_analysis = get_mud_risk_analysis(latitude, longitude, dominant_surface, target_date)

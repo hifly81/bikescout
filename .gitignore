@@ -8,3 +8,12 @@ scripts/
 demo/
 src/bikescout/tools/race/__pycache__/
 docker-compose-webui.yml
+.coverage
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class

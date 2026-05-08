@@ -128,7 +128,7 @@ def get_nutrition_plan(
     if hourly_sodium_mg >= 1000:
         alerts.append(f"ELECTROLYTE CRITICAL: High loss ({int(hourly_sodium_mg)}mg/hr). Supplement bottles with salt.")
 
-    if total_fluid_l > (weight_kg * 0.03 * duration_hours):
+    if total_fluid_l > (weight_kg * 0.02 * duration_hours):
         alerts.append("HYPER-HYDRATION RISK: Fluid targets are high relative to mass. Ensure sodium balance.")
 
     return {

@@ -13,12 +13,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ## Quickstart
 
-* **[Install BikeScout](https://hifly81.github.io/bikescout/documentation/index.html#quickstart)** using your favourite MCP Agent client:
- - Claude Desktop
- - Cursor
- - Codex
- - Google Antigravity
- - Windsurf
+* **[Install BikeScout](https://hifly81.github.io/bikescout/documentation/index.html#quickstart)** using your favourite MCP Agent client: Claude Desktop, Cursor, Codex, Google Antigravity, Windsurf
 
 <details>
   <summary style="cursor: pointer;">

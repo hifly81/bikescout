@@ -76,7 +76,7 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 * *"Use the Derby local guide to plan a road cycling route starting from Derby. I need at least 800m of elevation gain. Also, recommend the correct tire pressure for high-altitude descents."*
 
 ### 🛠️ Quick Tech Checks
-* *"Give me the **safety checklist** and calculate the **tire pressure** for a **90kg rider** on **2.3" tubeless tires** for a muddy ride."*
+* *"Give me the safety checklist and calculate the tire pressure for a 90kg rider on 2.3" tubeless tires for a muddy ride."*
 
 ### 🏁 Post-Ride Analysis & Terrain Truth
 * *"Analyze my ride from 2026-04-12. Compare my average speed with the Mud Risk at that time and tell me if the terrain conditions were the reason for my slow pace."*

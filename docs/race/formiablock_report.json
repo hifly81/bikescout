@@ -1,0 +1,301 @@
+{
+  "payload_version": "1.0",
+  "status": "Success",
+  "mode": "ROAD",
+  "target_date": "2026-05-15",
+  "track_metrics": {
+    "distance_km": 245.41,
+    "total_ascent": 4423.2,
+    "max_altitude": 1658
+  },
+  "planning_tools": {
+    "weather_forecast": {
+      "status": "Success",
+      "metadata": {
+        "date_analyzed": "2026-05-15",
+        "local_timezone": "Europe/Rome",
+        "target_time_local": "09:00",
+        "location": {
+          "lat": 41.25443,
+          "lon": 13.56539
+        }
+      },
+      "tactical_forecast": [
+        {
+          "time": "10:00",
+          "temp": "18.1°C",
+          "app_temp": "18.3°C",
+          "rain_prob": "90%",
+          "rain_mm": "0.2 mm",
+          "wind": "7.6 km/h",
+          "gusts": "31.0 km/h",
+          "wind_direction": "278°"
+        },
+        {
+          "time": "11:00",
+          "temp": "18.1°C",
+          "app_temp": "18.9°C",
+          "rain_prob": "70%",
+          "rain_mm": "0.6 mm",
+          "wind": "5.4 km/h",
+          "gusts": "35.3 km/h",
+          "wind_direction": "278°"
+        },
+        {
+          "time": "12:00",
+          "temp": "18.6°C",
+          "app_temp": "19.5°C",
+          "rain_prob": "58%",
+          "rain_mm": "0.6 mm",
+          "wind": "6.0 km/h",
+          "gusts": "32.8 km/h",
+          "wind_direction": "253°"
+        },
+        {
+          "time": "13:00",
+          "temp": "19.0°C",
+          "app_temp": "20.4°C",
+          "rain_prob": "55%",
+          "rain_mm": "0.5 mm",
+          "wind": "4.6 km/h",
+          "gusts": "32.0 km/h",
+          "wind_direction": "225°"
+        },
+        {
+          "time": "14:00",
+          "temp": "19.2°C",
+          "app_temp": "21.2°C",
+          "rain_prob": "63%",
+          "rain_mm": "0.9 mm",
+          "wind": "5.6 km/h",
+          "gusts": "36.0 km/h",
+          "wind_direction": "220°"
+        },
+        {
+          "time": "15:00",
+          "temp": "18.8°C",
+          "app_temp": "20.5°C",
+          "rain_prob": "65%",
+          "rain_mm": "1.9 mm",
+          "wind": "6.2 km/h",
+          "gusts": "39.6 km/h",
+          "wind_direction": "201°"
+        },
+        {
+          "time": "16:00",
+          "temp": "18.1°C",
+          "app_temp": "19.2°C",
+          "rain_prob": "73%",
+          "rain_mm": "2.3 mm",
+          "wind": "6.9 km/h",
+          "gusts": "38.2 km/h",
+          "wind_direction": "219°"
+        },
+        {
+          "time": "17:00",
+          "temp": "17.5°C",
+          "app_temp": "18.8°C",
+          "rain_prob": "85%",
+          "rain_mm": "5.1 mm",
+          "wind": "5.0 km/h",
+          "gusts": "32.4 km/h",
+          "wind_direction": "240°"
+        }
+      ],
+      "reference_conditions": {
+        "temp_actual": 17,
+        "temp_apparent": 17.3,
+        "rain_probability": 85,
+        "precipitation_mm": 0.9,
+        "wind_speed": 5.9,
+        "wind_gusts": 30.6,
+        "wind_direction": 301,
+        "reference_hour_local": "9:00",
+        "temp": 18.4,
+        "wind_dir_degrees": 90,
+        "reference_hour": "Calculated window 10-17"
+      },
+      "safety_advice": {
+        "status": "🔵 [WATCH]",
+        "message": "Sub-optimal: Light rain possible or stiff breeze. Manageable for experienced riders.",
+        "wind_risk_score": 20.9,
+        "gear_advice": "Standard (Short sleeves, summer bibs, light base layer)"
+      }
+    },
+    "nutrition_plan": {
+      "status": "Success",
+      "mission_nutrition_briefing": {
+        "fluids": {
+          "total_liters": 7.3,
+          "hourly_average_ml": 971
+        },
+        "carbohydrates": {
+          "total_grams": 299,
+          "hourly_target_g": 40,
+          "recommended_ratio": "Standard isotonic or whole foods",
+          "intensity_context": "Endurance / Recovery"
+        },
+        "electrolytes": {
+          "total_sodium_mg": 5820,
+          "hourly_sodium_mg": 777
+        },
+        "tactical_advice": []
+      }
+    },
+    "mud_risk": null
+  },
+  "climb_analysis": [
+    {
+      "km_start": 0,
+      "dist_km": 8.04,
+      "gain_m": 257.4,
+      "avg_grade": 3.2,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 100.9,
+      "dist_km": 5.8,
+      "gain_m": 217.4,
+      "avg_grade": 3.7,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 129.7,
+      "dist_km": 19.14,
+      "gain_m": 712,
+      "avg_grade": 3.7,
+      "category": "Cat 1"
+    },
+    {
+      "km_start": 159.8,
+      "dist_km": 6.94,
+      "gain_m": 448.2,
+      "avg_grade": 6.5,
+      "category": "Cat 2"
+    },
+    {
+      "km_start": 177.5,
+      "dist_km": 3.45,
+      "gain_m": 135.1,
+      "avg_grade": 3.9,
+      "category": "Cat 4"
+    },
+    {
+      "km_start": 192,
+      "dist_km": 5.31,
+      "gain_m": 211.7,
+      "avg_grade": 4,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 231,
+      "dist_km": 13.67,
+      "gain_m": 1152.4,
+      "avg_grade": 8.4,
+      "category": "HC"
+    }
+  ],
+  "performance_simulation": [
+    {
+      "climb": "Climb @ km 0.0 (Cat 3)",
+      "est_time_min": 13.2,
+      "est_vam": 1174,
+      "target_wkg": 7.22,
+      "weather_adjusted_wkg": 7.22
+    },
+    {
+      "climb": "Climb @ km 100.9 (Cat 3)",
+      "est_time_min": 9.9,
+      "est_vam": 1320,
+      "target_wkg": 7.22,
+      "weather_adjusted_wkg": 7.22
+    },
+    {
+      "climb": "Climb @ km 129.7 (Cat 1)",
+      "est_time_min": 32.6,
+      "est_vam": 1310,
+      "target_wkg": 7.22,
+      "weather_adjusted_wkg": 7.22
+    },
+    {
+      "climb": "Climb @ km 159.8 (Cat 2)",
+      "est_time_min": 14.9,
+      "est_vam": 1802,
+      "target_wkg": 7.22,
+      "weather_adjusted_wkg": 7.22
+    },
+    {
+      "climb": "Climb @ km 177.5 (Cat 4)",
+      "est_time_min": 6,
+      "est_vam": 1357,
+      "target_wkg": 7.22,
+      "weather_adjusted_wkg": 7.22
+    },
+    {
+      "climb": "Climb @ km 192.0 (Cat 3)",
+      "est_time_min": 9.3,
+      "est_vam": 1370,
+      "target_wkg": 7.22,
+      "weather_adjusted_wkg": 7.22
+    },
+    {
+      "climb": "Climb @ km 231.0 (HC)",
+      "est_time_min": 34.3,
+      "est_vam": 2015,
+      "target_wkg": 7.22,
+      "weather_adjusted_wkg": 7.22
+    }
+  ],
+  "tactical_alerts": [],
+  "pre_climb_positioning": [
+    {
+      "km": 128.9,
+      "type": "CRITICAL POSITIONING: Cat 1 Entrance",
+      "detail": "Climb 19.14km @ 3.7%"
+    },
+    {
+      "km": 230.2,
+      "type": "CRITICAL POSITIONING: HC Entrance",
+      "detail": "Climb 13.67km @ 8.4%"
+    }
+  ],
+  "tactical_action_zones": [
+    {
+      "km": 236.55,
+      "grade": 13.9,
+      "type": "Explosive Wall / Attack Point",
+      "difficulty": "medium"
+    },
+    {
+      "km": 237.65,
+      "grade": 13.3,
+      "type": "Explosive Wall / Attack Point",
+      "difficulty": "medium"
+    },
+    {
+      "km": 240.61,
+      "grade": 25,
+      "type": "Explosive Wall / Attack Point",
+      "difficulty": "high"
+    },
+    {
+      "km": 242.1,
+      "grade": 25,
+      "type": "Explosive Wall / Attack Point",
+      "difficulty": "high"
+    },
+    {
+      "km": 243.49,
+      "grade": 10.1,
+      "type": "Explosive Wall / Attack Point",
+      "difficulty": "low"
+    },
+    {
+      "km": 244.91,
+      "grade": -25,
+      "type": "Steep Technical Descent",
+      "difficulty": "high"
+    }
+  ],
+  "report_path": "/home/hifly/.bikescout/race/race_report_2026-05-15_e7f4b8.pdf"
+}

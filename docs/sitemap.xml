@@ -36,6 +36,12 @@
         <changefreq>daily</changefreq>
         <priority>0.8</priority>
     </url>
+    <url>
+        <loc>https://hifly81.github.io/bikescout/race/formia_block2026.html</loc>
+        <lastmod>2026-05-14</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>
    <url>
         <loc>https://hifly81.github.io/bikescout/blog/hello_bikers.html</loc>
         <lastmod>2026-04-13</lastmod>

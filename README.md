@@ -17,41 +17,23 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ## Quickstart
 
-* **[How to use BikeScout](https://hifly81.github.io/bikescout/documentation/index.html#quickstart)** :
-*  - using the **[BikeScout GUI](https://hifly81.github.io/bikescout/documentation/index.html#gui)**
-*  - using your favourite MCP Agent client: [Claude Desktop, Cursor, Codex, Google Antigravity, Windsurf](https://hifly81.github.io/bikescout/documentation/index.html#mcp-gui)
+### [How to use BikeScout](https://hifly81.github.io/bikescout/documentation/index.html#quickstart)
+- instruction, using the **[BikeScout GUI](https://hifly81.github.io/bikescout/documentation/index.html#gui)**
+- instruction, using your favourite MCP Agent client: [Claude Desktop, Cursor, Codex, Google Antigravity, Windsurf](https://hifly81.github.io/bikescout/documentation/index.html#mcp-gui)
 
 <details>
   <summary style="cursor: pointer;">
-    <h3 style="display: inline;">📸 Click to watch BikeScout GUI.</h3>
+    <h3 style="display: inline;">📸 Click to watch BikeScout GUI</h3>
   </summary>
   <p align="center">
     <img src="docs/images/gui.png" alt="BikeScout GUI" width="100%">
   </p>
 </details>
 
-<details>
-  <summary style="cursor: pointer;">
-    <h3 style="display: inline;">📸 Click to watch BikeScout with Cursor.</h3>
-  </summary>
-  <p align="center">
-    <img src="docs/images/collage.png" alt="Cursor" width="100%">
-  </p>
-</details>
 
 <details>
   <summary style="cursor: pointer;">
-    <h3 style="display: inline;">📸 Click to watch BikeScout with Google Antigravity.</h3>
-  </summary>
-  <p align="center">
-    <img src="docs/images/collage-1.png" alt="Google Antigravity" width="100%">
-  </p>
-</details>
-
-
-<details>
-  <summary style="cursor: pointer;">
-    <h3 style="display: inline; color: #0366d6;">🎥 Click to watch a Demo!</h3>
+    <h3 style="display: inline; color: #0366d6;">🎥 Click to watch a Demo</h3>
   </summary>
   <br>
   <div align="center">

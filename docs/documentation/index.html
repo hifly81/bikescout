@@ -39,7 +39,7 @@
             "operatingSystem": "Independent",
             "downloadUrl": "https://github.com/hifly81/bikescout",
             "license": "https://www.gnu.org/licenses/agpl-3.0-standalone.html",
-            "softwareVersion": "1.4.0",
+            "softwareVersion": "1.4.1",
             "keywords": "AI, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
             "author": {
                 "@type": "Person",
@@ -156,7 +156,8 @@
                     <a href="#features" class="nav-link">Understanding BikeScout</a>
                     <a href="#comparison" class="nav-link">Why BikeScout?</a>
                     <a href="#quickstart" class="nav-link text-white">Deploy and Use BikeScout</a>
-                    <a href="#mcp-client" class="pl-6 nav-link font-medium">Using an MCP Client</a>
+                    <a href="#gui" class="pl-6 nav-link font-medium">Using the BikeScout GUI</a>
+                    <a href="#mcp-gui" class="pl-6 nav-link font-medium">Using an MCP Client</a>
                     <a href="#mcp-client-skills" class="pl-6 nav-link font-medium">Configure skills</a>
                     <a href="#docker-openclaw" class="pl-6 nav-link font-medium">Docker & OpenClaw</a>
                     <a href="#docker-ollama" class="pl-6 nav-link font-medium">Docker & Ollama</a>
@@ -184,12 +185,9 @@
                 </div>
             </header>
 
-
-
         <div id="features" class="mb-12">
             <h2 class="text-3xl font-bold text-white mb-8 border-b border-slate-700 pb-2">Understanding BikeScout</h2>
 
-            <!-- Introduction Grid: Core Concept -->
             <div class="grid md:grid-cols-2 gap-8 mb-12">
                 <!-- What is BikeScout -->
                 <div class="bg-card border border-custom p-6 rounded-xl border-l-4 border-l-neon-text">
@@ -333,13 +331,105 @@
                 </div>
 
 
-
         <div id="quickstart" class="mb-12">
             <h2 class="text-3xl font-bold text-white mb-6 border-b border-slate-700 pb-2">Deploy and Use BikeScout</h2>
                 <p class="text-slate-400 mb-10 text-lg">Follow these sections to deploy BikeScout in your environment.</p>
 
-            <!-- MCP Client -->
+
             <div id="mcp-client" class="mb-12">
+
+                <div id="gui" class="mb-12">
+                <h3 class="text-2xl font-bold text-white mb-6">Using the BikeScout GUI</h3>
+                <div class="bg-slate-900/50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="text-sm font-bold text-white mb-2 uppercase tracking-wide">Pre-Requirements:</p>
+                    <ul class="text-sm text-slate-300 space-y-1">
+                        <li>• <strong>Python 3.10+</strong></li>
+                        <li>• <strong>OpenRouteService Key:</strong> <a href="https://openrouteservice.org/" class="underline text-blue-400">Sign up</a> for obtaining a free key.</li>
+                    </ul>
+                </div>
+
+
+                    <div class="mb-12 rounded overflow-hidden border border-slate-800 bg-slate-900/20">
+                        <img src="../images/gui.png" alt="BikeScout GUI" class="w-full h-auto">
+                        <div class="p-3 border-t border-slate-800 flex justify-between items-center mono text-[9px] uppercase tracking-widest text-slate-500">
+                            <span>BikeScout GUI</span>
+                        </div>
+                    </div>
+
+                    <div class="bikescout-gui-documentation" style="font-family: 'Inter', sans-serif; color: #cbd5e1; max-width: 800px; line-height: 1.6;">
+
+
+                        <p style="margin-bottom: 1.5rem;">
+                            The <strong>BikeScout Tactical GUI</strong> is a high-performance, interactive control center designed for cyclists and trail scouts who need real-time, data-driven mission planning. Built on top of the <strong>Streamlit</strong> framework, it serves as a bridge between localized Large Language Models (LLMs) and specialized tactical tools.
+                        </p>
+
+                        <p style="margin-bottom: 1.5rem;">
+                            Unlike a standard chat interface, this GUI is an <strong>Intelligence Dispatcher</strong>: it translates natural language requests into precise parameters for geospatial analysis, weather windowing, and physiological fueling plans.
+                        </p>
+
+                        <h3 style="color: #94a3b8; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">
+                            Core Capabilities
+                        </h3>
+
+                        <ul style="list-style-type: none; padding: 0; margin-bottom: 2rem;">
+                            <li style="margin-bottom: 0.75rem;">
+                                <strong style="color: #3b82f6;">• On-Device Intelligence:</strong> Runs fully local LLMs (like Llama 3.1) via <code>llama-cpp-python</code>, ensuring your mission data stays private and functions without an internet connection.
+                            </li>
+                            <li style="margin-bottom: 0.75rem;">
+                                <strong style="color: #3b82f6;">• Tactical Visualizations:</strong> Automatically renders high-resolution maps, elevation profiles, and weather trend charts directly within the conversation.
+                            </li>
+                            <li style="margin-bottom: 0.75rem;">
+                                <strong style="color: #3b82f6;">• Modular Intelligence (MCP):</strong> Orchestrates diverse data sources including geospatial engines, <strong>TAEL© Mud Risk</strong> predictive soil analysis, and <strong>Strategic Nutrition</strong> fueling targets.
+                            </li>
+                            <li style="margin-bottom: 0.75rem;">
+                                <strong style="color: #3b82f6;">• Dynamic Briefings:</strong> Generates structured briefings with downloadable GPX files, mechanical setup advice (tire pressure), and safety warnings.
+                            </li>
+                        </ul>
+
+
+                        <hr style="border: 0; border-top: 1px solid #334155; margin: 2rem 0;">
+
+                        <p style="color: #94a3b8; font-weight: 500; margin-bottom: 1.5rem;">How to use the GUI:</p>
+
+                        <div style="background-color: #1e293b; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #334155;">
+                            <ol style="list-style-type: decimal; padding-left: 1.25rem; color: #e2e8f0;">
+                                <li style="margin-bottom: 1.5rem;">
+                                    <strong>Launch the GUI:</strong> Run the following command from your terminal:
+                                    <div style="background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                        <code style="color: #60a5fa;">streamlit run src/bikescout/app.py</code>
+                                    </div>
+                                    <p style="font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">
+                                        The application will open in your default browser at:
+                                        <a href="http://localhost:8501/" style="color: #3b82f6; text-decoration: none;">http://localhost:8501/</a>
+                                    </p>
+                                </li>
+                                <li style="margin-bottom: 1.5rem;">
+                                    <strong>Configure OpenRouteService API Key:</strong> Navigate to the <strong>Configuration</strong> section in the left sidebar and enter your <code>ORS_API_KEY</code>.
+                                </li>
+                                <li style="margin-bottom: 1.5rem;">
+                                    <strong>Download LLM Engine:</strong> Select and download a supported model.
+                                    <p style="font-size: 0.8rem; font-style: italic; color: #64748b; margin-top: 0.25rem;">Note: Ensure you have approx. 5GB - 8GB of free disk space.</p>
+                                    <ul style="list-style-type: disc; padding-left: 1.25rem; margin-top: 0.5rem; color: #94a3b8; font-size: 0.9rem;">
+                                        <li>Llama-3-8B (Standard)</li>
+                                        <li>Llama-3.1-8B-Instruct (Advanced)</li>
+                                    </ul>
+                                </li>
+                                <li style="margin-bottom: 0;">
+                                    <strong>Analyze & Deploy:</strong> Once the download is complete, enter your mission parameters.
+                                </li>
+                            </ol>
+                        </div>
+
+                        <div style="background-color: rgba(30, 41, 59, 0.5); padding: 1rem; border-radius: 0.5rem; border: 1px dotted #475569; margin-top: 1.5rem;">
+                            <p style="font-size: 0.7rem; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 0.5rem;">Prompt Example:</p>
+                            <p style="font-size: 0.9rem; color: #93c5fd; font-style: italic; margin: 0;">
+                                "Find a route of approximately 25 km nearby Albano Laziale, Rome, Italy. I'm riding a 29-inch wheel bike. Include POIs, weather, nutrition, mud analysis, GPX export, map, and altimetry."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                    <div id="mcp-gui" class="mb-12">
                 <h3 class="text-2xl font-bold text-white mb-6">Using an MCP client (e.g. Claude Desktop, Cursor, Google Antigravity)</h3>
                 <div class="bg-slate-900/50 border-l-4 border-blue-500 p-4 mb-6">
                     <p class="text-sm font-bold text-white mb-2 uppercase tracking-wide">Pre-Requirements:</p>
@@ -348,8 +438,6 @@
                         <li>• <strong>OpenRouteService Key:</strong> <a href="https://openrouteservice.org/" class="underline text-blue-400">Sign up</a> for obtaining a free key.</li>
                         <li>• <strong>MCP Client:</strong> Such as Claude Desktop, Cursor, Google Antigravity, Codex, Windsurf.</li>
                     </ul>
-
-
                 </div>
                 <div class="space-y-6">
                     <p class="text-slate-400 mb-6 font-medium">To integrate BikeScout with your preferred MCP client (e.g. Claude Desktop, Cursor, Google Antigravity), add the following configuration to your settings file:</p>
@@ -414,6 +502,7 @@
                     </div>
                 </div>
             </div>
+                    </div>
 
 
             <!-- Skills -->

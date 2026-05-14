@@ -312,28 +312,20 @@ def get_complete_trail_scout(
                 weather_report = get_weather_forecast(latitude, longitude, target_date)
 
                 if weather_report.get('status') == 'Success':
-                    weather_report = apply_weather_windowing(weather_report, start_hour=9, end_hour=19)
-
-                    ref_temp = weather_report.get('reference_conditions', {}).get('temp_actual', 20.0)
-
-                    forecast = weather_report.get('tactical_forecast', [])
-                    if forecast:
-                        try:
-                            temps = [
-                                float(str(h["temp"]).replace("°C", "").strip())
-                                for h in forecast if "temp" in h
-                            ]
-                            max_temp = max(temps) if temps else ref_temp
-                        except (ValueError, TypeError, KeyError):
-                            max_temp = ref_temp
-                    else:
-                        max_temp = ref_temp
-
-                    response_payload["conditions"].update({
-                        "weather": forecast,
-                        "safety_advice": weather_report.get('safety_advice', ""),
-                        "max_temp_detected": f"{max_temp}°C"
-                    })
+                    weather_report = apply_weather_windowing(weather_report, start=9, end=19)
+                    weather_list = []
+                    for entry in weather_report.get("tactical_forecast", []):
+                        snapshot = {
+                            "time": str(entry.get("hour", entry.get("time", "N/A"))),
+                            "temp": f"{entry.get('temp', 'N/A')}°C",
+                            "app_temp": f"{entry.get('app_temp', entry.get('temp', 'N/A'))}°C",
+                            "rain_prob": f"{entry.get('rain_prob', '0')}%",
+                            "rain_mm": f"{entry.get('rain_mm', '0.0')} mm",
+                            "wind": f"{entry.get('wind', '0')} km/h",
+                            "gusts": f"{entry.get('gusts', '0')} km/h"
+                        }
+                        weather_list.append(snapshot)
+                    response_payload["conditions"]["weather"] = weather_list if weather_list else None
                 else:
                     response_payload["conditions"]["weather_status"] = "Unavailable"
 

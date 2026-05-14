@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bikescout"
-version = "1.4.0"
+version = "1.4.1"
 authors = [
     { name="Bikescout", email="bikescout.mcp@gmail.com" },
 ]
@@ -51,6 +51,10 @@ dependencies = [
     "staticmap>=0.5.6",
     "pillow>=10.2.0",
     "fpdf>=1.7.2",
+    "streamlit>=1.35.0",
+    "watchdog>=4.0.0",
+    "huggingface_hub>=0.23.0",
+    "llama-cpp-python>=0.2.75",
 ]
 
 [project.optional-dependencies]

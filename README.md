@@ -1,7 +1,7 @@
 # BikeScout - AI for tactical cycling intelligence
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Version](https://img.shields.io/badge/Version-1.4.0-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-1.4.1-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
@@ -17,11 +17,22 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ## Quickstart
 
-* **[Install BikeScout](https://hifly81.github.io/bikescout/documentation/index.html#quickstart)** using your favourite MCP Agent client: Claude Desktop, Cursor, Codex, Google Antigravity, Windsurf
+* **[How to use BikeScout](https://hifly81.github.io/bikescout/documentation/index.html#quickstart)** :
+*  - using the **[BikeScout GUI](https://hifly81.github.io/bikescout/documentation/index.html#gui)**
+*  - using your favourite MCP Agent client: [Claude Desktop, Cursor, Codex, Google Antigravity, Windsurf](https://hifly81.github.io/bikescout/documentation/index.html#mcp-gui)
 
 <details>
   <summary style="cursor: pointer;">
-    <h3 style="display: inline;">📸 Click to watch a Cursor interaction</h3>
+    <h3 style="display: inline;">📸 Click to watch BikeScout GUI.</h3>
+  </summary>
+  <p align="center">
+    <img src="docs/images/gui.png" alt="BikeScout GUI" width="100%">
+  </p>
+</details>
+
+<details>
+  <summary style="cursor: pointer;">
+    <h3 style="display: inline;">📸 Click to watch BikeScout with Cursor.</h3>
   </summary>
   <p align="center">
     <img src="docs/images/collage.png" alt="Cursor" width="100%">
@@ -30,7 +41,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 <details>
   <summary style="cursor: pointer;">
-    <h3 style="display: inline;">📸 Click to watch a Google Antigravity interaction</h3>
+    <h3 style="display: inline;">📸 Click to watch BikeScout with Google Antigravity.</h3>
   </summary>
   <p align="center">
     <img src="docs/images/collage-1.png" alt="Google Antigravity" width="100%">

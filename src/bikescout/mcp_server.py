@@ -225,8 +225,7 @@ def trail_scout_simple(
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
     """
     try:
-        # Internal reconstruction of validated Pydantic models
-        # This preserves all the validation logic (like e-bike battery checks)
+
         rider = RiderProfile(
             weight_kg=weight_kg,
             gender=gender,
@@ -250,7 +249,6 @@ def trail_scout_simple(
             assist_mode=assist_mode
         )
 
-        # Call the core logic (reusing the existing trail_scout logic)
         return trail_scout(
             latitude=latitude,
             longitude=longitude,

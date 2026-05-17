@@ -87,15 +87,15 @@ def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
 
     # HC (Hors Catégorie): Climbs that are beyond classification
     if adjusted_score >= 800 or total_ascent > 1000:
-        category = "Hors Catégorie (HC) - Legendary Challenge"
+        category = "Hors Catégorie (HC)"
     elif adjusted_score >= 500:
-        category = "Category 1 - Brutal Ascent"
+        category = "C1 - Brutal Ascent"
     elif adjusted_score >= 300:
-        category = "Category 2 - Hard Climb"
+        category = "C2 - Hard Climb"
     elif adjusted_score >= 150:
-        category = "Category 3 - Challenging"
+        category = "C3 - Challenging"
     else:
-        category = "Category 4 - Short Burner"
+        category = "C4 - Short Burner"
 
     # Append technical tag for Enduro to distinguish from standard XC/MTB
     if "enduro" in bike_type_low:

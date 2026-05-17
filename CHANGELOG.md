@@ -1,4 +1,13 @@
-# Changelog - Bikescout
+# Changelog - BikeScout
+
+## [1.4.2]
+* gui: added gpx import ([a5fc190](https://github.com/hifly81/bikescout/commit/a5fc190e7a62bd705c0c91f9974ae9c76e8b65e1))
+* site: added formia_blockhaus part2 ([2daebf6](https://github.com/hifly81/bikescout/commit/2daebf6ef76683b3e7c4565e282cb6cfa1c03364))
+* site: added formia_blockhaus ([ae53973](https://github.com/hifly81/bikescout/commit/ae5397317f917d2e531a80fa4957e3b2118b3335))
+* Fix HTML entities in README.md ([244ed88](https://github.com/hifly81/bikescout/commit/244ed88e1c276a0f9c0fd14a0c9424e843b03894))
+* Replace GUI image with new asset link ([8e97ea7](https://github.com/hifly81/bikescout/commit/8e97ea70e8dbdb34bfddcdc41cd59cb28080e3d6))
+* added demo gui ([fe734d2](https://github.com/hifly81/bikescout/commit/fe734d28c8ed50a08a3b9ee08868821894523170))
+* changelog ([7043d77](https://github.com/hifly81/bikescout/commit/7043d777fe15d2af89612f353461353596264ea6))
 
 ## [1.4.1]
 * release: prepare version 1.4.1 ([86145d2](https://github.com/hifly81/bikescout/commit/86145d2e60e55ddc16bee249d5caec3374ea66dc))
@@ -57,14 +66,14 @@
 * refactor(compatibility): implement surface aggregation and tactical normalization ([1985892](https://github.com/hifly81/bikescout/commit/19858921639a0b3343536858dda8b58de049c800))
 * refactor(geodetics): improve aero-tactical wind analysis ([dd99281](https://github.com/hifly81/bikescout/commit/dd99281b94cda929d8c2f7ec33d72b727a09b927))
 * feat(mud-engine): add categorical mud_risk_label to payload ([26ec31c](https://github.com/hifly81/bikescout/commit/26ec31c23d627e1869ca2be37fbb80daa7fd95c5))
-* feat(mud-engine): implement timezone-aware TAEL© v3.2 reservoir model ([c377aaa](https://github.com/hifly81/bikescout/commit/c377aaaabb73161d3bd4584eb880ea34b6806919))
+* feat(mud-engine): implement timezone-aware TAEL� v3.2 reservoir model ([c377aaa](https://github.com/hifly81/bikescout/commit/c377aaaabb73161d3bd4584eb880ea34b6806919))
 * refactor: optimize weather normalization and add solar altitude engine ([14bb70b](https://github.com/hifly81/bikescout/commit/14bb70bd3dc8c4e45eb96735db0efaa94c9f8b35))
 * Simplify documentation link descriptions in README ([ad86e1f](https://github.com/hifly81/bikescout/commit/ad86e1f6511464545126b26d2df9732bc932acd0))
 * changelog ([33e8d6e](https://github.com/hifly81/bikescout/commit/33e8d6e8904172f24e46a86301bc38bdda07a391))
 
 ## [1.3.0]
 * Prepare release 1.3.0 ([100f872](https://github.com/hifly81/bikescout/commit/100f8721b992a07a97acb3a739c62c4118656d76))
-* feat(mud): fix numeric risk bug & formalize TAEL® v3.1 engine ([b17889a](https://github.com/hifly81/bikescout/commit/b17889a1c536c08dc88200e310352608de58d646))
+* feat(mud): fix numeric risk bug & formalize TAEL� v3.1 engine ([b17889a](https://github.com/hifly81/bikescout/commit/b17889a1c536c08dc88200e310352608de58d646))
 * fix(altimetry): resolve X-axis compression using WGS-84 geodesics ([dc9aa99](https://github.com/hifly81/bikescout/commit/dc9aa99f1a418d9dd50e16b204362cb0636590b5))
 * refactor(geodetic): internalize bearing calculation and clean API ([8a56adc](https://github.com/hifly81/bikescout/commit/8a56adc5e14d91e9a0e9ae9df34e694ccb22f3a3))
 * removed strava tool ([4e19c52](https://github.com/hifly81/bikescout/commit/4e19c52fd0bc568c5fda15420e520a5a423e7931))

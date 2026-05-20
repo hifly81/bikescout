@@ -267,15 +267,6 @@ def get_complete_trail_scout(
         intensity_score = perf["intensity_score"]
 
         amenities = []
-        if include_poi:
-            try:
-                if api_key and api_key.strip():
-                    poi_res = get_poi_scout(api_key, latitude, longitude, mission.total_length_km)
-                else:
-                    poi_res = get_poi_scout_free(latitude, longitude, mission.total_length_km)
-                amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
-            except:
-                amenities = []
 
         response_payload = {
             "status": "Success",

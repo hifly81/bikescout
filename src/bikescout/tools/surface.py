@@ -126,7 +126,6 @@ def _analyze_technical_difficulty(extras: dict, fitness_level: str = "intermedia
     vis_map = {"1": "Excellent", "2": "Good", "3": "Poor", "4": "Invisible/Requires GPS"}
 
     # 3. Fitness-Based Technical Advice
-    # Se il livello tecnico è S2+ e il rider è beginner, aggiungiamo un warning.
     tech_note = "Technical grading based on OSM mountain standards."
 
     try:

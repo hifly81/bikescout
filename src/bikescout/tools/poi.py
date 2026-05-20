@@ -16,6 +16,7 @@
 
 import requests
 import sys
+from math import radians, cos, sin, asin, sqrt
 
 # OpenRouteService POIs API endpoint
 ORS_POIS_URL = "https://api.openrouteservice.org/pois"
@@ -27,11 +28,9 @@ def get_poi_scout_free(lat: float, lon: float, total_length_km: float):
     Features: Water, Bike Repair, Shelters, and Picnic areas.
     """
 
-    # 1. Parameter Normalization
     # Overpass handles large radii better than ORS
     total_length_m = total_length_km * 1000
 
-    # 2. Overpass QL (Query Language)
     # We search for specific OSM tags:
     # - drinking_water / water_point
     # - bicycle_repair_station / bicycle_shop
@@ -49,7 +48,6 @@ def get_poi_scout_free(lat: float, lon: float, total_length_km: float):
     """
 
     try:
-        # 3. Execution
         response = requests.post(OVERPASS_URL, data={'data': query})
 
         if response.status_code != 200:
@@ -63,7 +61,6 @@ def get_poi_scout_free(lat: float, lon: float, total_length_km: float):
         for el in elements:
             tags = el.get('tags', {})
 
-            # 4. Tactical Labeling
             label = "Point of Interest"
             if tags.get('amenity') == 'drinking_water':
                 label = "Water Fountain 💧"
@@ -72,11 +69,18 @@ def get_poi_scout_free(lat: float, lon: float, total_length_km: float):
             elif tags.get('amenity') == 'shelter' or tags.get('leisure') == 'picnic_table':
                 label = "Rest Area 🧺"
 
+            current_lat = el.get('lat')
+            current_lon = el.get('lon')
+            distance_m = 0
+            if current_lat and current_lon and lat and lon:
+                distance_m = round(haversine_distance(lat, lon, current_lat, current_lon))
+
             all_amenities.append({
-                "name": tags.get('name') or tags.get('operator') or label,
+                "name": tags.get('name') or tags.get('amenity') or tags.get('operator') or label,
                 "type": label,
-                "location": {"lat": el.get('lat'), "lon": el.get('lon')},
-                "osm_id": el.get('id')
+                "distance_m": distance_m,
+                "location": {"lat": current_lat, "lon": current_lon},
+                "osm_id": el.get('id')  # Optional
             })
 
         return {
@@ -95,18 +99,17 @@ def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
     Finds cycling-specific POIs (Water, Repair, Rest Areas).
     Strictly follows ORS server constraints: Max 2000m buffer and 5 specific categories.
     """
-    # 1. Standardized headers for ORS API
+
     headers = {
         'Authorization': api_key,
         'Content-Type': 'application/json; charset=utf-8',
         'Accept': 'application/json, application/geo+json'
     }
 
-    # 2. Parameter Normalization
     # Buffer MUST be an integer between 1 and 2000 meters.
     safe_buffer = int(min(max(total_length_km * 1000, 1), 2000))
 
-    # 3. Category Selection (STRICT LIMIT: 5 categories per request)
+    # Category Selection (STRICT LIMIT: 5 categories per request)
     # These IDs are verified from your server's whitelist:
     # 162: Drinking Water
     # 372: Bicycle Shop
@@ -115,7 +118,6 @@ def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
     # 332: Playground (Reliable source of benches/water)
     target_categories = [162, 372, 371, 331, 332]
 
-    # 4. Request Body Construction
     body = {
         "request": "pois",
         "geometry": {
@@ -133,11 +135,9 @@ def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
     }
 
     try:
-        # 5. API Execution
         # Use json=body to ensure clean serialization and correct Content-Type
         response = requests.post(ORS_POIS_URL, json=body, headers=headers)
 
-        # 6. Detailed Error Handling for Stability
         if not response.ok:
             # We log the specific API error message to stderr
             # This prevents breaking the MCP JSON-RPC protocol on stdout
@@ -147,7 +147,6 @@ def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
                 "message": f"ORS API error {response.status_code}"
             }
 
-        # 7. Response Processing
         data = response.json()
         features = data.get('features', [])
 
@@ -176,8 +175,6 @@ def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
                 "location": {"lat": geom[1], "lon": geom[0]}
             })
 
-        # 8. Success Response
-        # Return the clean payload sorted by proximity
         return {
             "status": "Success",
             "search_km": f"{safe_buffer}m",
@@ -186,9 +183,16 @@ def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
         }
 
     except Exception as e:
-        # Catch-all for network or serialization errors, logged to stderr
         print(f"POI Engine Critical Exception: {str(e)}", file=sys.stderr)
         return {
             "status": "Error",
             "message": f"Internal Engine failure: {str(e)}"
         }
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    r = 6371000
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    return 2 * r * asin(sqrt(a))

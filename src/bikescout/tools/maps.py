@@ -94,7 +94,6 @@ def save_local_tactical_map(
             for i in range(len(all_coords) - 1):
                 p1, p2 = all_coords[i], all_coords[i+1]
 
-                # Calculate vertical rise and horizontal run (Haversine-lite)
                 rise = p2[2] - p1[2]
                 run = np.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2) * 111000
 

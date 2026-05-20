@@ -701,24 +701,48 @@
                             <p class="text-slate-400 mb-4">
                                 Run the test suite with <code>pytest</code>:
                             </p>
-                            <ol class="list-decimal list-outside ml-6 text-slate-300 text-sm space-y-4">
-                                <li>Run all tests:
-                                    <div class="mt-2 bg-slate-900 rounded-lg p-3 border border-slate-700">
-                                        <code class="text-green-300 text-xs">python -m pytest</code>
-                                    </div>
-                                </li>
-                                <li>Run with Coverage Report (Term + HTML):
-                                    <div class="mt-2 bg-slate-900 rounded-lg p-3 border border-slate-700">
-                                        <code class="text-green-300 text-xs">python -m pytest --cov=src/bikescout --cov-report=term-missing</code>
-                                    </div>
-                                </li>
-                            </ol>
+
+                            <div style="background-color: #1e293b; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #334155;">
+                                <ol style="list-style-type: decimal; padding-left: 1.25rem; color: #e2e8f0;">
+                                    <li style="margin-bottom: 1.5rem;">
+                                        Create a Python virtual environment:
+                                        <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                            <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="test-gui-env">python3 -m venv venv</code></pre>
+                                            <button onclick="copyToClipboard('test-gui-env', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                                        </div>
+                                    </li>
+                                    <li style="margin-bottom: 1.5rem;">
+                                        Activate the Python virtual environment:
+                                        <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                            <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="test-gui-activate">source venv/bin/activate</code></pre>
+                                            <button onclick="copyToClipboard('test-gui-activate', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                                        </div>
+                                    </li>
+                                    <li style="margin-bottom: 1.5rem;">
+                                        Install the BikeScout package, including pytest:
+                                        <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                            <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="test-code-install">pip install bikescout && pip install -e ".[test]"</code></pre>
+                                            <button onclick="copyToClipboard('test-code-install', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                                        </div>
+                                    </li>
+                                    <li style="margin-bottom: 1.5rem;">
+                                        Run all tests:
+                                        <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                            <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="test-run">python -m pytest</code></pre>
+                                            <button onclick="copyToClipboard('test-run', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                                        </div>
+                                    </li>
+                                    <li style="margin-bottom: 1.5rem;">
+                                        Run with Coverage Report:
+                                        <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                            <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="test-run-coverage">python -m pytest --cov=src/bikescout --cov-report=term-missing</code></pre>
+                                            <button onclick="copyToClipboard('test-run-coverage', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                                        </div>
+                                    </li>
+
+                                </ol>
+                            </div>
                         </div>
-
-                        <p class="text-xs text-slate-500 italic mt-8 border-t border-slate-800 pt-4">
-                            Note: Local tests are executed using the virtual environment's Python interpreter to ensure dependency alignment with the production MCP server.
-                        </p>
-
                 </div>
 
 

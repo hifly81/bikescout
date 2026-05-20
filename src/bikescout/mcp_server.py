@@ -224,51 +224,49 @@ def trail_scout_simple(
           altimetry report (PNG) in the requested 'style'.
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
     """
-    try:
 
-        rider = RiderProfile(
-            weight_kg=weight_kg,
-            gender=gender,
-            fitness_level=fitness_level,
-            sweat_profile=sweat_profile
-        )
 
-        bike = BikeSetup(
-            bike_type=bike_type,
-            tire_size=tire_size,
-            is_ebike=is_ebike,
-            battery_wh=battery_wh
-        )
+    rider = RiderProfile(
+        weight_kg=weight_kg,
+        gender=gender,
+        fitness_level=fitness_level,
+        sweat_profile=sweat_profile
+    )
 
-        mission = MissionConstraints(
-            total_length_km=total_length_km,
-            profile=profile,
-            surface_preference=surface_preference,
-            complexity=complexity,
-            seed=seed,
-            assist_mode=assist_mode
-        )
+    bike = BikeSetup(
+        bike_type=bike_type,
+        tire_size=tire_size,
+        is_ebike=is_ebike,
+        battery_wh=battery_wh
+    )
 
-        return trail_scout(
-            latitude=latitude,
-            longitude=longitude,
-            rider=rider,
-            bike=bike,
-            mission=mission,
-            dest_latitude=dest_latitude,
-            dest_longitude=dest_longitude,
-            style=style,
-            include_gpx=include_gpx,
-            include_map=include_map,
-            include_poi = include_poi,
-            include_altimetry = include_altimetry,
-            include_weather = include_weather,
-            include_mud_analysis = include_mud_analysis,
-            include_nutrition_plan = include_nutrition_plan
-        )
+    mission = MissionConstraints(
+        total_length_km=total_length_km,
+        profile=profile,
+        surface_preference=surface_preference,
+        complexity=complexity,
+        seed=seed,
+        assist_mode=assist_mode
+    )
 
-    except Exception as e:
-        return {"status": "Error", "message": f"Trail Scout Simple failed: {str(e)}"}
+    return trail_scout(
+        latitude=latitude,
+        longitude=longitude,
+        rider=rider,
+        bike=bike,
+        mission=mission,
+        dest_latitude=dest_latitude,
+        dest_longitude=dest_longitude,
+        style=style,
+        include_gpx=include_gpx,
+        include_map=include_map,
+        include_poi = include_poi,
+        include_altimetry = include_altimetry,
+        include_weather = include_weather,
+        include_mud_analysis = include_mud_analysis,
+        include_nutrition_plan = include_nutrition_plan
+    )
+
 
 @mcp.tool()
 def check_trail_weather(lat: float, lon: float, target_date: Optional[str] = None) -> TacticalForecastResponse:

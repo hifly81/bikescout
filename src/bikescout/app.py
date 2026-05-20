@@ -644,22 +644,18 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     if len(setup_details_list) > 1 and isinstance(setup_details_list[1], str):
                         raw_text = setup_details_list[1]
 
-                        # 1. Estrazione dimensione ruote (es. 29)
                         wheel_match = re.search(r'(\d+)\s*wheels', raw_text)
                         if wheel_match:
                             tire_size = f"{wheel_match.group(1)}\""
 
-                        # 2. Estrazione PSI (es. 18.7)
                         psi_match = re.search(r'([\d.]+)\s*PSI', raw_text)
                         if psi_match:
                             pressure_psi = f"{psi_match.group(1)} PSI"
 
-                        # 3. Estrazione Bar (es. 1.29)
                         bar_match = re.search(r'\(([\d.]+)\s*Bar\)', raw_text)
                         if bar_match:
                             pressure_bar = f"{bar_match.group(1)} Bar"
 
-                        # 4. Estrazione Tipo Setup nelle parentesi quadre (es. Mud Flotation Setup)
                         type_match = re.search(r'\[(.*?)\]', raw_text)
                         if type_match:
                             setup_type = type_match.group(1)
@@ -677,6 +673,58 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
                     mech_col3.metric("Setup Strategy", setup_type)
                     mech_col3.caption("Terrain Optimization")
+
+
+            emtb_tactical = surface_analysis.get("emtb_tactical", {})
+            if emtb_tactical and emtb_tactical.get("status") == "Success":
+                with st.expander("⚡ eMTB Tactical Analytics", expanded=True):
+
+                    advice = emtb_tactical.get("tactical_advice", "No tactical advice available")
+                    st.info(f"**Tactical Advice:** {advice}")
+
+                    st.write("")
+
+                    st.markdown("#### 🔋 Battery Metrics")
+                    b_metrics = emtb_tactical.get("battery_metrics", {})
+
+                    bat_col1, bat_col2, bat_col3 = st.columns(3)
+
+                    with bat_col1:
+                        st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #29b6f6;'>", unsafe_allow_html=True)
+                        st.metric("Estimated Drain", f"{b_metrics.get('estimated_drain_wh', 0):.1f} Wh")
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                    with bat_col2:
+                        buffer_status = b_metrics.get('safety_buffer_status', 'SAFE')
+                        border_color = "#26a69a" if buffer_status == "SAFE" else "#ffa726"
+
+                        st.markdown(f"<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid {border_color};'>", unsafe_allow_html=True)
+                        st.metric("Remaining Battery", f"{b_metrics.get('remaining_battery_pct', 0):.1f} %", delta=f"Status: {buffer_status}")
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                    with bat_col3:
+                        st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #78909c;'>", unsafe_allow_html=True)
+                        st.metric("Usable Capacity", f"{b_metrics.get('usable_wh_at_temp', 0):.1f} Wh")
+                        st.markdown("<div style='font-size: 0.8rem; color: gray; margin-top: -5px;'>Adjusted for Temp</div>", unsafe_allow_html=True)
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+                    st.write("")
+
+                    st.markdown("#### 📈 Power Breakdown & Resistance")
+                    p_breakdown = emtb_tactical.get("power_breakdown_w", {})
+
+                    pow_col1, pow_col2 = st.columns(2)
+
+                    with pow_col1:
+                        st.markdown("**⚡ Generation & Input**")
+                        st.text(f"🚴 Rider Contribution: {p_breakdown.get('rider_contribution', 0)} W")
+                        st.text(f"🔌 Motor Net Output: {p_breakdown.get('motor_net_output', 0)} W")
+
+                    with pow_col2:
+                        st.markdown("**🛑 Resistance Forces**")
+                        st.text(f"🚜 Rolling Resistance: {p_breakdown.get('rolling_resistance', 0)} W")
+                        st.text(f"⛰️ Gravity Resistance: {p_breakdown.get('gravity_resistance', 0)} W")
+                        st.text(f"💨 Aerodynamic Drag: {p_breakdown.get('aerodynamic_drag', 0)} W")
 
 
         weather_data = None

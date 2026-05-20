@@ -179,7 +179,6 @@ class MudIntelligence(BaseModel):
     traction_risk: str = Field(..., description="Assessment of tire grip on the predicted surface")
     trail_damage_risk: str = Field(..., description="Risk of damaging the trail due to soft ground")
     dry_time_eta: str = Field(..., description="Estimated time until trail returns to dry conditions")
-    safety_advice: str = Field(..., description="Tactical advice for riding in current soil conditions")
 
 class MudTactical(BaseModel):
     surface_type: str = Field(..., description="Primary soil/surface type analyzed")

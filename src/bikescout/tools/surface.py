@@ -340,8 +340,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         "label": t_analysis.get("mud_risk_score", "Unknown"),
                         "traction_risk": t_analysis.get("traction_risk", {}).get("level", "Unknown"),
                         "trail_damage_risk": t_analysis.get("trail_damage_risk", {}).get("level", "Unknown"),
-                        "dry_time_eta": t_analysis.get("dry_time_eta", "N/A"),
-                        "safety_advice": t_analysis.get("safety_advice", "Check local conditions.")
+                        "dry_time_eta": t_analysis.get("dry_time_eta", "N/A")
                     }
                 },
                 "mechanical_setup": {

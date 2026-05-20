@@ -192,7 +192,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
               surface breakdown, and E-MTB analytics.
     """
 
-    # Parameter Normalization
     safe_complexity = max(3, min(int(getattr(mission, 'complexity', 10)), 30))
     safe_length = int(mission.total_length_km * 1000)
 
@@ -227,7 +226,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             res = requests.post(url, json=body, headers=headers, timeout=7)
 
             if res.status_code != 200:
-                # Capture the specific reason for failure
                 try:
                     detail = res.json().get('error', {}).get('message', res.text)
                 except:
@@ -245,7 +243,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             # Extras can contain 'surface', 'waytype', etc.
             extras = props.get('extras', {})
 
-            # Terrain Intelligence
             clean_ascent = _sanitize_elevation_profile(geometry, 7, 0.5)
 
             R = 6371000
@@ -300,15 +297,26 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
 
             is_emtb = "E-" in bike_type_str and battery_cap > 0
 
+            flat_surface_breakdown = {}
+            if isinstance(breakdown, list):
+                try:
+                    flat_surface_breakdown = {
+                        item["type"].capitalize(): int(item["percentage"].replace("%", "").strip())
+                        for item in breakdown
+                        if "type" in item and "percentage" in item
+                    }
+                except (ValueError, KeyError, AttributeError):
+                    flat_surface_breakdown = {}
+
             if is_emtb:
                 try:
                     emtb_analysis = calculate_battery_drain(
                         battery_wh=battery_cap,
                         assist_level=getattr(mission, 'assist_mode', "Trail"),
-                        weight_kg=float(getattr(rider, 'weight_kg', 80)) + 24, # 24kg is avg E-bike weight
+                        weight_kg=float(getattr(rider, 'weight_kg', 80)) + 24,
                         ascent_m=clean_ascent,
                         distance_km=real_dist_m / 1000,
-                        surface_breakdown=breakdown,
+                        surface_breakdown=flat_surface_breakdown,
                         mud_index=mud_score_val
                     )
                 except Exception:

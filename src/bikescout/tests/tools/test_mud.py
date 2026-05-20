@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
+import zoneinfo
 from datetime import datetime, timedelta, timezone
 from bikescout.tools.mud import get_mud_risk_analysis, _get_seasonal_saturation_bias
 
@@ -30,7 +31,26 @@ class TestMud:
 
     @patch("requests.get")
     def test_clay_saturation_penalty(self, mock_get, mock_weather_response):
-        mock_weather_response["hourly"]["precipitation"] = [10.0] * 73
+        local_tz = zoneinfo.ZoneInfo("Europe/Rome")
+        end_date = datetime.now(local_tz)
+        start_date = end_date - timedelta(hours=72)
+
+        mock_times = []
+        current = start_date
+        while current <= end_date:
+            mock_times.append(current.strftime("%Y-%m-%dT%H:%M:%S"))
+            current += timedelta(hours=1)
+
+        total_hours = len(mock_times)
+
+        mock_weather_response["hourly"] = {
+            "time": mock_times,
+            "precipitation": [10.0] * total_hours,
+            "temperature_2m": [5.0] * total_hours,
+            "wind_speed_10m": [0.0] * total_hours,
+            "cloudcover": [100.0] * total_hours
+        }
+
         mock_get.return_value.json.return_value = mock_weather_response
         mock_get.return_value.status_code = 200
 
@@ -39,9 +59,28 @@ class TestMud:
         assert result["tactical_analysis"]["mud_risk_score"] == "Extreme"
         assert "DO NOT RIDE" in result["tactical_analysis"]["trail_damage_risk"]["advice"]
 
+
     @patch("requests.get")
     def test_dry_time_eta_projection(self, mock_get, mock_weather_response):
-        mock_weather_response["hourly"]["precipitation"][-10:] = [5.0] * 10
+        local_tz = zoneinfo.ZoneInfo("Europe/Rome")
+        end_date = datetime.now(local_tz)
+        start_date = end_date - timedelta(hours=72)
+
+        mock_times = []
+        current = start_date - timedelta(hours=2)
+        while current <= end_date + timedelta(hours=2):
+            mock_times.append(current.strftime("%Y-%m-%dT%H:%M:%S"))
+            current += timedelta(hours=1)
+
+        total_hours = len(mock_times)
+
+        mock_weather_response["hourly"] = {
+            "time": mock_times,
+            "precipitation": [5.0] * total_hours,
+            "temperature_2m": [10.0] * total_hours,
+            "wind_speed_10m": [2.0] * total_hours,
+            "cloudcover": [100.0] * total_hours
+        }
 
         mock_get.return_value.json.return_value = mock_weather_response
         mock_get.return_value.status_code = 200

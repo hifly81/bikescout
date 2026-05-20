@@ -56,21 +56,20 @@ def calculate_ride_windows(
     Integrates astral-based visibility and thermal stress scoring.
     """
     try:
-        # 1. TEMPORAL & SOLAR SETUP (Astral Precision)
         t_date = date.fromisoformat(target_date) if target_date else date.today()
         sunrise_h, sunset_h = get_solar_visibility(lat, lon, t_date)
 
         START_ALLOWED = sunrise_h
         END_ALLOWED = sunset_h
 
-        # 2. DATA ACQUISITION
         weather_data = get_weather_forecast(lat, lon, target_date)
         mud_risk_data = get_mud_risk_analysis(lat, lon, surface_type)
 
         raw_forecasts = weather_data.get("tactical_forecast", [])
-        current_mud_score = mud_risk_data.get("mud_risk_score", 0)
+        t_analysis = mud_risk_data.get("tactical_analysis") or {}
+        raw_mud = t_analysis.get("mud_risk_numeric")
+        current_mud_score = float(raw_mud) if raw_mud is not None else 0.0
 
-        # 3. DATA NORMALIZATION
         normalized_forecasts = []
         for h in raw_forecasts:
             try:
@@ -85,7 +84,6 @@ def calculate_ride_windows(
             except Exception:
                 continue
 
-        # 4. SLIDING WINDOW ENGINE
         duration_int = int(max(1, ride_duration_hours))
         best_slot = None
         highest_score = -500.0
@@ -134,7 +132,6 @@ def calculate_ride_windows(
                     }
                 }
 
-        # 5. VERDICT & RESPONSE
         if not best_slot:
             return {
                 "status": "Success",

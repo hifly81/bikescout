@@ -17,6 +17,7 @@
 import requests
 import numpy as np
 import math
+import sys
 from datetime import datetime, date
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.bike_setup import analyze_compatibility
@@ -103,49 +104,6 @@ def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
 
     return category, display_gradient
 
-def _analyze_technical_difficulty(extras: dict, fitness_level: str = "intermediate"):
-    """
-    Parses OSM tags for technical grading and cross-references with rider fitness.
-    """
-    # MTB Scale (Singletrail-Skala S0-S5)
-    mtb_summary = extras.get('mtb_scale', {}).get('summary', [])
-    mtb_val = str(mtb_summary[0].get('value', 'N/A')) if mtb_summary else 'N/A'
-
-    scale_info = {
-        "0": "S0: Smooth, paved/firm trails without obstacles.",
-        "1": "S1: Small roots/stones, easy technical sections.",
-        "2": "S2: Loose soil, larger roots/stones, steps required.",
-        "3": "S3: Technical rock gardens, high steps, hairpins.",
-        "4": "S4: Extreme steepness, tight switchbacks, trial skills.",
-        "5": "S5: Near-vertical terrain, maximum difficulty."
-    }
-
-    # Trail Visibility
-    vis_summary = extras.get('trail_visibility', {}).get('summary', [])
-    vis_val = str(vis_summary[0].get('value', '1')) if vis_summary else '1'
-    vis_map = {"1": "Excellent", "2": "Good", "3": "Poor", "4": "Invisible/Requires GPS"}
-
-    # Fitness-Based Technical Advice
-    tech_note = "Technical grading based on OSM mountain standards."
-
-    try:
-        level_int = int(mtb_val)
-        if fitness_level == "beginner" and level_int >= 2:
-            tech_note = "FITNESS ALERT: This trail requires technical maneuvers (S2+) that might be exhausting for a beginner."
-        elif fitness_level == "pro" and level_int >= 3:
-            tech_note = "PRO ADVICE: High technicality (S3+) detected. Ideal for testing suspension and technical handling."
-        elif fitness_level == "beginner" and level_int <= 1:
-            tech_note = "Confidence Builder: Technical level is well-suited for your fitness and skill profile."
-    except ValueError:
-        pass # mtb_val is N/A or non-numeric
-
-    return {
-        "mtb_scale": scale_info.get(mtb_val, "Standard / Unclassified"),
-        "trail_visibility": vis_map.get(vis_val, "Standard"),
-        "technical_notes": tech_note,
-        "fitness_context": f"Evaluated for {fitness_level} level"
-    }
-
 def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
     """
     Analyzes route surfaces and tactical risks by integrating OpenRouteService geometry
@@ -178,10 +136,8 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
     if requested_profile == "cycling-electric":
         requested_profile = "cycling-mountain"
 
-    #FIXME not contains required mtb, trail extras in return
     if requested_profile == "cycling-mountain":
         attempts = [
-            ("cycling-mountain", ["surface", "waytype", "mtb_scale", "trail_visibility"]),
             ("cycling-mountain", ["surface", "waytype"]),
             ("cycling-regular", ["surface"])
         ]
@@ -195,7 +151,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             ("cycling-regular", ["surface", "waytype"]),
             ("cycling-regular", ["surface"])
         ]
-
 
     last_error = ""
     for current_profile, requested_extras in attempts:
@@ -218,7 +173,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             if avoid_features:
                 surface_options["avoid_features"] = avoid_features
 
-            # ORS Request Body
             body = {
                 "coordinates": [[lon, lat]],
                 "elevation": True,
@@ -276,10 +230,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface, target_date)
             t_analysis = mud_analysis.get("tactical_analysis") or {}
 
-            # Tech difficulty
-            tech_difficulty = _analyze_technical_difficulty(extras, rider.fitness_level)
-
-            # Force numeric float
             raw_mud = t_analysis.get("mud_risk_numeric")
             mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
 
@@ -335,8 +285,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                 except Exception:
                     emtb_analysis = {"error": "Battery calculation failed"}
 
-            tech_data = tech_difficulty if isinstance(tech_difficulty, dict) else {}
-
             return {
                 "status": "Success",
                 "profile_used": current_profile,
@@ -356,12 +304,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         "traction_risk": t_analysis.get("traction_risk", {}).get("level", "Unknown"),
                         "trail_damage_risk": t_analysis.get("trail_damage_risk", {}).get("level", "Unknown"),
                         "dry_time_eta": t_analysis.get("dry_time_eta", "N/A")
-                    },
-                    "technical_difficulty": {
-                        "mtb_scale": tech_data.get("mtb_scale", "Standard / Unclassified"),
-                        "trail_visibility": tech_data.get("trail_visibility", "Standard"),
-                        "technical_notes": tech_data.get("technical_notes", "No technical notes available."),
-                        "fitness_context": tech_data.get("fitness_context", f"Evaluated for {getattr(rider, 'fitness_level', 'unknown')} level")
                     }
                 },
                 "mechanical_setup": {
@@ -373,7 +315,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                 "emtb_tactical": emtb_analysis,
                 "safety_warnings": warnings
             }
-
 
         except Exception as e:
             last_error = f"Local processing error: {str(e)}"

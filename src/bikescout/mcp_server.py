@@ -16,7 +16,6 @@
 
 import os
 import sys
-import json
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from pathlib import Path
@@ -37,12 +36,6 @@ load_dotenv()
 
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 ORS_API_KEY = os.getenv("ORS_API_KEY")
-
-if not ORS_API_KEY:
-    print("Error: ORS_API_KEY is not set.", file=sys.stderr)
-    print("Please set the ORS_API_KEY environment variable or add it to your .env file.", file=sys.stderr)
-    print("You can get a free key at https://openrouteservice.org/", file=sys.stderr)
-    sys.exit(1)
 
 
 @mcp.tool()
@@ -129,6 +122,15 @@ def trail_scout(
           altimetry report (PNG) in the requested 'style'.
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
     """
+
+    if not ORS_API_KEY:
+        print("Error: ORS_API_KEY is not set.", file=sys.stderr)
+        print("Please set the ORS_API_KEY environment variable or add it to your .env file.", file=sys.stderr)
+        print("You can get a free key at https://openrouteservice.org/", file=sys.stderr)
+        return FullMissionBriefingResponse(
+            payload_version=BIKESCOUT_PROTOCOL_VERSION,
+            status="error"
+        )
 
     data = get_complete_trail_scout(
         ORS_API_KEY, latitude, longitude, rider, bike, mission, dest_latitude, dest_longitude,

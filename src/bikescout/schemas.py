@@ -323,13 +323,6 @@ class RouteSurface(BaseModel):
     safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
 
 
-class TechDifficulty(BaseModel):
-    mtb_scale: str = Field(...,description="The international singletrack difficulty rating (e.g., S0-S5 scale or Unclassified).")
-    trail_visibility: str = Field(...,description="The visual clarity, signage quality, or blazening status of the trail path.")
-    technical_notes: str = Field(...,description="Specific contextual hazards, terrain descriptions, or tactical riding advice.")
-    fitness_context: str = Field(...,description="The context under which this technical assessment was evaluated against the rider's stamina.")
-
-
 ### RESPONSE
 
 class GeocodingResponse(BaseModel):
@@ -373,7 +366,6 @@ class RouteInfo(BaseModel):
     ascent_m: int = Field(..., description="The total vertical elevation gain in meters.")
     difficulty: str = Field(..., description="The overall challenge rating based on gradient, surface, and distance.")
     surface_analysis: Union[RouteSurface, None] = Field(None, description="A detailed breakdown of surface compositions and traction indices.")
-    technical_difficulty: Union[TechDifficulty, None] = Field(None, description="Technical difficulty assessment based on international trail rating scales (MTB Singletrack Scale), visibility markers, and contextual physical demands calibrated to the rider's fitness profile.")
 
 class FullMissionBriefingResponse(BaseModel):
     """Response schema for trail scout: Tactical, Environmental, and Logistical."""

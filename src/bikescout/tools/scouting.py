@@ -299,7 +299,20 @@ def get_complete_trail_scout(
             t_brief = surface_report.get("tactical_briefing", {})
             dist_km = t_brief.get("distance_km")
             ascent_m = t_brief.get("elevation_gain_m")
-            dominant_surface = surface_report.get("mechanical_setup", {}).get("surface_detected", "Unknown")
+            surface_analysis = surface_report.get("info", {}).get("surface_analysis", {})
+            breakdown = surface_analysis.get("surface_breakdown", [])
+
+            dominant_surface = "Unknown"
+
+            if breakdown:
+                try:
+                    dominant_item = max(
+                        breakdown,
+                        key=lambda x: float(x.get("percentage", "0%").replace("%", "").strip())
+                    )
+                    dominant_surface = dominant_item.get("type", "Unknown")
+                except (ValueError, KeyError, TypeError):
+                    dominant_surface = "Unknown"
 
             response_payload["info"]["distance_km"] = dist_km
             response_payload["info"]["ascent_m"] = ascent_m

@@ -489,6 +489,17 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 elif "enduro" in raw_bike or "downhill" in raw_bike: final_bike = "enduro"
                 else: final_bike = "mtb"
 
+                # TODO
+                # mapping missing for:
+                #         battery_wh: int = 625,
+                #         profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = "cycling-mountain",
+                #         surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
+                #         complexity: int = 3,
+                #         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
+                #         dest_latitude: Optional[float] = None,
+                #         dest_longitude: Optional[float] = None,
+                #         style: Literal["sparkline", "filled", "bars"] = "filled",
+
                 valid_args = {
                     "latitude": float(args.get("latitude")),
                     "longitude": float(args.get("longitude")),

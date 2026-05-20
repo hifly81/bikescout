@@ -22,7 +22,6 @@ import os
 import traceback
 import numpy as np
 import uuid
-import random
 import matplotlib.pyplot as plt
 from fpdf import FPDF
 from typing import List, Dict, Any, Optional, Literal
@@ -100,7 +99,19 @@ def analyze_track(
             ref_wind_dir = ref_cond.get("wind_dir_degrees", ref_wind_dir)
 
         # 4. Environmental and Tactical Assessment
-        intensity_score = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
+        raw_intensity = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
+
+        if raw_intensity <= 20:
+            intensity_score = 1    # Z1 / Active Recovery
+        elif raw_intensity <= 45:
+            intensity_score = 2    # Z2 / Endurance
+        elif raw_intensity <= 65:
+            intensity_score = 3    # Z3 / Tempo
+        elif raw_intensity <= 85:
+            intensity_score = 4    # Z4 / Threshold
+        else:
+            intensity_score = 5    # Z5 / VO2 Max - Race Day
+
         duration_hours,_ = _estimate_ride_duration(distance_km, total_ascent, rider_fitness_level, activity_type)
 
         tactical_alerts = []

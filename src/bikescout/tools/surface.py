@@ -107,7 +107,7 @@ def _analyze_technical_difficulty(extras: dict, fitness_level: str = "intermedia
     """
     Parses OSM tags for technical grading and cross-references with rider fitness.
     """
-    # 1. MTB Scale (Singletrail-Skala S0-S5)
+    # MTB Scale (Singletrail-Skala S0-S5)
     mtb_summary = extras.get('mtb_scale', {}).get('summary', [])
     mtb_val = str(mtb_summary[0].get('value', 'N/A')) if mtb_summary else 'N/A'
 
@@ -120,12 +120,12 @@ def _analyze_technical_difficulty(extras: dict, fitness_level: str = "intermedia
         "5": "S5: Near-vertical terrain, maximum difficulty."
     }
 
-    # 2. Trail Visibility
+    # Trail Visibility
     vis_summary = extras.get('trail_visibility', {}).get('summary', [])
     vis_val = str(vis_summary[0].get('value', '1')) if vis_summary else '1'
     vis_map = {"1": "Excellent", "2": "Good", "3": "Poor", "4": "Invisible/Requires GPS"}
 
-    # 3. Fitness-Based Technical Advice
+    # Fitness-Based Technical Advice
     tech_note = "Technical grading based on OSM mountain standards."
 
     try:
@@ -145,26 +145,6 @@ def _analyze_technical_difficulty(extras: dict, fitness_level: str = "intermedia
         "technical_notes": tech_note,
         "fitness_context": f"Evaluated for {fitness_level} level"
     }
-
-def _build_ors_options(surface_preference):
-    """
-    Translates user surface preferences into ORS API options.
-    """
-    options = {}
-    avoid_features = []
-
-    if surface_preference == "avoid_unpaved":
-        avoid_features.append("unpaved")
-
-    if surface_preference == "prefer_paved":
-        options["avoid_polygons"] = {}
-        if "unpaved" not in avoid_features:
-            avoid_features.append("unpaved")
-
-    if avoid_features:
-        options["avoid_features"] = avoid_features
-
-    return options
 
 def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
     """
@@ -194,12 +174,28 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
     safe_complexity = max(3, min(int(getattr(mission, 'complexity', 10)), 30))
     safe_length = int(mission.total_length_km * 1000)
 
-    # fallback system
-    attempts = [
-        (mission.profile, ["surface", "waytype"]),
-        (mission.profile, ["surface"]),
-        ("cycling-regular", ["surface"])
-    ]
+    requested_profile = mission.profile
+    if requested_profile == "cycling-electric":
+        requested_profile = "cycling-mountain"
+
+    #FIXME not contains required mtb, trail extras in return
+    if requested_profile == "cycling-mountain":
+        attempts = [
+            ("cycling-mountain", ["surface", "waytype", "mtb_scale", "trail_visibility"]),
+            ("cycling-mountain", ["surface", "waytype"]),
+            ("cycling-regular", ["surface"])
+        ]
+    elif requested_profile == "cycling-road":
+        attempts = [
+            ("cycling-road", ["surface", "waytype"]),
+            ("cycling-regular", ["surface"])
+        ]
+    else:
+        attempts = [
+            ("cycling-regular", ["surface", "waytype"]),
+            ("cycling-regular", ["surface"])
+        ]
+
 
     last_error = ""
     for current_profile, requested_extras in attempts:
@@ -207,6 +203,20 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
 
             url = f"https://api.openrouteservice.org/v2/directions/{current_profile}/geojson"
             headers = {'Authorization': api_key, 'Content-Type': 'application/json'}
+
+            surface_options = {}
+            avoid_features = []
+
+            if mission.surface_preference == "avoid_unpaved":
+                avoid_features.append("unpaved")
+
+            if mission.surface_preference == "prefer_paved":
+                surface_options["avoid_polygons"] = {}
+                if "unpaved" not in avoid_features:
+                    avoid_features.append("unpaved")
+
+            if avoid_features:
+                surface_options["avoid_features"] = avoid_features
 
             # ORS Request Body
             body = {
@@ -218,7 +228,8 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         "length": safe_length,
                         "points": safe_complexity,
                         "seed": int(getattr(mission, 'seed', 42))
-                    }
+                    },
+                    **surface_options
                 }
             }
 
@@ -264,6 +275,9 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             # Mud Analysis
             mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface, target_date)
             t_analysis = mud_analysis.get("tactical_analysis") or {}
+
+            # Tech difficulty
+            tech_difficulty = _analyze_technical_difficulty(extras, rider.fitness_level)
 
             # Force numeric float
             raw_mud = t_analysis.get("mud_risk_numeric")
@@ -321,6 +335,8 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                 except Exception:
                     emtb_analysis = {"error": "Battery calculation failed"}
 
+            tech_data = tech_difficulty if isinstance(tech_difficulty, dict) else {}
+
             return {
                 "status": "Success",
                 "profile_used": current_profile,
@@ -340,6 +356,12 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         "traction_risk": t_analysis.get("traction_risk", {}).get("level", "Unknown"),
                         "trail_damage_risk": t_analysis.get("trail_damage_risk", {}).get("level", "Unknown"),
                         "dry_time_eta": t_analysis.get("dry_time_eta", "N/A")
+                    },
+                    "technical_difficulty": {
+                        "mtb_scale": tech_data.get("mtb_scale", "Standard / Unclassified"),
+                        "trail_visibility": tech_data.get("trail_visibility", "Standard"),
+                        "technical_notes": tech_data.get("technical_notes", "No technical notes available."),
+                        "fitness_context": tech_data.get("fitness_context", f"Evaluated for {getattr(rider, 'fitness_level', 'unknown')} level")
                     }
                 },
                 "mechanical_setup": {

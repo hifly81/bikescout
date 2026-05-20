@@ -663,6 +663,47 @@
                     </table>
                 </div>
 
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TechDifficulty</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td><code>mtb_scale</code></td>
+                            <td><code>string</code></td>
+                            <td>-</td>
+                            <td>The international singletrack difficulty rating (e.g., S0-S5 scale or Unclassified).</td>
+                        </tr>
+                        <tr>
+                            <td><code>trail_visibility</code></td>
+                            <td><code>string</code></td>
+                            <td>-</td>
+                            <td>The visual clarity, signage quality, or blazening status of the trail path.</td>
+                        </tr>
+                        <tr>
+                            <td><code>technical_notes</code></td>
+                            <td><code>string</code></td>
+                            <td>-</td>
+                            <td>Specific contextual hazards, terrain descriptions, or tactical riding advice.</td>
+                        </tr>
+                        <tr>
+                            <td><code>fitness_context</code></td>
+                            <td><code>string</code></td>
+                            <td>-</td>
+                            <td>The context under which this technical assessment was evaluated against the rider's stamina.</td>
+                        </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+
                 <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">MissionConditions</h4>
                 <div class="overflow-x-auto mb-6">
                     <table>
@@ -841,6 +882,28 @@
                         <tr><td><code>grade</code></td><td><code>float</code></td><td>-</td><td>Local extreme gradient (steepest ramp) within the zone.</td></tr>
                         <tr><td><code>type</code></td><td><code>string</code></td><td>-</td><td>Classification (e.g., 'Explosive Wall', 'Technical Descent', 'Cobbled Sector').</td></tr>
                         <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>Combined technical and physical difficulty assessment.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">RouteInfo</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>route_type</code></td><td><code>string</code></td><td>-</td><td>The specific cycling activity profile (e.g., 'cycling-road', 'cycling-mountain').</td></tr>
+                            <tr><td><code>distance_km</code></td><td><code>float</code></td><td>-</td><td>The total length of the route measured in kilometers.</td></tr>
+                            <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>The total vertical elevation gain in meters.</td></tr>
+                            <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>The overall challenge rating based on gradient, surface, and distance.</td></tr>
+                            <tr><td><code>surface_analysis</code></td><td><code>RouteSurface</code></td><td>-</td><td>A detailed breakdown of surface compositions and traction indices.</td></tr>
+                            <tr><td><code>technical_difficulty</code></td><td><code>TechDifficulty</code></td><td>-</td><td>Technical difficulty assessment based on international trail rating scales (MTB Singletrack Scale), visibility markers, and contextual physical demands calibrated to the rider's fitness profile.</td></tr>
                         </tbody>
                     </table>
                 </div>

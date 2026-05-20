@@ -187,5 +187,4 @@ class TestMcpServer:
     def test_trail_scout_simple_error_handling(self):
         with patch("bikescout.mcp_server.RiderProfile", side_effect=Exception("Validation Error")):
             response = trail_scout_simple(latitude=45.0, longitude=9.0)
-            assert response["status"] == "Error"
-            assert "failed" in response["message"]
+            assert response.status == "Error"

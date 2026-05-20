@@ -289,6 +289,7 @@ def get_complete_trail_scout(
         if surface_report.get("status") == "Success":
             t_brief = surface_report.get("tactical_briefing", {})
             dist_km = t_brief.get("distance_km")
+            #FIXME method can return m/km
             ascent_m = t_brief.get("elevation_gain_m")
             surface_analysis = surface_report.get("info", {}).get("surface_analysis", {})
             breakdown = surface_analysis.get("surface_breakdown", [])

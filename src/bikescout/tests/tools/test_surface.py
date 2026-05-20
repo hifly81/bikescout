@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from bikescout.tools.surface import _build_ors_options, _categorize_climb, _analyze_technical_difficulty, get_surface_analyzer, _sanitize_elevation_profile, _categorize_climb
+from bikescout.tools.surface import _categorize_climb, _analyze_technical_difficulty, get_surface_analyzer, _sanitize_elevation_profile, _categorize_climb
 
 class MockObj:
     def __init__(self, **kwargs):
@@ -61,9 +61,10 @@ class TestSurfaceTactics:
 
         rider = MockObj(weight_kg=80.0, fitness_level="intermediate")
         bike = MockObj(bike_type="Road", tire_size="700c", battery_wh=0, tire_width_mm=28)
-        mission = MockObj(total_length_km=5.0, profile="cycling-road", complexity=10, seed=42)
+        mission = MockObj(total_length_km=5.0, profile="cycling-road", complexity=10, seed=42, surface_preference="neutral")
 
         result = get_surface_analyzer("key", 45.0, 9.0, rider, bike, mission)
+
 
         assert result["status"] == "Success"
         assert result["surface_breakdown"]["Asphalt"] == 100.0
@@ -87,13 +88,6 @@ class TestSurfaceTactics:
         extras_s2 = {'mtb_scale': {'summary': [{'value': '2'}]}}
         res_beg = _analyze_technical_difficulty(extras_s2, fitness_level="beginner")
         assert "FITNESS ALERT" in res_beg["technical_notes"]
-
-    def test_ors_options_builder(self):
-        opt_paved = _build_ors_options("prefer_paved")
-        assert "unpaved" in opt_paved["avoid_features"]
-
-        opt_none = _build_ors_options("any")
-        assert "avoid_features" not in opt_none
 
     @patch("bikescout.tools.surface.requests.post")
     def test_surface_analyzer_fallback_mechanism(self, mock_post):

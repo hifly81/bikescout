@@ -71,7 +71,6 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
     - Automatic cleanup of files older than 14 days.
     """
     try:
-        # 1. STORAGE CONFIGURATION & AUTO-CLEANUP
         home_dir = Path.home() / ".bikescout" / "gpx"
         home_dir.mkdir(parents=True, exist_ok=True)
 
@@ -84,7 +83,6 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
                 except:
                     pass
 
-        # 2. ROBUST DATA EXTRACTION
         if hasattr(geojson_data, 'coordinates'):
             coords = geojson_data.coordinates
         elif isinstance(geojson_data, dict) and 'features' in geojson_data:
@@ -93,7 +91,7 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
         else:
             coords = geojson_data
 
-        # 3. ELEVATION HEALING LAYER
+        # ELEVATION HEALING LAYER
         healed_coords = []
         points_fixed_count = 0
         for i in range(len(coords)):
@@ -109,13 +107,12 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
 
         coords = healed_coords
 
-        # 4. OPTIMIZATION: POINT DECIMATION
+        # OPTIMIZATION: POINT DECIMATION
         # Targets max 1500 points to ensure compatibility with devices like Garmin/Wahoo
         MAX_TRACK_POINTS = 1500
         step = max(1, len(coords) // MAX_TRACK_POINTS)
         optimized_coords = coords[::step]
 
-        # 5. XML HEADER CONSTRUCTION
         gpx_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         gpx_xml += '<gpx version="1.1" creator="BikeScout" xmlns="http://www.topografix.com/GPX/1/1">\n'
 
@@ -289,7 +286,7 @@ def get_complete_trail_scout(
         if surface_report.get("status") == "Success":
             t_brief = surface_report.get("tactical_briefing", {})
             dist_km = t_brief.get("distance_km")
-            #FIXME method can return m/km
+            # FIXME ORS not have a stable return value for elevation, can return metres or km
             ascent_m = t_brief.get("elevation_gain_m")
             surface_analysis = surface_report.get("info", {}).get("surface_analysis", {})
             breakdown = surface_analysis.get("surface_breakdown", [])

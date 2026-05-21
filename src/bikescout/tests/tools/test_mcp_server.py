@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch, MagicMock
 from bikescout.mcp_server import geocode_location, trail_scout_simple, hydration_scout, analyze_gpx_track
 
@@ -21,8 +22,10 @@ class TestMcpServer:
         assert response.status == "Success"
         assert response.lat == 46.54
 
+
     @patch("bikescout.mcp_server.get_complete_trail_scout")
     def test_trail_scout_simple(self, m_scout):
+
         m_scout.return_value = {
             "status": "Success",
             "info": {

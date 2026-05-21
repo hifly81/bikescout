@@ -21,7 +21,6 @@ def analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_ma
     """
     bike_type = bike_type.lower()
 
-    # 1. Aggregation Phase
     temp_map = {}
     if 'surface' in extras:
         for item in extras['surface']['summary']:
@@ -36,11 +35,9 @@ def analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_ma
     warnings = []
     is_compatible = True
 
-    # 2. Analysis Phase (on aggregated data)
     for name, percentage in temp_map.items():
         percentage = round(percentage, 1)
 
-        # --- 1. Physics-Based Safety Thresholds (Tire Width) ---
         if name in ["Gravel", "Unpaved"]:
             if tire_mm < 28 and percentage > 10.0:
                 is_compatible = False
@@ -52,12 +49,10 @@ def analyze_compatibility(bike_type: str, tire_mm: int, extras: dict, surface_ma
             if tire_mm < 32:
                 warnings.append(f"Safety Alert: Loose stones ({name}) detected. {tire_mm}mm is below recommended safety margin.")
 
-        # --- 2. Traction & Comfort Alerts ---
         elif name in ["Grass", "Muddy", "Earth"]:
             if tire_mm < 42:
                 warnings.append(f"Traction Alert: {percentage}% is {name}. {tire_mm}mm tires may slip in wet/loose conditions.")
 
-        # --- 3. Geometry vs. Rubber (Frame-specific logic) ---
         if bike_type == "road":
             if name in ["Gravel", "Unpaved", "Pebbles", "Grass", "Unmapped/Mixed"] and percentage > 15.0:
                 warnings.append(f"Geometry Warning: {percentage}% {name} exceeds standard road bike handling design.")
@@ -77,7 +72,6 @@ def get_tire_setup(bike_type: str, tire_size_option: str, mud_index: float = 0.0
     """
     bike_type = bike_type.lower()
 
-    # 1. Base Configuration Mapping
     # (Base_PSI_at_85kg, Width_mm, Default_Wheel_Label)
     configs = {
         "mtb": (24.0, 58, "29\""),
@@ -90,17 +84,16 @@ def get_tire_setup(bike_type: str, tire_size_option: str, mud_index: float = 0.0
     # Default to road if type is unknown
     base_psi, width_mm, wheel_label = configs.get(bike_type, configs["road"])
 
-    # 2. Wheel Label Normalization (Legacy support for tire_size_option)
+    # Wheel Label Normalization (Legacy support for tire_size_option)
     if bike_type in ["mtb", "e-mtb", "enduro"]:
         wheel_label = "29\"" if tire_size_option in ["700c", "650b", "25", "28"] else tire_size_option
     elif bike_type == "gravel":
         wheel_label = tire_size_option if tire_size_option in ["700c", "650b"] else "700c"
 
-    # 3. Rider Weight Normalization (Heuristic: +/- 1 PSI per 5kg deviation)
+    # Rider Weight Normalization (Heuristic: +/- 1 PSI per 5kg deviation)
     weight_adjustment = (rider_weight_kg - 85.0) / 5.0
     adjusted_psi = base_psi + weight_adjustment
 
-    # 4. Tactical Strategy Logic
     strategy = "Standard"
 
     # Mud Strategy: Lower pressure for flotation and traction
@@ -116,11 +109,10 @@ def get_tire_setup(bike_type: str, tire_size_option: str, mud_index: float = 0.0
         adjusted_psi += 3.0
         strategy = "Efficiency"
 
-    # 5. Unit Conversion
     final_psi = round(adjusted_psi, 1)
     final_bar = round(final_psi * 0.0689476, 2)
 
-    # 6. Tactical Display String
+    #FIXME define a result json structure
     tactical_display = (
         f"{wheel_label} wheels | {final_psi} PSI ({final_bar} Bar) "
         f"[{strategy} Setup]"

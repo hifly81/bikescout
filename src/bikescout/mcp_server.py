@@ -29,14 +29,12 @@ from bikescout.tools.altimetry import get_elevation_profile_image
 from bikescout.tools.nutrition import get_nutrition_plan
 from bikescout.tools.race.analysis import analyze_track
 
-
 mcp = FastMCP("BikeScout")
 
 load_dotenv()
 
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 ORS_API_KEY = os.getenv("ORS_API_KEY")
-
 
 @mcp.tool()
 def geocode_location(location_name: str, language: str = "en") -> GeocodingResponse:
@@ -497,7 +495,7 @@ def main():
     Supports both 'stdio' for local clients
     and 'sse' for remote deployments/web interfaces.
     """
-    # Use environment variable to choose the transport, defaulting to stdio
+
     transport_mode = os.getenv("BIKESCOUT_TRANSPORT", "stdio").lower()
 
     if transport_mode == "sse":

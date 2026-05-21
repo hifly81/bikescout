@@ -104,6 +104,15 @@ def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
 
     return category, display_gradient
 
+def _extract_dominant_surface(surface_extra, surface_map):
+    """Helper to find the surface with the highest distance in the route."""
+    if not surface_extra or 'summary' not in surface_extra:
+        return "Unknown"
+
+    # Find the value with the maximum distance
+    dominant_val = max(surface_extra['summary'], key=lambda x: x['distance'])['value']
+    return surface_map.get(dominant_val, "Unknown")
+
 def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
     """
     Analyzes route surfaces and tactical risks by integrating OpenRouteService geometry
@@ -321,12 +330,3 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             continue
 
     return {"status": "Error", "message": f"Global failure: {last_error}"}
-
-def _extract_dominant_surface(surface_extra, surface_map):
-    """Helper to find the surface with the highest distance in the route."""
-    if not surface_extra or 'summary' not in surface_extra:
-        return "Unknown"
-
-    # Find the value with the maximum distance
-    dominant_val = max(surface_extra['summary'], key=lambda x: x['distance'])['value']
-    return surface_map.get(dominant_val, "Unknown")

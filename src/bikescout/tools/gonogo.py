@@ -98,7 +98,7 @@ def calculate_ride_windows(
             max_wind = max(h["wind_speed"] for h in window)
             avg_temp = sum(h["temp"] for h in window) / duration_int
 
-            # SCORING LOGIC (Tactical Intelligence)
+            # SCORING LOGIC
             current_score = 100.0
 
             if avg_rain > 30: current_score -= (avg_rain - 30) * 3

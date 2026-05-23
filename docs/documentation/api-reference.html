@@ -447,6 +447,12 @@
                             <td>-</td>
                             <td>The specific category of bicycle analyzed (e.g., 'mtb', 'road', 'gravel').</td>
                         </tr>
+                        <tr>
+                            <td><code>safety_warnings</code></td>
+                            <td><code>list[string]</code></td>
+                            <td>-</td>
+                            <td>Critical alerts regarding technical difficulty or environmental hazards.</td>
+                        </tr>
                         </tbody>
                     </table>
                 </div>
@@ -652,12 +658,6 @@
                             <td><code>EmtbTactical</code></td>
                             <td><code>null</code></td>
                             <td>Optional battery and power physics metrics for E-MTB profiles.</td>
-                        </tr>
-                        <tr>
-                            <td><code>safety_warnings</code></td>
-                            <td><code>list[string]</code></td>
-                            <td>-</td>
-                            <td>Critical alerts regarding technical difficulty or environmental hazards.</td>
                         </tr>
                         </tbody>
                     </table>
@@ -1042,12 +1042,6 @@
                             <td><code>EmtbTactical</code></td>
                             <td><code>null</code></td>
                             <td>Optional power and battery metrics; only populated if <code>is_ebike</code> is true.</td>
-                        </tr>
-                        <tr>
-                            <td><code>safety_warnings</code></td>
-                            <td><code>list[string]</code></td>
-                            <td>-</td>
-                            <td>List of critical alerts regarding hazardous segments, technical risks, or weather impact.</td>
                         </tr>
                         </tbody>
                     </table>

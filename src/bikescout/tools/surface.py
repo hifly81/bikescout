@@ -336,11 +336,11 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                 "mechanical_setup": {
                     "compatible": compatible,
                     "setup_details": tire_display,
-                    "bike_type": bike.bike_type
+                    "bike_type": bike.bike_type,
+                    "safety_warnings": warnings
                 },
                 "surface_breakdown": breakdown,
                 "emtb_tactical": emtb_analysis,
-                "safety_warnings": warnings
             }
 
         except Exception as e:

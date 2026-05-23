@@ -685,6 +685,16 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     mech_col3.metric("Setup Strategy", setup_type)
                     mech_col3.caption("Terrain Optimization")
 
+                    if not mechanical.get("compatible"):
+                        st.error("⚠️ **Compatibility Warning:** This setup may not be suitable for the selected route.")
+
+                    warnings = mechanical.get("safety_warnings", [])
+                    if warnings:
+                        st.divider()
+                        st.markdown("**Critical Technical Alerts:**")
+                        for warning in warnings:
+                            st.write(f"- 🚩 {warning}")
+
 
             emtb_tactical = surface_analysis.get("emtb_tactical", {})
             if emtb_tactical and emtb_tactical.get("status") == "Success":

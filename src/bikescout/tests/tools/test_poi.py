@@ -151,15 +151,3 @@ class TestPOIs:
         assert result["status"] == "Error"
         assert "Internal Engine failure" in result["message"]
         assert "Network down" in result["message"]
-
-    def test_ors_critical_exception_via_monkeypatch(self, monkeypatch):
-
-        def mock_crash(*args, **kwargs):
-            raise RuntimeError("Forced internal exception")
-
-        monkeypatch.setattr(poi.requests, "post", mock_crash)
-
-        result = get_poi_scout("any_key", lat=45.0, lon=9.0, total_length_km=1.0)
-
-        assert result["status"] == "Error"
-        assert "Internal Engine failure: Forced internal exception" in result["message"]

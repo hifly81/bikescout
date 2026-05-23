@@ -61,13 +61,13 @@ class TestMcpServer:
                         "tire_pressure_psi": 25.0,
                         "compatible": True,
                         "setup_details": ["Check brakes", "Lube chain"],
-                        "bike_type": "mtb"
+                        "bike_type": "mtb",
+                        "safety_warnings": []
                     },
                     "surface_breakdown": [
                         {"type": "dirt", "percentage": "80%"},
                         {"type": "gravel", "percentage": "20%"}
-                    ],
-                    "safety_warnings": []
+                    ]
                 }
             },
             "conditions": {

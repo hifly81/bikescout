@@ -206,6 +206,7 @@ class MechanicalSetup(BaseModel):
     compatible: bool = Field(..., description="True if the bike setup is suitable for the route")
     setup_details: List[Any] = Field(..., description="Technical specifics [tire_width_mm, setup_string]")
     bike_type: str = Field(..., description="Category of bike analyzed (mtb, road, etc.)")
+    safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
 
 class SurfaceEntry(BaseModel):
     type: str = Field(..., description="Normalized surface type (e.g., Paved, Unmapped/Mixed)")
@@ -320,8 +321,6 @@ class RouteSurface(BaseModel):
     mechanical_setup: MechanicalSetup = Field(..., description="Tire pressure and compatibility recommendations")
     surface_breakdown: List[SurfaceEntry] = Field(..., description="Aggregated and normalized surface statistics")
     emtb_tactical: Optional[EmtbTactical] = Field(None, description="Power and battery metrics for E-Bikes")
-    safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
-
 
 ### RESPONSE
 
@@ -359,8 +358,6 @@ class RouteSurfaceResponse(BaseModel):
     mechanical_setup: MechanicalSetup = Field(..., description="Tire pressure and compatibility recommendations")
     surface_breakdown: List[SurfaceEntry] = Field(..., description="Aggregated and normalized surface statistics")
     emtb_tactical: Optional[EmtbTactical] = Field(None, description="Power and battery metrics for E-Bikes")
-    # FIXME check why is always null
-    safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
 
 class RouteInfo(BaseModel):
     route_type: str = Field(..., description="The specific cycling activity profile (e.g., 'cycling-road', 'cycling-mountain').")

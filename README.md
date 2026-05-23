@@ -80,7 +80,7 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ---
 
-### 🏆 Why BikeScout?
+## 🏆 Why BikeScout?
 
 While others products focus on where to go, BikeScout focuses on how you can thrive on that specific ride, right now.
 

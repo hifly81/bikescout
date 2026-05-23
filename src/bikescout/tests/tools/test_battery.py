@@ -1,4 +1,3 @@
-import pytest
 from bikescout.tools.battery import calculate_battery_drain
 
 class TestBattery:
@@ -50,3 +49,23 @@ class TestBattery:
         result = calculate_battery_drain(500, "Eco", 80, 0, 10, surface_breakdown=None, mud_index=0)
         assert result["status"] == "Success"
         assert result["power_breakdown_w"]["rolling_resistance"] > 0
+
+    def test_warning_battery_status_coverage(self):
+        surface = {"Gravel": 100}
+        result = calculate_battery_drain(
+            battery_wh=350,
+            assist_level="Boost",
+            weight_kg=95,
+            ascent_m=800,
+            distance_km=15,
+            surface_breakdown=surface,
+            mud_index=0.1,
+            avg_speed_kmh=15.0,
+            intensity_score=1
+        )
+
+        metrics = result["battery_metrics"]
+        pct = metrics["remaining_battery_pct"]
+
+        assert 15.0 <= pct < 25.0, f"Expected pct to be between 15 and 25, got {pct}"
+        assert metrics["safety_buffer_status"] == "WARNING"

@@ -16,13 +16,10 @@
 
 import requests
 import time
-import logging
 from typing import Dict, Any, List, Optional, Tuple
 from abc import ABC, abstractmethod
 
-# --- Configuration & Logging ---
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("BikeScout_GeoEngine")
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 
 # --- Provider Interface (Strategy Pattern) ---
 class GeocodingProvider(ABC):
@@ -33,7 +30,6 @@ class GeocodingProvider(ABC):
 
 # --- Nominatim Provider with Tactical Ranking ---
 class NominatimProvider(GeocodingProvider):
-    URL = "https://nominatim.openstreetmap.org/search"
     USER_AGENT = "BikeScout_Tactical_Engine/2.0"
 
     def geocode(self, query: str, lang: str = "en") -> List[Dict[str, Any]]:
@@ -49,11 +45,10 @@ class NominatimProvider(GeocodingProvider):
         }
 
         try:
-            response = requests.get(self.URL, params=params, headers=headers, timeout=10)
+            response = requests.get(NOMINATIM_URL, params=params, headers=headers, timeout=10)
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            logger.error(f"Geocoding provider error: {str(e)}")
             return []
 
 # --- Resilience: Token Bucket & Exponential Backoff ---
@@ -129,7 +124,6 @@ class GeoEngine:
 
             except Exception as e:
                 wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s...
-                logger.warning(f"Attempt {attempt + 1} failed. Retrying in {wait_time}s... Error: {e}")
                 time.sleep(wait_time)
 
         return {"status": "Error", "message": "Max retries exceeded for geocoding service."}

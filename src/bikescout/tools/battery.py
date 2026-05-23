@@ -35,7 +35,6 @@ def calculate_battery_drain(
     and metabolic split between the rider and the mid-drive motor.
     """
 
-    # --- 1. Environmental & Battery Physics ---
     # Usable Capacity: Modern BMS reserves ~5-8% to protect cells
     usable_wh = battery_wh * 0.93
 
@@ -44,7 +43,6 @@ def calculate_battery_drain(
         temp_penalty = (15 - ambient_temp_c) * 0.01
         usable_wh *= (1 - temp_penalty)
 
-    # --- 2. Kinetic Constants ---
     velocity_ms = avg_speed_kmh / 3.6
     gravity = 9.81
     air_density = 1.225  # kg/m^3 at sea level
@@ -54,7 +52,6 @@ def calculate_battery_drain(
     grade = ascent_m / (distance_km * 1000) if distance_km > 0 else 0
     theta = math.atan(grade)
 
-    # --- 3. Power Demand Equation (Total Resistance Force) ---
     # A. Gravitational Power (P_gravity)
     p_gravity = weight_kg * gravity * velocity_ms * math.sin(theta)
 
@@ -90,7 +87,6 @@ def calculate_battery_drain(
     # Total Power required to maintain velocity
     p_required = p_gravity + p_aero + p_rolling
 
-    # --- 4. Human-to-Motor Splitting ---
     # Estimate Rider Power based on FTP and Mission Intensity Score (1-5)
     # Score 1: 40% FTP, Score 3: 75% FTP, Score 5: 100% FTP
     intensity_mult = 0.25 + (intensity_score * 0.15)
@@ -107,7 +103,6 @@ def calculate_battery_drain(
     if p_motor_raw > (p_rider * max_assist_ratio):
         p_motor_raw = p_rider * max_assist_ratio
 
-    # --- 5. Dynamic Efficiency Curve ---
     # Efficiency drops under high torque/low RPM (climbing) or overheating
     efficiency = 0.85 # Peak mid-drive efficiency
     if grade > 0.08: # Steep climb penalty
@@ -117,11 +112,9 @@ def calculate_battery_drain(
 
     p_motor_final = p_motor_raw / efficiency
 
-    # --- 6. Energy Calculation ---
     total_time_hours = distance_km / avg_speed_kmh
     total_wh_spent = p_motor_final * total_time_hours
 
-    # --- 7. SoC & Safety Logic ---
     remaining_wh = max(0, usable_wh - total_wh_spent)
     remaining_pct = round((remaining_wh / battery_wh) * 100, 1)
 

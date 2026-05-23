@@ -131,3 +131,15 @@ class TestBikeSetup:
 
         assert any("Safety Alert: Loose stones (Cobblestone)" in w for w in warnings)
         assert is_compatible is True
+
+    def test_gravel_surface_caution_stability_coverage(self, surface_map):
+        extras = {
+            'surface': {'summary': [{'value': '2', 'amount': 5.0}]}
+        }
+
+        breakdown, warnings, is_compatible = analyze_compatibility(
+            "gravel", 30, extras, surface_map
+        )
+
+        assert is_compatible is True
+        assert any("Caution:" in w and "may lack stability" in w for w in warnings)

@@ -34,7 +34,6 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
     if not geometry or len(geometry) < 2:
         return None
 
-    # --- 1. Data Healing ---
     healed_geometry = []
     for i in range(len(geometry)):
         lon, lat, ele = geometry[i]
@@ -45,7 +44,6 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
     geometry = healed_geometry
     elevations = [p[2] for p in geometry]
 
-    # --- 2. X-Axis Calculation (High Precision Geodesic) ---
     distances = [0]
     total_dist = 0
     for i in range(len(geometry) - 1):
@@ -58,7 +56,6 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
 
     dist_km = [d / 1000 for d in distances]
 
-    # --- 3. Gradient Calculation (Refined) ---
     grades = []
     for i in range(len(elevations) - 1):
         rise = elevations[i+1] - elevations[i]
@@ -68,7 +65,6 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
         grades.append(np.clip(g, -25, 25))
     grades.append(0)
 
-    # --- 4. Setup Plot & Dynamic Style Drawing ---
     plt.figure(figsize=(width, height), dpi=100)
     ax = plt.gca()
 

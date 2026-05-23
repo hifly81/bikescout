@@ -22,7 +22,6 @@ import os
 import traceback
 import numpy as np
 import uuid
-import random
 import matplotlib.pyplot as plt
 from fpdf import FPDF
 from typing import List, Dict, Any, Optional, Literal
@@ -58,7 +57,6 @@ def analyze_track(
     and generates a Technical Director PDF report.
     """
     try:
-        # 1. Data Retrieval and Parsing
         content = _load_gpx_content(gpx_url)
         gpx = gpxpy.parse(content)
 
@@ -79,11 +77,11 @@ def analyze_track(
         distance_km = round(gpx.length_3d() / 1000, 2)
         total_ascent = round(gpx.get_uphill_downhill().uphill, 1)
 
-        # 2. Path Analysis (Smoothing and Segmenting)
+        # Path Analysis (Smoothing and Segmenting)
         analysis_segments = _process_segments(points, activity_type)
         uci_climbs = _detect_uci_climbs(analysis_segments)
 
-        # 3. Dynamic Weather Windowing
+        # Dynamic Weather Windowing
         # Default window: 09:00 AM to 07:00 PM if not specified
         s_hour = start_hour if start_hour is not None else 9
         e_hour = end_hour if end_hour is not None else 19
@@ -97,10 +95,21 @@ def analyze_track(
             ref_cond = weather_data.get("reference_conditions", {})
             ref_temp = ref_cond.get("temp", ref_temp)
             ref_wind_speed = ref_cond.get("wind_speed", ref_wind_speed)
-            ref_wind_dir = ref_cond.get("wind_dir_degrees", ref_wind_dir)
+            ref_wind_dir = ref_cond.get("wind_direction", ref_wind_dir)
 
-        # 4. Environmental and Tactical Assessment
-        intensity_score = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
+        raw_intensity = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
+
+        if raw_intensity <= 20:
+            intensity_score = 1    # Z1 / Active Recovery
+        elif raw_intensity <= 45:
+            intensity_score = 2    # Z2 / Endurance
+        elif raw_intensity <= 65:
+            intensity_score = 3    # Z3 / Tempo
+        elif raw_intensity <= 85:
+            intensity_score = 4    # Z4 / Threshold
+        else:
+            intensity_score = 5    # Z5 / VO2 Max - Race Day
+
         duration_hours,_ = _estimate_ride_duration(distance_km, total_ascent, rider_fitness_level, activity_type)
 
         tactical_alerts = []
@@ -114,7 +123,6 @@ def analyze_track(
         nutrition_plan = get_nutrition_plan(duration_hours, ref_temp, intensity_score, rider_weight_kg, rider_gender, sweat_profile)
         performance = _calculate_performance(uci_climbs, rider_weight_kg, bike_weight_kg, pro_intensity, ref_temp, ref_wind_speed)
 
-        # 5. Strategic Zone Identification (Weighted for the finale)
         tactical_output = _identify_tactical_zones(analysis_segments, uci_climbs, distance_km)
 
         elev_extremes = gpx.get_elevation_extremes()
@@ -140,7 +148,6 @@ def analyze_track(
             "tactical_action_zones": tactical_output["action_zones"]
         }
 
-        # 6. PDF Report Generation with Elevation Chart and DS Briefing
         if report:
             plot_path = _generate_elevation_plot(analysis_segments, t_date)
             pdf_path = _generate_pdf_report(final_json, plot_path)

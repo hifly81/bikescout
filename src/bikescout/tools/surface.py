@@ -17,31 +17,50 @@
 import requests
 import numpy as np
 import math
+import sys
 from datetime import datetime, date
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.bike_setup import analyze_compatibility
 from bikescout.tools.bike_setup import get_tire_setup
 from bikescout.tools.battery import calculate_battery_drain
 
-def _sanitize_elevation_profile(geometry, window_size=7, threshold=0.5):
+import numpy as np
+
+def _sanitize_elevation_profile(geometry, window_size=11, threshold=2.0):
     """
-    Filters satellite SRTM noise using a Simple Moving Average and Hysteresis.
-    Ensures that flat roads don't accumulate 'phantom' elevation gain.
+    Calculates the total ascent by filtering noise with a Simple Moving Average (SMA) and true Hysteresis.
+    Elevation gain is accumulated only when a slope reversal exceeds the defined threshold.
     """
     elevations = [p[2] for p in geometry if len(p) > 2]
     if len(elevations) < window_size:
         return 0.0
 
-    # Apply SMA smoothing
+    # Smoothing (SMA)
     weights = np.ones(window_size) / window_size
     smoothed = np.convolve(elevations, weights, mode='valid')
 
     total_ascent = 0.0
-    for i in range(1, len(smoothed)):
-        diff = smoothed[i] - smoothed[i-1]
-        # Only count ascent if change exceeds 0.5m (Hysteresis)
-        if diff > threshold:
-            total_ascent += diff
+    last_valley = smoothed[0]
+    last_peak = smoothed[0]
+    is_climbing = True
+
+    for ele in smoothed[1:]:
+        if is_climbing:
+            if ele > last_peak:
+                last_peak = ele
+            elif ele < last_peak - threshold:
+                total_ascent += (last_peak - last_valley)
+                is_climbing = False
+                last_valley = ele
+        else:
+            if ele < last_valley:
+                last_valley = ele
+            elif ele > last_valley + threshold:
+                is_climbing = True
+                last_peak = ele
+
+    if is_climbing and last_peak > last_valley:
+        total_ascent += (last_peak - last_valley)
 
     return round(total_ascent, 0)
 
@@ -103,69 +122,14 @@ def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
 
     return category, display_gradient
 
-def _analyze_technical_difficulty(extras: dict, fitness_level: str = "intermediate"):
-    """
-    Parses OSM tags for technical grading and cross-references with rider fitness.
-    """
-    # 1. MTB Scale (Singletrail-Skala S0-S5)
-    mtb_summary = extras.get('mtb_scale', {}).get('summary', [])
-    mtb_val = str(mtb_summary[0].get('value', 'N/A')) if mtb_summary else 'N/A'
+def _extract_dominant_surface(surface_extra, surface_map):
+    """Helper to find the surface with the highest distance in the route."""
+    if not surface_extra or 'summary' not in surface_extra:
+        return "Unknown"
 
-    scale_info = {
-        "0": "S0: Smooth, paved/firm trails without obstacles.",
-        "1": "S1: Small roots/stones, easy technical sections.",
-        "2": "S2: Loose soil, larger roots/stones, steps required.",
-        "3": "S3: Technical rock gardens, high steps, hairpins.",
-        "4": "S4: Extreme steepness, tight switchbacks, trial skills.",
-        "5": "S5: Near-vertical terrain, maximum difficulty."
-    }
-
-    # 2. Trail Visibility
-    vis_summary = extras.get('trail_visibility', {}).get('summary', [])
-    vis_val = str(vis_summary[0].get('value', '1')) if vis_summary else '1'
-    vis_map = {"1": "Excellent", "2": "Good", "3": "Poor", "4": "Invisible/Requires GPS"}
-
-    # 3. Fitness-Based Technical Advice
-    # Se il livello tecnico è S2+ e il rider è beginner, aggiungiamo un warning.
-    tech_note = "Technical grading based on OSM mountain standards."
-
-    try:
-        level_int = int(mtb_val)
-        if fitness_level == "beginner" and level_int >= 2:
-            tech_note = "FITNESS ALERT: This trail requires technical maneuvers (S2+) that might be exhausting for a beginner."
-        elif fitness_level == "pro" and level_int >= 3:
-            tech_note = "PRO ADVICE: High technicality (S3+) detected. Ideal for testing suspension and technical handling."
-        elif fitness_level == "beginner" and level_int <= 1:
-            tech_note = "Confidence Builder: Technical level is well-suited for your fitness and skill profile."
-    except ValueError:
-        pass # mtb_val is N/A or non-numeric
-
-    return {
-        "mtb_scale": scale_info.get(mtb_val, "Standard / Unclassified"),
-        "trail_visibility": vis_map.get(vis_val, "Standard"),
-        "technical_notes": tech_note,
-        "fitness_context": f"Evaluated for {fitness_level} level"
-    }
-
-def _build_ors_options(surface_preference):
-    """
-    Translates user surface preferences into ORS API options.
-    """
-    options = {}
-    avoid_features = []
-
-    if surface_preference == "avoid_unpaved":
-        avoid_features.append("unpaved")
-
-    if surface_preference == "prefer_paved":
-        options["avoid_polygons"] = {}
-        if "unpaved" not in avoid_features:
-            avoid_features.append("unpaved")
-
-    if avoid_features:
-        options["avoid_features"] = avoid_features
-
-    return options
+    # Find the value with the maximum distance
+    dominant_val = max(surface_extra['summary'], key=lambda x: x['distance'])['value']
+    return surface_map.get(dominant_val, "Unknown")
 
 def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
     """
@@ -192,16 +156,28 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
               surface breakdown, and E-MTB analytics.
     """
 
-    # Parameter Normalization
     safe_complexity = max(3, min(int(getattr(mission, 'complexity', 10)), 30))
     safe_length = int(mission.total_length_km * 1000)
 
-    # fallback system
-    attempts = [
-        (mission.profile, ["surface", "waytype"]),
-        (mission.profile, ["surface"]),
-        ("cycling-regular", ["surface"])
-    ]
+    requested_profile = mission.profile
+    if requested_profile == "cycling-electric":
+        requested_profile = "cycling-mountain"
+
+    if requested_profile == "cycling-mountain":
+        attempts = [
+            ("cycling-mountain", ["surface", "waytype"]),
+            ("cycling-regular", ["surface"])
+        ]
+    elif requested_profile == "cycling-road":
+        attempts = [
+            ("cycling-road", ["surface", "waytype"]),
+            ("cycling-regular", ["surface"])
+        ]
+    else:
+        attempts = [
+            ("cycling-regular", ["surface", "waytype"]),
+            ("cycling-regular", ["surface"])
+        ]
 
     last_error = ""
     for current_profile, requested_extras in attempts:
@@ -210,7 +186,20 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             url = f"https://api.openrouteservice.org/v2/directions/{current_profile}/geojson"
             headers = {'Authorization': api_key, 'Content-Type': 'application/json'}
 
-            # ORS Request Body
+            surface_options = {}
+            avoid_features = []
+
+            if mission.surface_preference == "avoid_unpaved":
+                avoid_features.append("unpaved")
+
+            if mission.surface_preference == "prefer_paved":
+                surface_options["avoid_polygons"] = {}
+                if "unpaved" not in avoid_features:
+                    avoid_features.append("unpaved")
+
+            if avoid_features:
+                surface_options["avoid_features"] = avoid_features
+
             body = {
                 "coordinates": [[lon, lat]],
                 "elevation": True,
@@ -220,14 +209,14 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         "length": safe_length,
                         "points": safe_complexity,
                         "seed": int(getattr(mission, 'seed', 42))
-                    }
+                    },
+                    **surface_options
                 }
             }
 
             res = requests.post(url, json=body, headers=headers, timeout=7)
 
             if res.status_code != 200:
-                # Capture the specific reason for failure
                 try:
                     detail = res.json().get('error', {}).get('message', res.text)
                 except:
@@ -245,7 +234,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             # Extras can contain 'surface', 'waytype', etc.
             extras = props.get('extras', {})
 
-            # Terrain Intelligence
             clean_ascent = _sanitize_elevation_profile(geometry, 7, 0.5)
 
             R = 6371000
@@ -269,7 +257,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface, target_date)
             t_analysis = mud_analysis.get("tactical_analysis") or {}
 
-            # Force numeric float
             raw_mud = t_analysis.get("mud_risk_numeric")
             mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
 
@@ -300,15 +287,26 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
 
             is_emtb = "E-" in bike_type_str and battery_cap > 0
 
+            flat_surface_breakdown = {}
+            if isinstance(breakdown, list):
+                try:
+                    flat_surface_breakdown = {
+                        item["type"].capitalize(): int(item["percentage"].replace("%", "").strip())
+                        for item in breakdown
+                        if "type" in item and "percentage" in item
+                    }
+                except (ValueError, KeyError, AttributeError):
+                    flat_surface_breakdown = {}
+
             if is_emtb:
                 try:
                     emtb_analysis = calculate_battery_drain(
                         battery_wh=battery_cap,
                         assist_level=getattr(mission, 'assist_mode', "Trail"),
-                        weight_kg=float(getattr(rider, 'weight_kg', 80)) + 24, # 24kg is avg E-bike weight
+                        weight_kg=float(getattr(rider, 'weight_kg', 80)) + 24,
                         ascent_m=clean_ascent,
                         distance_km=real_dist_m / 1000,
-                        surface_breakdown=breakdown,
+                        surface_breakdown=flat_surface_breakdown,
                         mud_index=mud_score_val
                     )
                 except Exception:
@@ -332,32 +330,21 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                         "label": t_analysis.get("mud_risk_score", "Unknown"),
                         "traction_risk": t_analysis.get("traction_risk", {}).get("level", "Unknown"),
                         "trail_damage_risk": t_analysis.get("trail_damage_risk", {}).get("level", "Unknown"),
-                        "dry_time_eta": t_analysis.get("dry_time_eta", "N/A"),
-                        "safety_advice": t_analysis.get("safety_advice", "Check local conditions.")
+                        "dry_time_eta": t_analysis.get("dry_time_eta", "N/A")
                     }
                 },
                 "mechanical_setup": {
                     "compatible": compatible,
                     "setup_details": tire_display,
-                    "bike_type": bike.bike_type
+                    "bike_type": bike.bike_type,
+                    "safety_warnings": warnings
                 },
                 "surface_breakdown": breakdown,
                 "emtb_tactical": emtb_analysis,
-                "safety_warnings": warnings
             }
-
 
         except Exception as e:
             last_error = f"Local processing error: {str(e)}"
             continue
 
     return {"status": "Error", "message": f"Global failure: {last_error}"}
-
-def _extract_dominant_surface(surface_extra, surface_map):
-    """Helper to find the surface with the highest distance in the route."""
-    if not surface_extra or 'summary' not in surface_extra:
-        return "Unknown"
-
-    # Find the value with the maximum distance
-    dominant_val = max(surface_extra['summary'], key=lambda x: x['distance'])['value']
-    return surface_map.get(dominant_val, "Unknown")

@@ -179,7 +179,6 @@ class MudIntelligence(BaseModel):
     traction_risk: str = Field(..., description="Assessment of tire grip on the predicted surface")
     trail_damage_risk: str = Field(..., description="Risk of damaging the trail due to soft ground")
     dry_time_eta: str = Field(..., description="Estimated time until trail returns to dry conditions")
-    safety_advice: str = Field(..., description="Tactical advice for riding in current soil conditions")
 
 class MudTactical(BaseModel):
     surface_type: str = Field(..., description="Primary soil/surface type analyzed")
@@ -207,6 +206,7 @@ class MechanicalSetup(BaseModel):
     compatible: bool = Field(..., description="True if the bike setup is suitable for the route")
     setup_details: List[Any] = Field(..., description="Technical specifics [tire_width_mm, setup_string]")
     bike_type: str = Field(..., description="Category of bike analyzed (mtb, road, etc.)")
+    safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
 
 class SurfaceEntry(BaseModel):
     type: str = Field(..., description="Normalized surface type (e.g., Paved, Unmapped/Mixed)")
@@ -321,7 +321,6 @@ class RouteSurface(BaseModel):
     mechanical_setup: MechanicalSetup = Field(..., description="Tire pressure and compatibility recommendations")
     surface_breakdown: List[SurfaceEntry] = Field(..., description="Aggregated and normalized surface statistics")
     emtb_tactical: Optional[EmtbTactical] = Field(None, description="Power and battery metrics for E-Bikes")
-    safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
 
 ### RESPONSE
 
@@ -342,9 +341,10 @@ class GeocodingResponse(BaseModel):
 class TacticalForecastResponse(BaseModel):
     """Response schema for trail weather."""
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
-    status: str = Field(..., description="Weather service status")
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     metadata: Dict[str, Any] = Field(..., description="Location and timezone metadata")
     tactical_forecast: List[WeatherSnapshot] = Field(..., description="Hourly weather breakdown for the race duration")
+    # FIXME change to real obj
     reference_conditions: Dict[str, Any] = Field(..., description="Aggregated weather data used for performance adjustments")
     safety_advice: SafetyAdvice = Field(..., description="Strategic safety briefing based on weather risks")
 
@@ -358,7 +358,6 @@ class RouteSurfaceResponse(BaseModel):
     mechanical_setup: MechanicalSetup = Field(..., description="Tire pressure and compatibility recommendations")
     surface_breakdown: List[SurfaceEntry] = Field(..., description="Aggregated and normalized surface statistics")
     emtb_tactical: Optional[EmtbTactical] = Field(None, description="Power and battery metrics for E-Bikes")
-    safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
 
 class RouteInfo(BaseModel):
     route_type: str = Field(..., description="The specific cycling activity profile (e.g., 'cycling-road', 'cycling-mountain').")
@@ -399,7 +398,7 @@ class StrategicPlannerResponse(BaseModel):
 class GpxRaceAuditResponse(BaseModel):
     """Response schema high-fidelity audit for a professional GPX race analysis."""
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
-    status: str = Field(..., description="Overall analysis status")
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     mode: str = Field(..., description="Activity mode (ROAD or MTB)")
     target_date: str = Field(..., description="Date used for weather and mud prediction")
     track_metrics: Dict[str, float] = Field(..., description="Core track data: distance, ascent, altitude")

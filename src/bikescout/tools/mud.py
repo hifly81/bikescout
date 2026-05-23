@@ -23,7 +23,6 @@ from astral import Observer
 from astral.sun import elevation
 from typing import Literal, Dict, Any
 
-# Open-Meteo API Endpoints
 ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive'
 FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 
@@ -69,7 +68,6 @@ def get_mud_risk_analysis(
 
         # Determine if we need Forecast or Historical data
         is_predictive = reference_date > datetime.now(local_tz)
-        # Note: Ensure FORECAST_URL and ARCHIVE_URL are defined in your scope
         url = FORECAST_URL if is_predictive else ARCHIVE_URL
 
         params = {

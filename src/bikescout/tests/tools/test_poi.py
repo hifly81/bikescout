@@ -1,4 +1,5 @@
 import pytest
+import requests
 from unittest.mock import patch, MagicMock
 from bikescout.tools.poi import get_poi_scout_free, get_poi_scout
 
@@ -118,3 +119,35 @@ class TestPOIs:
         result = get_poi_scout("key", 1.0, 1.0, 1.0)
         assert result["status"] == "Error"
         assert "Internal Engine failure" in result["message"]
+
+    @patch("requests.post")
+    def test_overpass_rest_area_labels(self, mock_post):
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {
+            "elements": [
+                {
+                    "id": 10, "lat": 45.0, "lon": 9.0,
+                    "tags": {"amenity": "shelter", "name": "Bivacco"}
+                },
+                {
+                    "id": 11, "lat": 45.1, "lon": 9.1,
+                    "tags": {"leisure": "picnic_table"}
+                }
+            ]
+        }
+
+        result = get_poi_scout_free(45.0, 9.0, total_length_km=5)
+
+        assert result["status"] == "Success"
+        assert result["amenities"][0]["type"] == "Rest Area 🧺"
+        assert result["amenities"][1]["type"] == "Rest Area 🧺"
+
+    @patch("requests.post")
+    def test_ors_critical_exception_handling(self, mock_post):
+        mock_post.side_effect = requests.exceptions.ConnectionError("Network down")
+
+        result = get_poi_scout("key", 45.0, 9.0, 1.0)
+
+        assert result["status"] == "Error"
+        assert "Internal Engine failure" in result["message"]
+        assert "Network down" in result["message"]

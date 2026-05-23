@@ -74,7 +74,6 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
         target_hour: The specific local hour to evaluate for safety (0-23).
     """
     try:
-        # 1. Temporal & Timezone Localization
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lng=lon, lat=lat) or "UTC"
         local_tz = zoneinfo.ZoneInfo(tz_name)
@@ -90,7 +89,6 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
             # If target_hour is provided, we adjust today's reference
             target_dt_local = now_local.replace(hour=target_hour, minute=0, second=0, microsecond=0)
 
-        # 2. API Parameters
         # Fetching full day data to allow sliding window analysis
         params = {
             "latitude": lat,
@@ -105,7 +103,7 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "winddirection_10m",
                 "weathercode"
             ],
-            "timezone": "UTC", # Kept UTC for raw data consistency
+            "timezone": tz_name,
             "start_date": target_dt_local.date().isoformat(),
             "end_date": target_dt_local.date().isoformat()
         }
@@ -119,7 +117,6 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
 
         hourly = data["hourly"]
 
-        # 3. UTC Temporal Mapping (Localized Matching)
         # Convert our local target time to UTC to find the exact index in the API response
         target_dt_utc = target_dt_local.astimezone(timezone.utc)
         target_utc_str = target_dt_utc.strftime('%Y-%m-%dT%H:00')
@@ -130,7 +127,6 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
             # Fallback if the timezone offset pushes the index out of the requested day array
             ref_idx = 0
 
-        # 4. Tactical Forecast Generation (Localized Display)
         forecast_summary = []
         for i in range(len(hourly["time"])):
             # Convert UTC response time back to local time for user-friendly display
@@ -148,7 +144,6 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "wind_direction": f"{hourly['winddirection_10m'][i]}°"
             })
 
-        # 5. Extract Baseline Reference Conditions (Target Hour)
         curr_app_temp = hourly['apparent_temperature'][ref_idx]
         curr_rain_prob = hourly['precipitation_probability'][ref_idx]
         curr_rain_mm = hourly['precipitation'][ref_idx]
@@ -156,7 +151,12 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
         curr_gusts = hourly['windgusts_10m'][ref_idx]
         curr_wind_dir = hourly['winddirection_10m'][ref_idx]
 
-        # 6. Return Structured Multi-Temporal Payload
+        hourly_temps = data.get("hourly", {}).get("temperature_2m", [])
+        if hourly_temps:
+            max_temp_value = max(hourly_temps)
+        else:
+            max_temp_value = "N/A"
+
         return {
             "status": "Success",
             "metadata": {
@@ -174,7 +174,8 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "wind_speed": curr_wind,
                 "wind_gusts": curr_gusts,
                 "wind_direction": curr_wind_dir,
-                "reference_hour_local": f"{target_hour}:00"
+                "reference_hour_local": f"{target_hour}:00",
+                "temp_max": max_temp_value,
             },
             "safety_advice": get_safety_advice(
                 app_temp=curr_app_temp,

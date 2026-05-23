@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from bikescout.mcp_server import geocode_location, trail_scout_simple, hydration_scout, analyze_gpx_track
+from bikescout.mcp_server import geocode_location, trail_scout, trail_scout_simple, hydration_scout, analyze_gpx_track
 
 
 class TestMcpServer:
@@ -21,8 +21,10 @@ class TestMcpServer:
         assert response.status == "Success"
         assert response.lat == 46.54
 
+
     @patch("bikescout.mcp_server.get_complete_trail_scout")
-    def test_trail_scout_simple(self, m_scout):
+    @patch("bikescout.mcp_server.ORS_API_KEY", "mocked_valid_api_key")
+    def test_trail_scout_simple_success(self, m_scout):
         m_scout.return_value = {
             "status": "Success",
             "info": {
@@ -59,13 +61,13 @@ class TestMcpServer:
                         "tire_pressure_psi": 25.0,
                         "compatible": True,
                         "setup_details": ["Check brakes", "Lube chain"],
-                        "bike_type": "mtb"
+                        "bike_type": "mtb",
+                        "safety_warnings": []
                     },
                     "surface_breakdown": [
                         {"type": "dirt", "percentage": "80%"},
                         {"type": "gravel", "percentage": "20%"}
-                    ],
-                    "safety_warnings": []
+                    ]
                 }
             },
             "conditions": {
@@ -94,16 +96,32 @@ class TestMcpServer:
             "mcp_resource_uri_elevation_profile": "bikescout://altimetry/profile.png"
         }
 
-        response = trail_scout_simple(
+
+        response = trail_scout(
             latitude=45.0,
             longitude=9.0,
-            total_length_km=30
+            rider=None,
+            bike=None,
+            mission=None
         )
-
-        print(response)
 
         assert response.status == "Success"
         assert response.info.distance_km == 30.0
+
+    @patch("bikescout.mcp_server.get_complete_trail_scout")
+    @patch("bikescout.mcp_server.ORS_API_KEY", None)
+    def test_trail_scout_missing_api_key_error(self, m_scout):
+
+        response = trail_scout(
+            latitude=45.0,
+            longitude=9.0,
+            rider=None,
+            bike=None,
+            mission=None
+        )
+
+        m_scout.assert_not_called()
+        assert response.status == "Error"
 
     @patch("bikescout.mcp_server.get_weather_forecast")
     @patch("bikescout.mcp_server.get_nutrition_plan")
@@ -187,5 +205,4 @@ class TestMcpServer:
     def test_trail_scout_simple_error_handling(self):
         with patch("bikescout.mcp_server.RiderProfile", side_effect=Exception("Validation Error")):
             response = trail_scout_simple(latitude=45.0, longitude=9.0)
-            assert response["status"] == "Error"
-            assert "failed" in response["message"]
+            assert response.status == "Error"

@@ -1,7 +1,7 @@
 import pytest
 import base64
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 from bikescout.tools.altimetry import get_elevation_profile_image, _generate_altimetry_plot
 from bikescout.schemas import RouteGeometry
 
@@ -26,22 +26,33 @@ class TestAltimetry:
             assert len(img_b64) > 100
 
     @patch("pathlib.Path.mkdir")
-    @patch("builtins.open", new_callable=MagicMock)
-    def test_get_elevation_profile_success(self, mock_open, mock_mkdir, mock_geometry):
+    def test_get_elevation_profile_success(self, mock_mkdir):
+        mock_geometry = MagicMock()
+        mock_geometry.coordinates = [
+            [9.0, 45.0, 100.0],
+            [9.1, 45.1, 150.0],
+            [9.2, 45.2, 200.0]
+        ]
+
         with patch.object(Path, "glob") as mock_glob:
             mock_glob.return_value = []
 
-            result = get_elevation_profile_image(
-                geometry=mock_geometry,
-                uuid_input="test-uuid",
-                style="bars"
-            )
+            with patch("src.bikescout.tools.altimetry.open", mock_open(), create=True) as m_open:
 
-            assert result["status"] == "Success"
-            assert "mcp_resource_uri" in result
-            assert "bikescout://altimetry/" in result["mcp_resource_uri"]
-            assert result["style_applied"] == "bars"
-            assert result["total_distance_km"] > 0
+                result = get_elevation_profile_image(
+                    geometry=mock_geometry,
+                    uuid_input="test-uuid",
+                    style="bars"
+                )
+
+                if result["status"] == "Error":
+                    raise AssertionError(f"Error: {result.get('message')}")
+
+                assert result["status"] == "Success"
+                assert "mcp_resource_uri" in result
+                assert "bikescout://altimetry/" in result["mcp_resource_uri"]
+                assert result["style_applied"] == "bars"
+                assert result["total_distance_km"] > 0
 
     def test_data_healing_logic(self):
         bad_data = [

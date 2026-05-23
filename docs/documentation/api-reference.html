@@ -35,7 +35,7 @@
             "operatingSystem": "Independent",
             "downloadUrl": "https://github.com/hifly81/bikescout",
             "license": "https://www.gnu.org/licenses/agpl-3.0-standalone.html",
-            "softwareVersion": "1.4.2",
+            "softwareVersion": "1.4.3",
             "keywords": "AI, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
             "author": {
                 "@type": "Person",
@@ -157,7 +157,7 @@
     <section id="api-reference" class="block">
         <header class="mb-10">
             <h2 class="text-4xl font-black neon-text mb-4">API Reference</h2>
-            <h3 class="text-2xl font-black neon-text mb-4">version 1.4.2</h3>
+            <h3 class="text-2xl font-black neon-text mb-4">version 1.4.3</h3>
         </header>
 
         <!-- Schemas -->
@@ -447,6 +447,12 @@
                             <td>-</td>
                             <td>The specific category of bicycle analyzed (e.g., 'mtb', 'road', 'gravel').</td>
                         </tr>
+                        <tr>
+                            <td><code>safety_warnings</code></td>
+                            <td><code>list[string]</code></td>
+                            <td>-</td>
+                            <td>Critical alerts regarding technical difficulty or environmental hazards.</td>
+                        </tr>
                         </tbody>
                     </table>
                 </div>
@@ -653,12 +659,6 @@
                             <td><code>null</code></td>
                             <td>Optional battery and power physics metrics for E-MTB profiles.</td>
                         </tr>
-                        <tr>
-                            <td><code>safety_warnings</code></td>
-                            <td><code>list[string]</code></td>
-                            <td>-</td>
-                            <td>Critical alerts regarding technical difficulty or environmental hazards.</td>
-                        </tr>
                         </tbody>
                     </table>
                 </div>
@@ -845,6 +845,27 @@
                     </table>
                 </div>
 
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">RouteInfo</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>route_type</code></td><td><code>string</code></td><td>-</td><td>The specific cycling activity profile (e.g., 'cycling-road', 'cycling-mountain').</td></tr>
+                            <tr><td><code>distance_km</code></td><td><code>float</code></td><td>-</td><td>The total length of the route measured in kilometers.</td></tr>
+                            <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>The total vertical elevation gain in meters.</td></tr>
+                            <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>The overall challenge rating based on gradient, surface, and distance.</td></tr>
+                            <tr><td><code>surface_analysis</code></td><td><code>RouteSurface</code></td><td>-</td><td>A detailed breakdown of surface compositions and traction indices.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
 
                 <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">GeocodingResponse</h4>
                 <div class="overflow-x-auto mb-6">
@@ -1021,12 +1042,6 @@
                             <td><code>EmtbTactical</code></td>
                             <td><code>null</code></td>
                             <td>Optional power and battery metrics; only populated if <code>is_ebike</code> is true.</td>
-                        </tr>
-                        <tr>
-                            <td><code>safety_warnings</code></td>
-                            <td><code>list[string]</code></td>
-                            <td>-</td>
-                            <td>List of critical alerts regarding hazardous segments, technical risks, or weather impact.</td>
                         </tr>
                         </tbody>
                     </table>

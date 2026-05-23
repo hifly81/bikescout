@@ -80,6 +80,19 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ---
 
+### 🏆 Why BikeScout?
+
+While others products focus on where to go, BikeScout focuses on how you can thrive on that specific ride, right now.
+
+| Platform | What they provide | Why BikeScout is superior |
+| :--- | :--- | :--- |
+| **Komoot** | Static maps | We add **live risk-context** |
+| **Strava** | History/Social | We add **predictive safety** |
+| **Trailforks** | Databases | We add **personalized intelligence** |
+| **Generic AI** | Theory | We add **real-world telemetry** |
+
+---
+
 ## 🤝 Contributing
 
 Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make to **BikeScout** are **greatly appreciated**.

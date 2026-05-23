@@ -127,7 +127,7 @@ def trail_scout(
         print("You can get a free key at https://openrouteservice.org/", file=sys.stderr)
         return FullMissionBriefingResponse(
             payload_version=BIKESCOUT_PROTOCOL_VERSION,
-            status="error"
+            status="Error"
         )
 
     data = get_complete_trail_scout(

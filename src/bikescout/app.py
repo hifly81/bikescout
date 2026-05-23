@@ -763,8 +763,6 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 if chart_data:
                     w_col1.metric("Peak Temp", f"{max([d['Temp (°C)'] for d in chart_data])} °C")
                     w_col2.metric("Max Rain Prob", f"{max([d['Rain Prob (%)'] for d in chart_data])} %")
-                if conditions.get("safety_advice"):
-                    w_col3.metric("Safety Advice", conditions.get("safety_advice")[:20] + "...")
 
                 st.divider()
                 if chart_data:
@@ -777,7 +775,18 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 st.dataframe(weather_table, use_container_width=True, hide_index=True)
 
                 if conditions.get("safety_advice"):
-                    st.warning(f"**Security Note:** {conditions.get('safety_advice')}")
+                    adv = conditions.get("safety_advice")
+                    st.markdown(f"### 🛡️ {adv.get('status')}")
+                    col1, col2 = st.columns([1, 2])
+
+                    with col1:
+                        st.metric(label="Wind Risk Score", value=f"{adv.get('wind_risk_score')}/10")
+
+                    with col2:
+                        st.info(f"**Gear Advice:** {adv.get('gear_advice')}")
+
+                    st.write("**Safety Assessment:**")
+                    st.markdown(f"> {adv.get('message')}")
 
         mud_data = None
         if conditions:
@@ -1041,8 +1050,15 @@ elif mode == "🗺️ GPX Track Audit":
 
                         advice = weather.get("safety_advice", {})
                         if advice:
-                            st.info(f"**{advice.get('status')}**: {advice.get('message')}")
-                            st.caption(f"Gear Suggestion: {advice.get('gear_advice')}")
+                            st.markdown(f"### 🛡️ {advice.get('status')}")
+                            col1, col2 = st.columns([1, 2])
+                            with col1:
+                                st.metric(label="Wind Risk Score", value=f"{advice.get('wind_risk_score')}/10")
+                            with col2:
+                                st.info(f"**Gear Advice:** {advice.get('gear_advice')}")
+
+                            st.write("**Safety Assessment:**")
+                            st.markdown(f"> {advice.get('message')}")
 
                         forecast_list = weather.get("tactical_forecast", [])
                         if forecast_list:

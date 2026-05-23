@@ -103,7 +103,7 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "winddirection_10m",
                 "weathercode"
             ],
-            "timezone": "UTC", # Kept UTC for raw data consistency
+            "timezone": tz_name,
             "start_date": target_dt_local.date().isoformat(),
             "end_date": target_dt_local.date().isoformat()
         }
@@ -151,6 +151,12 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
         curr_gusts = hourly['windgusts_10m'][ref_idx]
         curr_wind_dir = hourly['winddirection_10m'][ref_idx]
 
+        hourly_temps = data.get("hourly", {}).get("temperature_2m", [])
+        if hourly_temps:
+            max_temp_value = max(hourly_temps)
+        else:
+            max_temp_value = "N/A"
+
         return {
             "status": "Success",
             "metadata": {
@@ -168,7 +174,8 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
                 "wind_speed": curr_wind,
                 "wind_gusts": curr_gusts,
                 "wind_direction": curr_wind_dir,
-                "reference_hour_local": f"{target_hour}:00"
+                "reference_hour_local": f"{target_hour}:00",
+                "temp_max": max_temp_value,
             },
             "safety_advice": get_safety_advice(
                 app_temp=curr_app_temp,

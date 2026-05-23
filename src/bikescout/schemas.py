@@ -342,9 +342,10 @@ class GeocodingResponse(BaseModel):
 class TacticalForecastResponse(BaseModel):
     """Response schema for trail weather."""
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
-    status: str = Field(..., description="Weather service status")
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     metadata: Dict[str, Any] = Field(..., description="Location and timezone metadata")
     tactical_forecast: List[WeatherSnapshot] = Field(..., description="Hourly weather breakdown for the race duration")
+    # FIXME change to real obj
     reference_conditions: Dict[str, Any] = Field(..., description="Aggregated weather data used for performance adjustments")
     safety_advice: SafetyAdvice = Field(..., description="Strategic safety briefing based on weather risks")
 
@@ -358,6 +359,7 @@ class RouteSurfaceResponse(BaseModel):
     mechanical_setup: MechanicalSetup = Field(..., description="Tire pressure and compatibility recommendations")
     surface_breakdown: List[SurfaceEntry] = Field(..., description="Aggregated and normalized surface statistics")
     emtb_tactical: Optional[EmtbTactical] = Field(None, description="Power and battery metrics for E-Bikes")
+    # FIXME check why is always null
     safety_warnings: List[str] = Field(..., description="Critical alerts regarding safety or technical risks")
 
 class RouteInfo(BaseModel):
@@ -399,7 +401,7 @@ class StrategicPlannerResponse(BaseModel):
 class GpxRaceAuditResponse(BaseModel):
     """Response schema high-fidelity audit for a professional GPX race analysis."""
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
-    status: str = Field(..., description="Overall analysis status")
+    status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     mode: str = Field(..., description="Activity mode (ROAD or MTB)")
     target_date: str = Field(..., description="Date used for weather and mud prediction")
     track_metrics: Dict[str, float] = Field(..., description="Core track data: distance, ascent, altitude")

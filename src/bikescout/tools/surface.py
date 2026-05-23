@@ -24,25 +24,43 @@ from bikescout.tools.bike_setup import analyze_compatibility
 from bikescout.tools.bike_setup import get_tire_setup
 from bikescout.tools.battery import calculate_battery_drain
 
-def _sanitize_elevation_profile(geometry, window_size=7, threshold=0.5):
+import numpy as np
+
+def _sanitize_elevation_profile(geometry, window_size=11, threshold=2.0):
     """
-    Filters satellite SRTM noise using a Simple Moving Average and Hysteresis.
-    Ensures that flat roads don't accumulate 'phantom' elevation gain.
+    Calculates the total ascent by filtering noise with a Simple Moving Average (SMA) and true Hysteresis.
+    Elevation gain is accumulated only when a slope reversal exceeds the defined threshold.
     """
     elevations = [p[2] for p in geometry if len(p) > 2]
     if len(elevations) < window_size:
         return 0.0
 
-    # Apply SMA smoothing
+    # Smoothing (SMA)
     weights = np.ones(window_size) / window_size
     smoothed = np.convolve(elevations, weights, mode='valid')
 
     total_ascent = 0.0
-    for i in range(1, len(smoothed)):
-        diff = smoothed[i] - smoothed[i-1]
-        # Only count ascent if change exceeds 0.5m (Hysteresis)
-        if diff > threshold:
-            total_ascent += diff
+    last_valley = smoothed[0]
+    last_peak = smoothed[0]
+    is_climbing = True
+
+    for ele in smoothed[1:]:
+        if is_climbing:
+            if ele > last_peak:
+                last_peak = ele
+            elif ele < last_peak - threshold:
+                total_ascent += (last_peak - last_valley)
+                is_climbing = False
+                last_valley = ele
+        else:
+            if ele < last_valley:
+                last_valley = ele
+            elif ele > last_valley + threshold:
+                is_climbing = True
+                last_peak = ele
+
+    if is_climbing and last_peak > last_valley:
+        total_ascent += (last_peak - last_valley)
 
     return round(total_ascent, 0)
 

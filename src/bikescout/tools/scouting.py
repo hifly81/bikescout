@@ -256,12 +256,10 @@ def get_complete_trail_scout(
         dist_km = round(summary.get('distance', 0) / 1000, 2)
         ascent_m = round(props.get('ascent', 0), 0)
         dominant_surface = "Unknown"
-        max_temp = 20.0
 
-        # --- PERFORMANCE & LOGISTICS ---
-        perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
-        estimated_hours = perf["estimated_hours"]
-        intensity_score = perf["intensity_score"]
+        max_temp = 20.0
+        estimated_hours = 0.0
+        intensity_score = 0
 
         amenities = []
 
@@ -271,10 +269,10 @@ def get_complete_trail_scout(
                 "route_type": "A to B" if (dest_latitude and dest_longitude) else "Round Trip",
                 "distance_km": dist_km,
                 "ascent_m": ascent_m,
-                "difficulty": calculate_detailed_difficulty(dist_km, ascent_m)
+                "difficulty": "N/A"
             },
             "conditions": {
-                "max_temp_detected": f"{max_temp}°C"
+                "max_temp_detected": f"{max_temp}°C",
             }
         }
 
@@ -286,7 +284,7 @@ def get_complete_trail_scout(
         if surface_report.get("status") == "Success":
             t_brief = surface_report.get("tactical_briefing", {})
             dist_km = t_brief.get("distance_km")
-            # FIXME ORS not have a stable return value for elevation, can return metres or km
+            # FIXME not have a stable return value for elevation
             ascent_m = t_brief.get("elevation_gain_m")
             surface_analysis = surface_report.get("info", {}).get("surface_analysis", {})
             breakdown = surface_analysis.get("surface_breakdown", [])
@@ -306,8 +304,12 @@ def get_complete_trail_scout(
             response_payload["info"]["distance_km"] = dist_km
             response_payload["info"]["ascent_m"] = ascent_m
             response_payload["info"]["difficulty"] = calculate_detailed_difficulty(dist_km, ascent_m)
-
             response_payload["info"]["surface_analysis"] = surface_report
+
+            # --- PERFORMANCE & LOGISTICS ---
+            perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
+            estimated_hours = perf["estimated_hours"]
+            intensity_score = perf["intensity_score"]
 
         if include_weather:
             try:
@@ -327,7 +329,13 @@ def get_complete_trail_scout(
                             "gusts": f"{entry.get('gusts', '0')} km/h"
                         }
                         weather_list.append(snapshot)
+                    max_temp = weather_report.get("reference_conditions", {}).get("temp_max", "N/A")
+                    response_payload["conditions"]["max_temp_detected"] = f"{max_temp}°C"
                     response_payload["conditions"]["weather"] = weather_list if weather_list else None
+
+                    safety_advice = weather_report.get("safety_advice", None)
+                    if safety_advice:
+                        response_payload["conditions"]["safety_advice"] = safety_advice
                 else:
                     response_payload["conditions"]["weather_status"] = "Unavailable"
 

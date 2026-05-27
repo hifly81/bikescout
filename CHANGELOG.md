@@ -1,5 +1,14 @@
 # Changelog - BikeScout
 
+## [1.5.0]
+* release: prepare version 1.5.0 ([d0b3f10](https://github.com/hifly81/bikescout/commit/d0b3f10ce717deedb3ea637ea85a3c4515b89edb))
+* feat(seo): optimize README ([9bd7626](https://github.com/hifly81/bikescout/commit/9bd7626aa210adc5108e539b6445e8c95b946f21))
+* feat(seo): optimize titles and meta descriptions for target queries ([dfce758](https://github.com/hifly81/bikescout/commit/dfce75861e639867e2716d863a13e2eb5a2cb653))
+* fix(seo): correct canonical tags and URL paths ([620d110](https://github.com/hifly81/bikescout/commit/620d110d9b675839803c3b93ed3eed3f270b5acb))
+* added comparison table part 2 ([792524f](https://github.com/hifly81/bikescout/commit/792524fc49c5807c283b480397b2230b723513fb))
+* added comparison table ([30cb8ed](https://github.com/hifly81/bikescout/commit/30cb8ed59b1ac1271e5943221872faca42559d60))
+* added changelog ([0d8f7b1](https://github.com/hifly81/bikescout/commit/0d8f7b1be1754fa11d9d0ffd0632cee9b7496af3))
+
 ## [1.4.3]
 * release: prepare version 1.4.3 ([1790d94](https://github.com/hifly81/bikescout/commit/1790d94da4398021f500951c3455659688ae006e))
 * feat: integrate bike_type and safety_warnings into mechanical setup expander ([bc7d38e](https://github.com/hifly81/bikescout/commit/bc7d38e22eef1543552eceaccc7efac9d32935b6))

@@ -16,7 +16,6 @@
 
 from datetime import datetime, date
 from typing import Literal
-from datetime import date, datetime
 from astral import LocationInfo
 from astral.sun import sun
 from timezonefinder import TimezoneFinder

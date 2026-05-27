@@ -24,7 +24,6 @@ from bikescout.tools.bike_setup import analyze_compatibility
 from bikescout.tools.bike_setup import get_tire_setup
 from bikescout.tools.battery import calculate_battery_drain
 
-import numpy as np
 
 def _sanitize_elevation_profile(geometry, window_size=11, threshold=2.0):
     """

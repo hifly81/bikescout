@@ -95,7 +95,7 @@ def analyze_track(
             ref_cond = weather_data.get("reference_conditions", {})
             ref_temp = ref_cond.get("temp", ref_temp)
             ref_wind_speed = ref_cond.get("wind_speed", ref_wind_speed)
-            ref_wind_dir = ref_cond.get("wind_direction", ref_wind_dir)
+            ref_wind_dir = ref_cond.get("wind_dir_degrees", ref_wind_dir)
 
         raw_intensity = min(100, int((total_ascent / max(distance_km, 1)) * 10 * pro_intensity))
 

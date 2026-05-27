@@ -28,29 +28,64 @@ from typing import Literal
 
 def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, style: str = "filled"):
     """
-    Generates an elevation profile plot with high-precision geodetic distances.
-    Uses WGS-84 Geodesic distances to ensure X-axis accuracy (prevents coordinate compression).
+    Generates an elevation profile with high-precision geodetic distances.
+    Uses dynamic gradient-based healing to remove GPS altimetry spikes.
     """
     if not geometry or len(geometry) < 2:
         return None
 
+    # Find a valid starting altitude in case the first point is corrupted.
+    # Land limits: -430m (Dead Sea), 8848m (Everest). Let's keep a safety margin.
+    ABS_MIN_ELE = -450
+    ABS_MAX_ELE = 9000
+
+    first_valid_ele = 0.0
+    for p in geometry:
+        if ABS_MIN_ELE <= p[2] <= ABS_MAX_ELE:
+            first_valid_ele = p[2]
+            break
+
+
     healed_geometry = []
-    for i in range(len(geometry)):
-        lon, lat, ele = geometry[i]
-        if (ele <= 0 or (i > 0 and abs(ele - geometry[i-1][2]) > 200)) and i > 0:
-            ele = healed_geometry[i-1][2]
+    for i, (lon, lat, ele) in enumerate(geometry):
+        if i == 0:
+            if not (ABS_MIN_ELE <= ele <= ABS_MAX_ELE):
+                ele = first_valid_ele
+            healed_geometry.append([lon, lat, ele])
+            continue
+
+        prev_lon, prev_lat, prev_ele = healed_geometry[i-1]
+        is_glitch = False
+
+        if not (ABS_MIN_ELE <= ele <= ABS_MAX_ELE):
+            is_glitch = True
+        else:
+            # Calculate the actual distance from the previous point to evaluate the slope
+            dist_m = geodesic((lat, lon), (prev_lat, prev_lon)).meters
+
+            if dist_m > 0.5:
+                grade = (abs(ele - prev_ele) / dist_m) * 100
+                # A gradient greater than 45% is physically impossible/impracticable by bike
+                # (even for extreme MTB walls), so it's a clear GPS error.
+                if grade > 45.0:
+                    is_glitch = True
+            else:
+                # If the points are almost overlapping (< 50cm), a height difference > 3m is jitter/noise
+                if abs(ele - prev_ele) > 3.0:
+                    is_glitch = True
+
+        if is_glitch:
+            ele = prev_ele
+
         healed_geometry.append([lon, lat, ele])
 
-    geometry = healed_geometry
     elevations = [p[2] for p in geometry]
 
     distances = [0]
     total_dist = 0
     for i in range(len(geometry) - 1):
         p1, p2 = geometry[i], geometry[i+1]
-
         d = geodesic((p1[1], p1[0]), (p2[1], p2[0])).meters
-
         total_dist += d
         distances.append(total_dist)
 
@@ -60,7 +95,6 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
     for i in range(len(elevations) - 1):
         rise = elevations[i+1] - elevations[i]
         run = distances[i+1] - distances[i]
-
         g = (rise / run) * 100 if run > 0.1 else 0
         grades.append(np.clip(g, -25, 25))
     grades.append(0)
@@ -85,7 +119,7 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
                     bottom=min_ele - 10, color=color, align='edge')
         plt.plot(dist_km, elevations, color='#2c3e50', linewidth=0.5, alpha=0.5)
 
-    else: # Default: "filled"
+    else:  # Default: "filled"
         for i in range(len(dist_km) - 1):
             x = [dist_km[i], dist_km[i+1]]
             y = [elevations[i], elevations[i+1]]

@@ -1,9 +1,13 @@
-# BikeScout - AI for tactical cycling intelligence
+# BikeScout 
+
+### Open-source AI cycling route planner for MTB, gravel, road and e-bike riders
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Version](https://img.shields.io/badge/Version-1.4.3-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+
+---
 
 BikeScout is a specialized AI engine for MTB, Road, E-Bike, and Gravel mission planning.
 It transforms raw map data into Tactical Intelligence, predicting terrain conditions and trail hazards.
@@ -99,7 +103,7 @@ Contributions are what make the open-source community such an amazing place to l
 
 ### How to Contribute
 
-1. **Report Bugs**: Found a glitch? Open an [Issue](https://github.com/yourusername/bikescout/issues) with a detailed description and steps to reproduce.
+1. **Report Bugs**: Found a glitch? Open an [Issue](https://github.com/hifly81/bikescout/issues) with a detailed description and steps to reproduce.
 2. **Feature Requests**: Have an idea to make BikeScout better? Open an issue to discuss it!
 3. **Pull Requests**:
    - Fork the Project.

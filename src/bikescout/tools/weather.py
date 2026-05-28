@@ -27,11 +27,13 @@ def get_safety_advice(app_temp: float, rain_prob: int, rain_mm: float, wind_spee
     Evaluates cycling safety based on multi-factor weather thresholds,
     including wind gusts, precipitation volume, and apparent temperature.
     """
-    # 1. Multi-Factor Risk Calculations
+
+    # FIXME Weather risk remains uniform across all disciplines and skill levels.
+
     # Wind risk heavily weighs gusts as they cause loss of bike control
     wind_risk_score = (wind_speed * 0.4) + (wind_gusts * 0.6)
 
-    # 2. Safety Status Engine
+    # Safety Status Engine
     if rain_mm > 10.0 or wind_risk_score > 55:
         status_label = "🔴 [NOT RECOMMENDED]"
         status_msg = "Critical risk: Heavy rain volume or dangerous wind gusts. Riding is unsafe."
@@ -45,7 +47,7 @@ def get_safety_advice(app_temp: float, rain_prob: int, rain_mm: float, wind_spee
         status_label = "🟢 [GO]"
         status_msg = "Ideal conditions: Low wind, dry, and safe."
 
-    # 3. Adaptive Gear Recommendations based on Thermal Stress
+    # Adaptive Gear Recommendations based on Thermal Stress
     if app_temp < 5:
         gear = "Deep Winter (Heavy thermal layers, insulated gloves, overshoes, skull cap)"
     elif app_temp <= 12:
@@ -64,14 +66,8 @@ def get_safety_advice(app_temp: float, rain_prob: int, rain_mm: float, wind_spee
 
 def get_weather_forecast(lat: float, lon: float, target_date: str = None, target_hour: int = 9) -> Dict[str, Any]:
     """
-    Advanced cycling-specific weather engine for BikeScout.
-    Synchronizes local user time with Open-Meteo UTC timeline using GPS coordinates.
-
-    Args:
-        lat: Latitude of the target location.
-        lon: Longitude of the target location.
-        target_date: Optional 'YYYY-MM-DD' string. Defaults to today.
-        target_hour: The specific local hour to evaluate for safety (0-23).
+    Advanced cycling-specific weather engine.
+    Synchronizes local user time with Open-Meteo local timeline using GPS coordinates.
     """
     try:
         tf = TimezoneFinder()
@@ -86,10 +82,8 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
             ).replace(tzinfo=local_tz)
         else:
             now_local = datetime.now(local_tz)
-            # If target_hour is provided, we adjust today's reference
             target_dt_local = now_local.replace(hour=target_hour, minute=0, second=0, microsecond=0)
 
-        # Fetching full day data to allow sliding window analysis
         params = {
             "latitude": lat,
             "longitude": lon,
@@ -117,21 +111,21 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
 
         hourly = data["hourly"]
 
-        # Convert our local target time to UTC to find the exact index in the API response
-        target_dt_utc = target_dt_local.astimezone(timezone.utc)
-        target_utc_str = target_dt_utc.strftime('%Y-%m-%dT%H:00')
+        # --- Open-Meteo returns time strings in local time when 'timezone' parameter is used ---
+        # Matching against local string format instead of UTC to avoid fallback to index 0
+        target_local_str = target_dt_local.strftime('%Y-%m-%dT%H:00')
 
         try:
-            ref_idx = hourly["time"].index(target_utc_str)
+            ref_idx = hourly["time"].index(target_local_str)
         except (ValueError, KeyError):
-            # Fallback if the timezone offset pushes the index out of the requested day array
             ref_idx = 0
 
         forecast_summary = []
         for i in range(len(hourly["time"])):
-            # Convert UTC response time back to local time for user-friendly display
-            utc_dt = datetime.fromisoformat(hourly["time"][i]).replace(tzinfo=timezone.utc)
-            local_time_str = utc_dt.astimezone(local_tz).strftime('%H:%M')
+            # Convert response time (which is in local time structure) properly
+            # Open-Meteo outputs native-like strings, parsing via naive isoformat
+            dt_naive = datetime.fromisoformat(hourly["time"][i])
+            local_time_str = dt_naive.strftime('%H:%M')
 
             forecast_summary.append({
                 "time": local_time_str,
@@ -151,11 +145,8 @@ def get_weather_forecast(lat: float, lon: float, target_date: str = None, target
         curr_gusts = hourly['windgusts_10m'][ref_idx]
         curr_wind_dir = hourly['winddirection_10m'][ref_idx]
 
-        hourly_temps = data.get("hourly", {}).get("temperature_2m", [])
-        if hourly_temps:
-            max_temp_value = max(hourly_temps)
-        else:
-            max_temp_value = "N/A"
+        hourly_temps = hourly.get("temperature_2m", [])
+        max_temp_value = max(hourly_temps) if hourly_temps else "N/A"
 
         return {
             "status": "Success",
@@ -204,9 +195,12 @@ def apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
             h_int = int(hour_info["time"].split(":")[0])
             if start <= h_int <= end:
                 filtered_forecast.append(hour_info)
-                t_val = float(str(hour_info["temp"]).replace("°C", "").replace("C", "").strip())
+
+                # Clean up unit strings safely before typecasting to float/int
+                t_val = float(str(hour_info["temp"]).replace("°C", "").strip())
                 w_val = float(str(hour_info["wind"]).replace(" km/h", "").strip())
-                w_dir = hour_info.get("wind_dir", 90)
+                w_dir_str = str(hour_info.get("wind_direction", "0")).replace("°", "").strip()
+                w_dir = float(w_dir_str)
 
                 window_temps.append(t_val)
                 window_winds.append(w_val)

@@ -66,44 +66,37 @@ def _sanitize_elevation_profile(geometry, window_size=11, threshold=2.0):
 def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
     """
     Calculates the average gradient and assigns a pro-cycling climb category.
-    Adjusts effort scores and climbing ratios based on the specific bike type (Road, MTB, Enduro).
+    Uses static climbing ratios and effort multipliers fixed by discipline.
     """
-    # --- 1. DYNAMIC CLIMBING RATIO & EFFORT MULTIPLIER ---
-    # Enduro: Steep, punchy climbs followed by descents (Climbing covers ~25% of total distance)
-    # MTB/XC: Mixed trails with moderate climbing efficiency (~30% of total distance)
-    # Road/Gravel: Longer, sustained efforts on predictable terrain (~45% of total distance)
-
     bike_type_low = bike_type.lower()
 
+    # --- STATIC CLIMBING RATIO & EFFORT MULTIPLIER PER DISCIPLINE ---
     if "enduro" in bike_type_low:
         climbing_ratio = 0.25
-        effort_multiplier = 1.6  # Maximum effort due to technical terrain and bike weight
+        effort_multiplier = 1.6  # Heavy bike, technical terrain
     elif "mountain" in bike_type_low or "mtb" in bike_type_low:
         climbing_ratio = 0.30
-        effort_multiplier = 1.4  # Increased effort for off-road rolling resistance
+        effort_multiplier = 1.4  # Off-road rolling resistance
     else:
         climbing_ratio = 0.45
-        effort_multiplier = 1.0  # Baseline effort for paved or smooth surfaces
+        effort_multiplier = 1.0  # Road / smooth gravel baseline
 
-    # --- 2. GRADIENT CALCULATION ---
+    # --- GRADIENT CALCULATION ---
     climbing_dist = total_dist_m * climbing_ratio
     avg_gradient = (total_ascent / climbing_dist) * 100 if climbing_dist > 0 else 0
 
-    # Cap the display gradient for realism (Enduro can realistically reach higher averages)
+    # Cap display gradient for realism based on discipline
     max_display = 25.0 if "enduro" in bike_type_low else 20.0
     display_gradient = min(avg_gradient, max_display)
 
-    # --- 3. EFFORT SCORE CALCULATION ---
-    # The score combines total vertical gain with steepness and a bike-specific multiplier
-    # We cap the gradient at 18% for the scoring formula to prevent outliers from breaking categories
+    # --- EFFORT SCORE CALCULATION ---
     scoring_gradient = min(display_gradient, 18.0)
     adjusted_score = total_ascent * (scoring_gradient / 10) * effort_multiplier
 
-    # --- 4. CATEGORIZATION LOGIC ---
+    # --- CATEGORIZATION LOGIC ---
     if total_ascent < 50:
         return "Flat / Rolling", display_gradient
 
-    # HC (Hors Catégorie): Climbs that are beyond classification
     if adjusted_score >= 800 or total_ascent > 1000:
         category = "Hors Catégorie (HC)"
     elif adjusted_score >= 500:
@@ -115,7 +108,6 @@ def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
     else:
         category = "C4 - Short Burner"
 
-    # Append technical tag for Enduro to distinguish from standard XC/MTB
     if "enduro" in bike_type_low:
         category = f"Enduro Tech: {category}"
 
@@ -255,7 +247,6 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
             # Mud Analysis
             mud_analysis = get_mud_risk_analysis(lat, lon, dominant_surface, target_date)
             t_analysis = mud_analysis.get("tactical_analysis") or {}
-
             raw_mud = t_analysis.get("mud_risk_numeric")
             mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
 
@@ -268,7 +259,7 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
                 rider_weight_kg=rider.weight_kg
             )
 
-            climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, current_profile)
+            climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, bike.bike_type)
             breakdown, warnings, compatible = analyze_compatibility(bike.bike_type, bike.tire_width_mm, extras, surface_map)
 
             # --- E-MTB Power Management (Safe Detection) ---

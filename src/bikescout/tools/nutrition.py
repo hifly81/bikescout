@@ -38,7 +38,7 @@ def get_nutrition_plan(
     """
 
     # --- 1. Physiological Factors & Intensity Normalization ---
-    # Gender factor accounts for variance in plasma volume and sweat gland density[cite: 1]
+    # Gender factor accounts for variance in plasma volume and sweat gland density
     gender_factor = 1.0 if gender.lower() == "male" else 0.85
     sweat_rate_multiplier = 1.0
 
@@ -53,7 +53,7 @@ def get_nutrition_plan(
     intensity_factor = intensity_map.get(intensity_score, 0.75)
 
     # --- 2. Dynamic Hydration & Sweat Rate Modeling ---
-    # Steady-state sweat rate based on body mass (ml/kg/hr)[cite: 1]
+    # Steady-state sweat rate based on body mass (ml/kg/hr)
     # Base metabolism + Temperature delta + Intensity kinetic heat
     base_rate_mass = weight_kg * 10
     temp_delta_coeff = max(0, temp_c - 15) * (weight_kg * 0.4)
@@ -64,7 +64,7 @@ def get_nutrition_plan(
 
     # Thermal Ramp-up Logic:
     # Sweat rate is not constant; it increases as core temp rises (thermal drift).
-    # We estimate 75% of steady state for the first hour, 100% thereafter[cite: 1].
+    # We estimate 75% of steady state for the first hour, 100% thereafter.
     if duration_hours <= 1.0:
         avg_hourly_fluid = steady_state_hourly_ml * 0.75
     else:
@@ -94,13 +94,13 @@ def get_nutrition_plan(
     carb_rate = min(120, carb_rate)
     total_carbs = carb_rate * duration_hours
 
-    # Dual-Source Gut Logic for high-carb oxidation[cite: 1]
+    # Dual-Source Gut Logic for high-carb oxidation
     ratios = "Standard isotonic or whole foods"
     if carb_rate > 60:
         ratios = "2:1 Glucose-to-Fructose (or 1:0.8 ratio)"
 
     # --- 4. Individualized Electrolyte (Sodium) Profiling ---
-    # Mapping genetic variance in sweat sodium concentration[cite: 1]
+    # Mapping genetic variance in sweat sodium concentration
     sodium_profile_map = {
         "low": 400,      # Diluted sweat
         "standard": 800, # Population mean

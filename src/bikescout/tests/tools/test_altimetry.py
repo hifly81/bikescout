@@ -21,9 +21,11 @@ class TestAltimetry:
 
     def test_generate_altimetry_plot_styles(self, mock_geometry):
         for style in ["filled", "sparkline", "bars"]:
-            img_b64 = _generate_altimetry_plot(mock_geometry.coordinates, style=style)
+            img_b64, total_dist = _generate_altimetry_plot(mock_geometry.coordinates, style=style)
+
             assert isinstance(img_b64, str)
-            assert len(img_b64) > 100
+            assert isinstance(total_dist, float)
+            assert total_dist > 0
 
     @patch("pathlib.Path.mkdir")
     def test_get_elevation_profile_success(self, mock_mkdir):

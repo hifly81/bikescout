@@ -23,19 +23,16 @@ import uuid
 import time
 from geopy.distance import geodesic
 from pathlib import Path
-from bikescout.schemas import RouteGeometry
-from typing import Literal
+from typing import Literal, Tuple, Optional
 
-def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, style: str = "filled"):
+def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, style: str = "filled") -> Optional[Tuple[str, float]]:
     """
-    Generates an elevation profile with high-precision geodetic distances.
-    Uses dynamic gradient-based healing to remove GPS altimetry spikes.
+    Generates an elevation profile based on a pre-corrected geometry.
+    Returns a tuple (string_base64, total_distance_km).
     """
     if not geometry or len(geometry) < 2:
         return None
 
-    # Find a valid starting altitude in case the first point is corrupted.
-    # Land limits: -430m (Dead Sea), 8848m (Everest). Let's keep a safety margin.
     ABS_MIN_ELE = -450
     ABS_MAX_ELE = 9000
 
@@ -44,7 +41,6 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
         if ABS_MIN_ELE <= p[2] <= ABS_MAX_ELE:
             first_valid_ele = p[2]
             break
-
 
     healed_geometry = []
     for i, (lon, lat, ele) in enumerate(geometry):
@@ -60,17 +56,12 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
         if not (ABS_MIN_ELE <= ele <= ABS_MAX_ELE):
             is_glitch = True
         else:
-            # Calculate the actual distance from the previous point to evaluate the slope
             dist_m = geodesic((lat, lon), (prev_lat, prev_lon)).meters
-
             if dist_m > 0.5:
                 grade = (abs(ele - prev_ele) / dist_m) * 100
-                # A gradient greater than 45% is physically impossible/impracticable by bike
-                # (even for extreme MTB walls), so it's a clear GPS error.
                 if grade > 45.0:
                     is_glitch = True
             else:
-                # If the points are almost overlapping (< 50cm), a height difference > 3m is jitter/noise
                 if abs(ele - prev_ele) > 3.0:
                     is_glitch = True
 
@@ -79,17 +70,18 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
 
         healed_geometry.append([lon, lat, ele])
 
-    elevations = [p[2] for p in geometry]
+    elevations = [p[2] for p in healed_geometry]
 
     distances = [0]
     total_dist = 0
-    for i in range(len(geometry) - 1):
-        p1, p2 = geometry[i], geometry[i+1]
+    for i in range(len(healed_geometry) - 1):
+        p1, p2 = healed_geometry[i], healed_geometry[i+1]
         d = geodesic((p1[1], p1[0]), (p2[1], p2[0])).meters
         total_dist += d
         distances.append(total_dist)
 
     dist_km = [d / 1000 for d in distances]
+    total_dist_km = dist_km[-1] if dist_km else 0.0
 
     grades = []
     for i in range(len(elevations) - 1):
@@ -119,7 +111,7 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
                     bottom=min_ele - 10, color=color, align='edge')
         plt.plot(dist_km, elevations, color='#2c3e50', linewidth=0.5, alpha=0.5)
 
-    else:  # Default: "filled"
+    else:  # "filled"
         for i in range(len(dist_km) - 1):
             x = [dist_km[i], dist_km[i+1]]
             y = [elevations[i], elevations[i+1]]
@@ -143,11 +135,12 @@ def _generate_altimetry_plot(geometry: list, width: int = 8, height: int = 3, st
     img_base64 = base64.b64encode(buf.read()).decode('utf-8')
     plt.close()
 
-    return img_base64
+    return img_base64, total_dist_km
 
-def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "filled"):
+
+def get_elevation_profile_image(geometry, uuid_input, width: int = 8, height: int = 3, style: Literal["sparkline", "filled", "bars"] = "filled"):
     """
-    Generates an elevation profile, manages local storage and auto-cleaning.
+    Generates an elevation profile, manages local storage and automatic cleanup.
     """
     try:
         coords_list = geometry.coordinates
@@ -161,14 +154,13 @@ def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int 
                 try:
                     f.unlink()
                 except: pass
+
         plot_result = _generate_altimetry_plot(coords_list, width, height, style)
 
-        raw_data = plot_result
-        if isinstance(plot_result, dict):
-            raw_data = plot_result.get("image_data_url", "")
+        if not plot_result:
+            return {"status": "Error", "message": "No plot data generated. Geometry might be invalid."}
 
-        if "base64," in raw_data:
-            raw_data = raw_data.split("base64,")[1]
+        raw_data, total_distance_km = plot_result
 
         if not raw_data:
             return {"status": "Error", "message": "No plot data generated."}
@@ -189,9 +181,7 @@ def get_elevation_profile_image(geometry: RouteGeometry, uuid_input, width: int 
             "file_location": str(file_path),
             "style_applied": style,
             "dimensions": f"{width}x{height} in",
-            "total_distance_km": round(sum(geodesic((geometry.coordinates[i][1], geometry.coordinates[i][0]),
-                                                    (geometry.coordinates[i+1][1], geometry.coordinates[i+1][0])).meters
-                                           for i in range(len(geometry.coordinates)-1)) / 1000, 2)
+            "total_distance_km": round(total_distance_km, 2)
         }
 
     except Exception as e:

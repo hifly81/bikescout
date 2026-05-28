@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 from bikescout.tools.weather import get_safety_advice, get_weather_forecast, apply_weather_windowing
+import requests
 
 class TestWeather:
 
@@ -60,3 +61,52 @@ class TestWeather:
         result = get_weather_forecast(41.9, 12.4)
         assert result["status"] == "Error"
         assert "Unexpected Weather Engine Error" in result["message"]
+
+    def test_safety_advice_caution_and_watch(self):
+        caution_advice = get_safety_advice(app_temp=15, rain_prob=20, rain_mm=3.5, wind_speed=10, wind_gusts=15)
+        assert "CAUTION" in caution_advice["status"]
+
+        watch_advice = get_safety_advice(app_temp=15, rain_prob=45, rain_mm=0.5, wind_speed=10, wind_gusts=15)
+        assert "WATCH" in watch_advice["status"]
+
+    @patch("requests.get")
+    def test_weather_forecast_missing_hourly(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"daily": {}}
+        mock_get.return_value = mock_response
+
+        result = get_weather_forecast(41.9, 12.4, target_date="2026-05-08", target_hour=9)
+        assert result["status"] == "Error"
+        assert "No hourly data returned" in result["message"]
+
+    @patch("requests.get")
+    def test_weather_forecast_timezone_fallback(self, mock_get):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "hourly": {
+                "time": ["2026-05-08T07:00", "2026-05-08T08:00"],
+                "temperature_2m": [15, 16],
+                "apparent_temperature": [14, 15],
+                "precipitation_probability": [0, 0],
+                "precipitation": [0, 0],
+                "windspeed_10m": [10, 12],
+                "windgusts_10m": [15, 18],
+                "winddirection_10m": [180, 190],
+                "weathercode": [0, 0]
+            }
+        }
+        mock_get.return_value = mock_response
+
+        result = get_weather_forecast(41.9, 12.4, target_date="2026-05-08", target_hour=23)
+        assert result["status"] == "Success"
+        assert result["reference_conditions"]["temp_actual"] == 15  # Valore all'indice 0
+
+    @patch("requests.get")
+    def test_weather_api_request_exception(self, mock_get):
+        mock_get.side_effect = requests.exceptions.RequestException("Connection dropped")
+
+        result = get_weather_forecast(41.9, 12.4)
+        assert result["status"] == "Error"
+        assert "Weather API Connection Error" in result["message"]

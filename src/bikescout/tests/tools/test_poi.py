@@ -151,3 +151,25 @@ class TestPOIs:
         assert result["status"] == "Error"
         assert "Internal Engine failure" in result["message"]
         assert "Network down" in result["message"]
+
+    @patch("requests.post")
+    def test_ors_water_and_bike_support_labels(self, mock_post):
+        mock_post.return_value.ok = True
+        mock_post.return_value.json.return_value = {
+            "features": [
+                {
+                    "properties": {"category_ids": {"162": {}}, "distance": 50},
+                    "geometry": {"coordinates": [9.05, 45.05]}
+                },
+                {
+                    "properties": {"category_ids": {"372": {}}, "distance": 150},
+                    "geometry": {"coordinates": [9.06, 45.06]}
+                }
+            ]
+        }
+
+        result = get_poi_scout("valid_key", 45.0, 9.0, 1.0)
+
+        assert result["amenities"][0]["type"] == "Water Fountain 💧"
+
+        assert result["amenities"][1]["type"] == "Bike Support 🚲"

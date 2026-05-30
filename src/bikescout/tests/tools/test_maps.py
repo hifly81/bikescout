@@ -64,3 +64,78 @@ class TestMaps:
 
         assert flat != steep
         assert flat.startswith("#")
+
+    def test_geometry_is_none(self):
+        geojson_missing_geom = {
+            "features": [
+                {
+                    "geometry": None
+                }
+            ]
+        }
+        res = save_local_tactical_map("none_geom", geojson_missing_geom)
+        assert res["status"] == "Error"
+        assert "Invalid or missing LineString geometry" in res["message"]
+
+    def test_geometry_type_is_not_linestring(self):
+        geojson_wrong_type = {
+            "features": [
+                {
+                    "geometry": {
+                        "type": "Polygon",  # Tipo errato
+                        "coordinates": [[[9.1, 45.1], [9.2, 45.2], [9.3, 45.3], [9.1, 45.1]]]
+                    }
+                }
+            ]
+        }
+        res = save_local_tactical_map("wrong_type", geojson_wrong_type)
+        assert res["status"] == "Error"
+        assert "Invalid or missing LineString geometry" in res["message"]
+
+    def test_insufficient_coordinates(self):
+        bad_coords = {
+            "features": [{
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[9.18, 45.46, 100]]
+                }
+            }]
+        }
+        result = save_local_tactical_map("one_point", bad_coords)
+        assert result["status"] == "Error"
+        assert "Insufficient coordinates for mapping" in result["message"]
+
+    @patch("staticmap.StaticMap.render")
+    @patch("PIL.Image.Image.save")
+    def test_zero_or_low_run_gradient(self, mock_save, mock_render):
+        overlapping_coords = {
+            "features": [{
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [9.18, 45.46, 100],
+                        [9.18, 45.46, 150]
+                    ]
+                }
+            }]
+        }
+        result = save_local_tactical_map("zero_run", overlapping_coords, use_gradient=True)
+        assert result["status"] == "Success"
+        assert result["style_applied"] == "gradient"
+
+    @patch("staticmap.StaticMap.add_line")
+    def test_global_exception_handling(self, mock_add_line):
+        mock_add_line.side_effect = RuntimeError("Simulated OS or rendering failure")
+
+        geojson = {
+            "features": [{
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [[9.1, 45.1], [9.2, 45.2]]
+                }
+            }]
+        }
+
+        result = save_local_tactical_map("crash_test", geojson, use_gradient=False)
+        assert result["status"] == "Error"
+        assert "Local Map Generation Failed" in result["message"]

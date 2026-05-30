@@ -239,6 +239,12 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
                                         "is_ebike": {"type": "boolean"},
                                         "weight_kg": {"type": "number"},
                                         "seed": {"type": "number"},
+                                        "complexity": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 5,
+                                            "description": "MANDATORY. Route difficulty level from 1 (very easy) to 5 (extreme). Default is 3."
+                                        },
                                         "fitness_level": {
                                             "type": "string",
                                             "enum": ["beginner", "intermediate", "pro"]
@@ -279,6 +285,7 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
     - BIKE_TYPE: Identify from context. Allowed values ONLY: ["mtb", "road", "gravel", "e-mtb", "enduro"].
     - TIRE_SIZE: Map explicit sizes (e.g., '29-inch' -> '29', '700c' -> '700c').
     - FITNESS_LEVEL: Map to ["beginner", "intermediate", "pro"].
+    - COMPLEXITY:  1 (Very Easy), 2 (Easy), 3 (Moderate - DEFAULT), 4 (Hard), 5 (Extreme)
     - Ensure 'distance', 'bike_type', and 'tire_size' are always included in the args if mentioned or logically inferred.
     
     === 4. TACTICAL OVERLAYS (Set to TRUE if context matches) ===
@@ -489,12 +496,21 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 elif "enduro" in raw_bike or "downhill" in raw_bike: final_bike = "enduro"
                 else: final_bike = "mtb"
 
+                raw_complexity = args.get("complexity", 3)
+                try:
+                    complexity_val = int(raw_complexity)
+                    if complexity_val < 1: complexity_val = 1
+                    if complexity_val > 5: complexity_val = 5
+                except (ValueError, TypeError):
+                    complexity_val = 3
+
+                args["complexity"] = complexity_val
+
                 # TODO
                 # mapping missing for:
                 #         battery_wh: int = 625,
                 #         profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = "cycling-mountain",
                 #         surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
-                #         complexity: int = 3,
                 #         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
                 #         dest_latitude: Optional[float] = None,
                 #         dest_longitude: Optional[float] = None,
@@ -515,6 +531,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     "weight_kg": ext_cast(args.get("weight_kg"), float, 75.0),
                     "gender": str(args.get("gender") or "male"),
                     "seed": random.randint(1, 999999),
+                    "complexity": complexity_val,
                     "bike_type": final_bike,
                     "is_ebike": is_ebike,
                     "fitness_level": str(args.get("fitness_level") or "intermediate"),

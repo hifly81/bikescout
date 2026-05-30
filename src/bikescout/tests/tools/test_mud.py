@@ -186,3 +186,74 @@ class TestMud:
 
         assert result["status"] == "Success"
         assert result["tactical_analysis"]["mud_risk_score"] == "High"
+
+    @patch("requests.get")
+    def test_global_label_medium_risk(self, mock_get, mock_weather_response):
+        """Forces M into the Medium risk window (4.0 <= M < 12.0)"""
+        local_tz = zoneinfo.ZoneInfo("Europe/Rome")
+        end_date = datetime.now(local_tz)
+        start_date = end_date - timedelta(hours=72)
+
+        mock_times = []
+        current = start_date
+        while current <= end_date:
+            mock_times.append(current.strftime("%Y-%m-%dT%H:%M:%S"))
+            current += timedelta(hours=1)
+
+        total_hours = len(mock_times)
+        precip_data = [0.0] * total_hours
+        # Inject just enough rain to sit comfortably in the middle (~6mm)
+        precip_data[-1] = 6.0
+
+        mock_weather_response["hourly"] = {
+            "time": mock_times,
+            "precipitation": precip_data,
+            "temperature_2m": [20.0] * total_hours,
+            "wind_speed_10m": [10.0] * total_hours,
+            "cloudcover": [0] * total_hours
+        }
+
+        mock_get.return_value.json.return_value = mock_weather_response
+        mock_get.return_value.status_code = 200
+
+        with patch("bikescout.tools.mud._get_seasonal_saturation_bias", return_value=0.0):
+            result = get_mud_risk_analysis(45.0, 9.0, surface_type="dirt")
+
+        assert result["status"] == "Success"
+        assert result["tactical_analysis"]["mud_risk_score"] == "Medium"
+
+    @patch("requests.get")
+    def test_global_label_extreme_risk(self, mock_get, mock_weather_response):
+        """Forces M into the Extreme risk window (M >= 20.0)"""
+        local_tz = zoneinfo.ZoneInfo("Europe/Rome")
+        end_date = datetime.now(local_tz)
+        start_date = end_date - timedelta(hours=72)
+
+        mock_times = []
+        current = start_date
+        while current <= end_date:
+            mock_times.append(current.strftime("%Y-%m-%dT%H:%M:%S"))
+            current += timedelta(hours=1)
+
+        total_hours = len(mock_times)
+        precip_data = [0.0] * total_hours
+        # Heavy rain payload to force extreme soil state
+        precip_data[-1] = 25.0
+
+        mock_weather_response["hourly"] = {
+            "time": mock_times,
+            "precipitation": precip_data,
+            "temperature_2m": [20.0] * total_hours,
+            "wind_speed_10m": [10.0] * total_hours,
+            "cloudcover": [0] * total_hours
+        }
+
+        mock_get.return_value.json.return_value = mock_weather_response
+        mock_get.return_value.status_code = 200
+
+        with patch("bikescout.tools.mud._get_seasonal_saturation_bias", return_value=0.0):
+            result = get_mud_risk_analysis(45.0, 9.0, surface_type="dirt")
+
+        assert result["status"] == "Success"
+        assert result["tactical_analysis"]["mud_risk_score"] == "Extreme"
+

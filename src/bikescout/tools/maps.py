@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import time
-import numpy as np
+import math
 import matplotlib.colors as mcolors
 from pathlib import Path
 from staticmap import StaticMap, Line, CircleMarker
@@ -95,7 +95,10 @@ def save_local_tactical_map(
                 p1, p2 = all_coords[i], all_coords[i+1]
 
                 rise = p2[2] - p1[2]
-                run = np.sqrt((p2[0]-p1[0])**2 + (p2[1]-p1[1])**2) * 111000
+                lat_rad = math.radians(p1[1])
+                dx = (p2[0] - p1[0]) * math.cos(lat_rad) * 111111
+                dy = (p2[1] - p1[1]) * 111111
+                run = math.sqrt(dx**2 + dy**2)
 
                 # Prevent division by zero and calculate grade %
                 grade = (rise / run) * 100 if run > 0.5 else 0

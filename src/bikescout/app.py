@@ -294,8 +294,6 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
     - 'include_nutrition_plan': If user mentions 'food', 'eating', 'calories', or 'nutrition'.
     - 'include_poi': If user mentions 'amenities', 'poi', 'bars', 'water', or 'places'.
     - 'include_gpx': If user asks for 'gpx', 'track', or 'download'.
-    - 'include_altimetry': If user asks about 'altimetry', 'elevation', 'climb', or 'hills'.
-    - 'include_map': If user asks for a 'map', 'visual map', or 'layout'.
     """
 
     formatted_messages = [{"role": "system", "content": system_prompt}]
@@ -471,6 +469,8 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 else:
                     location_query = st.session_state.get("last_location_query")
 
+                st.markdown(location_query, unsafe_allow_html=True)
+
                 geo = geocode_location(location_name=location_query)
                 if not geo:
                     status.update(label="Geolocalization failed", state="error")
@@ -526,8 +526,8 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     "include_nutrition_plan": bool(args.get("include_nutrition_plan")),
                     "include_poi": bool(args.get("include_poi")),
                     "include_gpx": bool(args.get("include_gpx")),
-                    "include_map": bool(args.get("include_map")),
-                    "include_altimetry": bool(args.get("include_altimetry")),
+                    "include_map": True,
+                    "include_altimetry": True,
                     "weight_kg": ext_cast(args.get("weight_kg"), float, 75.0),
                     "gender": str(args.get("gender") or "male"),
                     "seed": random.randint(1, 999999),
@@ -537,7 +537,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     "fitness_level": str(args.get("fitness_level") or "intermediate"),
                 }
 
-                #st.markdown(valid_args, unsafe_allow_html=True)
+                st.markdown(valid_args, unsafe_allow_html=True)
 
                 result = trail_scout_simple(**valid_args)
                 res_data = result.model_dump() if hasattr(result, 'model_dump') else result

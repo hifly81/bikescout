@@ -22,7 +22,7 @@ def calculate_battery_drain(
         weight_kg: float,
         ascent_m: float,
         distance_km: float,
-        surface_breakdown: any,
+        surface_breakdown: dict[str, int],
         mud_index: float,
         avg_speed_kmh: float = 18.0,
         ambient_temp_c: float = 20.0,

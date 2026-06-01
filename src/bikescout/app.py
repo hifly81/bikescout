@@ -197,7 +197,11 @@ def load_llm(model_name: str, n_gpu_layers: int):
         verbose=False
     )
 
-def generate_tactical_response(messages_history: list, llm_instance: Llama) -> str:
+def generate_tactical_response(
+        messages_history: list,
+        llm_instance: Llama,
+        mission_context: dict | None = None,
+) -> str:
     json_schema = {
         "type": "json_object",
         "schema": {
@@ -223,10 +227,21 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
                                         },
                                         "tire_size": {"type": "string"},
                                         "distance": {"type": "number"},
+                                        "route_mode": {
+                                            "type": "string",
+                                            "enum": ["round_trip", "point_to_point"],
+                                            "description": "round_trip = same start/end loop. point_to_point = A to B different places."
+                                        },
                                         "location_name": {
                                             "type": "string",
-                                            "description": "MANDATORY. Use the place from the current prompt or RECOVER it from history if missing."
+                                            "description": "START (A). Required for round_trip; required for point_to_point as departure."
                                         },
+                                        "destination_name": {
+                                            "type": "string",
+                                            "description": "END (B). Required only when route_mode is point_to_point."
+                                        },
+                                        "dest_latitude": {"type": "number"},
+                                        "dest_longitude": {"type": "number"},
                                         "latitude": {"type": "number"},
                                         "longitude": {"type": "number"},
                                         "include_weather": {"type": "boolean"},
@@ -258,7 +273,7 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
                                             "enum": ["male", "female"]
                                         },
                                     },
-                                    "required": ["bike_type", "tire_size"]
+                                    "required": ["bike_type", "tire_size", "location_name"]
                                 }
                             },
                             "required": ["name", "args"]
@@ -271,13 +286,21 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
         }
     }
 
+    mission_block = ""
+    if mission_context:
+        mission_block = f"""
+    === ACTIVE MISSION (reuse unless user changes place) ===
+    {json.dumps(mission_context, ensure_ascii=False)}
+    For follow-ups ("add POI", "30km", "more mud"): keep the same location_name and only change requested fields.
+    """
+
     system_prompt = """
     You are BikeScout Tactical AI, an expert cycling logistics and route-planning assistant.
     You MUST respond ONLY with a valid JSON object matching the provided schema. No markdown, no preambles.
     
     === 1. MISSION CONTROL (CRITICAL LOGIC) ===
-    - CAN_EXECUTE PROTOCOL: Set 'can_execute' to true ONLY if you have a clear geographic location AND the user wants to plan or analyze a cycling route. 
-    - REJECTION: If the user is chatting, asking about unrelated topics (e.g., soccer, politics), or if the location is completely unknown and missing from history, you MUST set 'can_execute' to false and 'tool' to null.
+    - CAN_EXECUTE PROTOCOL: Set 'can_execute' to true ONLY if geographic location is provided AND the user wants to plan or analyze a cycling route. 
+    - REJECTION: Set 'can_execute' to false and 'tool' to null ONLY if the user is explicitly chatting about completely non-geographic/unrelated topics (e.g., math, politics, pure social chit-chat). Never reject a valid geographical location.
     - TOOL SELECTION: When 'can_execute' is true, always set 'tool.name' to 'trail_scout_simple'.
     
     === 2. LOCATION PERSISTENCE (MANDATORY) ===
@@ -293,13 +316,24 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
     - Ensure 'distance', 'bike_type', and 'tire_size' are always included in the args if mentioned or logically inferred.
     
     === 4. TACTICAL OVERLAYS (Set to TRUE if context matches) ===
-    - 'include_poi': If user mentions 'amenities', 'poi', 'bars', 'water', or 'places'.
-    - 'include_gpx': If user asks for 'gpx', 'track', or 'download'.
-    """
+    - 'include_gpx': user mentions gpx, track, download, navigation file.
+    - 'include_poi': user mentions poi, amenities, water, bars, places.
+    - 'include_nutrition_plan': user mentions nutrition, fueling, hydration, carbs, electrolytes, food, snacks.
+    
+    === 5. ROUTE MODE ===
+    - round_trip (default): one location, loop, use "distance" in km.
+    - point_to_point: user says "from A to B", "da A a B", "A -> B".
+      Set route_mode to point_to_point, location_name = start, destination_name = end.
+      Do NOT use round_trip length to force distance on A->B; distance is computed by the engine.
+    """ + mission_block
 
     formatted_messages = [{"role": "system", "content": system_prompt}]
-    last_messages = messages_history[-6:]
-    formatted_messages.extend(last_messages)
+    llm_history = [
+        m for m in messages_history
+        if m.get("role") == "user"
+           or (m.get("role") == "assistant" and m.get("content") != "Connection established. Provide input...")
+    ]
+    formatted_messages.extend(llm_history[-6:])
 
     response = llm_instance.create_chat_completion(
         messages=formatted_messages,
@@ -375,6 +409,9 @@ with st.sidebar:
 
     if st.button("Clear Chat History", use_container_width=True):
         st.session_state.messages = []
+        st.session_state.mission_context = {}
+        st.session_state.pop("last_location_query", None)
+        st.session_state.pop("last_raw_distance", None)
         st.rerun()
 
 # --- MAIN INTERFACE ---
@@ -403,7 +440,6 @@ with head_col2:
 st.divider()
 llm = load_llm(selected_model_name, n_layers)
 
-# --- MODE SELECTOR ---
 mode = st.radio(
     "Select Operation Mode:",
     ["💬 BikeScout (Chat)", "🗺️ GPX Track Audit"],
@@ -430,6 +466,100 @@ def ext_cast(val, to_type, default):
         return to_type(val)
     except (ValueError, TypeError):
         return default
+
+def extract_location_hint(text: str) -> str | None:
+    if not text:
+        return None
+    patterns = [
+        r"(?i)\bnear(?:by)?\s+([^.;,\n]+)",
+        r"(?i)\b(?:around|in|at)\s+([^.;,\n]+)",
+        r"(?i)\b(?:vicino a|intorno a|da)\s+([^.;,\n]+)",
+    ]
+    for pat in patterns:
+        m = re.search(pat, text.strip())
+        if m:
+            hint = m.group(1).strip()
+            hint = re.split(r"(?i)\s+i'm\b|\s+add\b|\s+with\b", hint)[0].strip()
+            if len(hint) >= 3:
+                return hint
+    return None
+
+
+def resolve_location_query(args: dict, user_input: str) -> str | None:
+    return (
+            args.get("location_name")
+            or st.session_state.get("last_location_query")
+            or extract_location_hint(user_input)
+            or (st.session_state.get("mission_context") or {}).get("location_name")
+    )
+
+
+def update_mission_context(
+        location_name: str,
+        lat: float,
+        lon: float,
+        args: dict,
+        distance_km: float,
+        route_mode: str = "round_trip",
+        destination_name: str | None = None,
+        dest_lat: float | None = None,
+        dest_lon: float | None = None,
+):
+    st.session_state["last_location_query"] = location_name
+
+    ctx = {
+        "route_mode": route_mode,
+        "location_name": location_name,
+        "latitude": lat,
+        "longitude": lon,
+        "distance_km": distance_km,
+        "bike_type": args.get("bike_type"),
+        "tire_size": args.get("tire_size"),
+    }
+
+    if route_mode == "point_to_point":
+        ctx["destination_name"] = destination_name
+        ctx["dest_latitude"] = dest_lat
+        ctx["dest_longitude"] = dest_lon
+    else:
+        ctx["destination_name"] = None
+        ctx["dest_latitude"] = None
+        ctx["dest_longitude"] = None
+
+    st.session_state["mission_context"] = ctx
+
+def wants_overlay(user_input: str, llm_value, keywords: tuple[str, ...]) -> bool:
+    if llm_value is True:
+        return True
+    if user_input:
+        text = user_input.lower()
+        return any(k in text for k in keywords)
+    return bool(llm_value)
+
+def extract_point_to_point(user_input: str) -> tuple[str, str] | None:
+    if not user_input:
+        return None
+    patterns = [
+        r"(?i)\bfrom\s+(.+?)\s+to\s+(.+?)(?:\.|,| with | and |$)",
+        r"(?i)\bda\s+(.+?)\s+a\s+(.+?)(?:\.|,| con | e |$)",
+        r"(?i)^(.+?)\s*->\s*(.+?)$",
+    ]
+    for pat in patterns:
+        m = re.search(pat, user_input.strip())
+        if m:
+            start, end = m.group(1).strip(), m.group(2).strip()
+            if len(start) >= 2 and len(end) >= 2:
+                return start, end
+    return None
+
+
+def resolve_route_mode(args: dict, user_input: str) -> str:
+    mode = (args.get("route_mode") or "").lower()
+    if mode in ("point_to_point", "a_to_b", "a-b"):
+        return "point_to_point"
+    if extract_point_to_point(user_input):
+        return "point_to_point"
+    return "round_trip"
 
 def process_local_mcp_request(raw_llm_json: str, user_input: str):
     res_data = None
@@ -463,22 +593,43 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             args = tool_data.get("args", {})
 
             if tool_name == "trail_scout_simple":
-                current_query = args.get("location_name")
-                if current_query:
-                    st.session_state["last_location_query"] = current_query
-                    location_query = current_query
-                else:
-                    location_query = st.session_state.get("last_location_query")
+                route_mode = resolve_route_mode(args, user_input)
+                dest_lat, dest_lon = None, None
+                dest_display = None
 
-                st.markdown(location_query, unsafe_allow_html=True)
-
-                geo = geocode_location(location_name=location_query)
-                if not geo:
+                location_query = resolve_location_query(args, user_input)
+                if not location_query:
                     status.update(label="Geolocalization failed", state="error")
-                    return "Geolocalization failed"
+                    return "Specify a location (eg. «nearby Potenza, Italy»)."
+                geo = geocode_location(location_name=location_query)
+                if getattr(geo, "status", None) != "Success":
+                    status.update(label="Geolocalization failed", state="error")
+                    return f"Geo failed for: {location_query}"
+
+                if route_mode == "point_to_point":
+                    dest_name = (
+                            args.get("destination_name")
+                            or (st.session_state.get("mission_context") or {}).get("destination_name")
+                    )
+                    if not dest_name:
+                        ab = extract_point_to_point(user_input)
+                        if ab:
+                            if not location_query:
+                                location_query = ab[0]
+                            dest_name = ab[1]
+                    if not dest_name:
+                        status.update(label="Missing destination", state="error")
+                        return "A→B specify start and end (eg. «from Rome to Albano Laziale»)."
+                    geo_dest = geocode_location(location_name=dest_name)
+                    if getattr(geo_dest, "status", None) != "Success":
+                        return f"Geolocalization destination failed: {dest_name}"
+                    dest_lat = float(geo_dest.lat)
+                    dest_lon = float(geo_dest.lon)
+                    dest_display = getattr(geo_dest, "display_name", dest_name)
 
                 args["latitude"] = geo.lat
                 args["longitude"] = geo.lon
+                display_name = getattr(geo, "display_name", location_query)
 
                 raw_distance = ext_cast(args.get("distance"), float, 25.0)
                 if raw_distance:
@@ -487,6 +638,18 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     st.session_state["last_raw_distance"] = raw_distance
                 else:
                     raw_distance = st.session_state.get("last_raw_distance")
+
+                update_mission_context(
+                    display_name,
+                    geo.lat,
+                    geo.lon,
+                    args,
+                    raw_distance,
+                    route_mode=route_mode,
+                    destination_name=dest_display if route_mode == "point_to_point" else None,
+                    dest_lat=dest_lat,
+                    dest_lon=dest_lon,
+                )
 
                 raw_bike = str(args.get("bike_type")).lower()
                 is_ebike = False
@@ -529,13 +692,43 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 valid_args = {
                     "latitude": float(args.get("latitude")),
                     "longitude": float(args.get("longitude")),
+                    "dest_latitude": dest_lat,      # None → round trip
+                    "dest_longitude": dest_lon,
                     "total_length_km": raw_distance,
                     "tire_size": str(args.get("tire_size")),
                     "include_weather": True,
                     "include_mud_analysis": True if final_bike != "road" else False,
-                    "include_nutrition_plan": True,
-                    "include_poi": bool(args.get("include_poi")),
-                    "include_gpx": bool(args.get("include_gpx")),
+                    "include_nutrition_plan": wants_overlay(
+                        user_input,
+                        args.get("include_nutrition_plan"),
+                        (
+                            "nutrition",
+                            "nutrizione",
+                            "fueling",
+                            "fuel",
+                            "hydration",
+                            "idratazione",
+                            "carbs",
+                            "carbohydrates",
+                            "carboidrati",
+                            "electrolytes",
+                            "elettroliti",
+                            "sodium",
+                            "sodio",
+                            "eating",
+                            "food",
+                            "snack",
+                            "bonk",
+                        ),
+                    ),
+                    "include_poi": wants_overlay(
+                        user_input, args.get("include_poi"),
+                        ("poi", "amenities", "water", "bars", "places"),
+                    ),
+                    "include_gpx": wants_overlay(
+                        user_input, args.get("include_gpx"),
+                        ("gpx", "track", "download", ".gpx"),
+                    ),
                     "include_map": True,
                     "include_altimetry": True,
                     "weight_kg": ext_cast(args.get("weight_kg"), float, 75.0),
@@ -967,31 +1160,53 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
 if mode == "💬 BikeScout (Chat)":
 
-    # Initialize chat history
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Connection established. Provide input..."}
-        ]
+        st.session_state.messages = []
+    if "mission_context" not in st.session_state:
+        st.session_state.mission_context = {}
 
-    # Display chat messages
+    if not st.session_state.messages:
+        with st.chat_message("assistant"):
+            st.markdown("Connection established. Provide input...")
+
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Chat Input Box
-    if user_input := st.chat_input("Plan a 30km mtb ride in Moab area"):
+    if user_input := st.chat_input("Plan a 30km mtb ride near Potenza, Italy"):
         st.session_state.messages.append({"role": "user", "content": user_input})
+
         with st.chat_message("user"):
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            raw_output = generate_tactical_response(st.session_state.messages, llm)
+            raw_output = generate_tactical_response(
+                st.session_state.messages,
+                llm,
+                mission_context=st.session_state.get("mission_context"),
+            )
             final_briefing = process_local_mcp_request(raw_output, user_input)
-            clean_briefing = re.sub(r'(?i)TOOL:.*', '', final_briefing, flags=re.DOTALL)
-            st.markdown(clean_briefing.strip())
+            clean_briefing = re.sub(r"(?i)TOOL:.*", "", final_briefing, flags=re.DOTALL).strip()
+            st.markdown(clean_briefing or "Done.")
 
-        clean_history_text = re.sub(r'(?i)TOOL:.*', '', final_briefing, flags=re.DOTALL).strip()
-        st.session_state.messages.append({"role": "assistant", "content": clean_history_text})
+        ctx = st.session_state.get("mission_context") or {}
+        location_note = ""
+        if ctx.get("location_name"):
+            if ctx.get("route_mode") == "point_to_point" and ctx.get("destination_name"):
+                location_note = (
+                    f"\n\n[Mission A→B: {ctx['location_name']} → {ctx['destination_name']}, "
+                    f"{ctx.get('bike_type', 'mtb')}]"
+                )
+            else:
+                location_note = (
+                    f"\n\n[Mission: {ctx['location_name']}, "
+                    f"{ctx.get('distance_km', '?')} km {ctx.get('bike_type', 'mtb')}]"
+                )
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": (clean_briefing or "Done.") + location_note,
+        })
 
 
 elif mode == "🗺️ GPX Track Audit":

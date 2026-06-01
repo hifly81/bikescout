@@ -245,6 +245,10 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
                                             "maximum": 5,
                                             "description": "MANDATORY. Route difficulty level from 1 (very easy) to 5 (extreme). Default is 3."
                                         },
+                                        "profile": {
+                                            "type": "string",
+                                            "enum": ["cycling-mountain", "cycling-road", "cycling-electric"]
+                                        },
                                         "fitness_level": {
                                             "type": "string",
                                             "enum": ["beginner", "intermediate", "pro"]
@@ -289,9 +293,6 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
     - Ensure 'distance', 'bike_type', and 'tire_size' are always included in the args if mentioned or logically inferred.
     
     === 4. TACTICAL OVERLAYS (Set to TRUE if context matches) ===
-    - 'include_weather' & 'include_mud_analysis': If user mentions 'tomorrow', 'weather', 'conditions', or 'go/no-go'.
-    - 'include_mud_analysis': If user mentions 'mud', 'terrain', 'conditions'.
-    - 'include_nutrition_plan': If user mentions 'food', 'eating', 'calories', or 'nutrition'.
     - 'include_poi': If user mentions 'amenities', 'poi', 'bars', 'water', or 'places'.
     - 'include_gpx': If user asks for 'gpx', 'track', or 'download'.
     """
@@ -496,6 +497,16 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 elif "enduro" in raw_bike or "downhill" in raw_bike: final_bike = "enduro"
                 else: final_bike = "mtb"
 
+                MOUNTAIN_BIKES = {"mtb", "enduro", "downhill", "gravel"}
+                if final_bike in MOUNTAIN_BIKES:
+                    profile = "cycling-mountain"
+                elif final_bike == "road":
+                    profile = "cycling-road"
+                elif final_bike == "e-mtb":
+                    profile = "cycling-electric"
+                else:
+                    profile = "cycling-regular"
+
                 raw_complexity = args.get("complexity", 3)
                 try:
                     complexity_val = int(raw_complexity)
@@ -509,7 +520,6 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 # TODO
                 # mapping missing for:
                 #         battery_wh: int = 625,
-                #         profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = "cycling-mountain",
                 #         surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
                 #         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
                 #         dest_latitude: Optional[float] = None,
@@ -521,9 +531,9 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     "longitude": float(args.get("longitude")),
                     "total_length_km": raw_distance,
                     "tire_size": str(args.get("tire_size")),
-                    "include_weather": bool(args.get("include_weather")),
-                    "include_mud_analysis": bool(args.get("include_mud_analysis")),
-                    "include_nutrition_plan": bool(args.get("include_nutrition_plan")),
+                    "include_weather": True,
+                    "include_mud_analysis": True if final_bike != "road" else False,
+                    "include_nutrition_plan": True,
                     "include_poi": bool(args.get("include_poi")),
                     "include_gpx": bool(args.get("include_gpx")),
                     "include_map": True,
@@ -533,6 +543,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     "seed": random.randint(1, 999999),
                     "complexity": complexity_val,
                     "bike_type": final_bike,
+                    "profile": profile,
                     "is_ebike": is_ebike,
                     "fitness_level": str(args.get("fitness_level") or "intermediate"),
                 }

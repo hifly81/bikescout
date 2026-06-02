@@ -232,33 +232,6 @@ class TestMasterOrchestrator:
             assert result["info"]["surface_analysis"]["status"] == "Success"
 
     @patch("bikescout.tools.scouting.requests.post")
-    @patch("bikescout.tools.scouting.get_weather_forecast")
-    def test_weather_empty_forecast_and_poi_free(self, m_weath, m_post):
-        m_post.return_value.status_code = 200
-        m_post.return_value.json.return_value = {
-            "features": [{"geometry": {"coordinates": [[9,45,100], [9.1,45.1,200]]}, "properties": {"summary": {"distance": 1000}, "ascent": 10}}]
-        }
-
-        m_weath.return_value = {
-            "status": "Success",
-            "tactical_forecast": [],
-            "reference_conditions": {"temp_max": 15.0}
-        }
-
-        rider = MagicMock(weight_kg=60, fitness_level="beginner", gender="F", sweat_profile="normal")
-        bike = MagicMock(bike_type="mtb", is_ebike=False)
-        mission = MagicMock(total_length_km=1, profile="cycling-mountain", seed=1)
-
-        with patch("bikescout.tools.scouting.get_poi_scout_free") as m_poi_free:
-            m_poi_free.return_value = {"status": "Success", "amenities": []}
-
-            result = get_complete_trail_scout("", 45.0, 9.0, rider, bike, mission,
-                                              include_weather=True, include_poi=True, include_gpx=False)
-
-            assert result["status"] == "Success"
-            m_poi_free.assert_called_once()
-
-    @patch("bikescout.tools.scouting.requests.post")
     def test_master_orchestrator_subservice_failures(self, mock_post):
         # Setup valid mapping configuration to parse payload safely up until subservices
         mock_post.return_value.status_code = 200
@@ -354,12 +327,6 @@ class TestMasterOrchestrator:
                 "properties": {"summary": {"distance": 10000}, "ascent": 100}
             }]
         }
-
-        with patch("bikescout.tools.scouting.get_poi_scout_free") as mock_poi_free:
-            mock_poi_free.return_value = {"status": "Success", "amenities": []}
-            # Providing an empty API string hits the free alternative branch
-            get_complete_trail_scout("", 45.0, 9.0, m_rider, m_bike, m_mission, include_poi=True, include_gpx=False)
-            mock_poi_free.assert_called_once()
 
         with patch("bikescout.tools.scouting.generate_tactical_gpx", side_effect=Exception("GPX Stream Error")):
             res_gpx_err = get_complete_trail_scout("key", 45.0, 9.0, m_rider, m_bike, m_mission, include_gpx=True)

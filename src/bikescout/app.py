@@ -685,8 +685,6 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 #         battery_wh: int = 625,
                 #         surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
                 #         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
-                #         dest_latitude: Optional[float] = None,
-                #         dest_longitude: Optional[float] = None,
                 #         style: Literal["sparkline", "filled", "bars"] = "filled",
 
                 valid_args = {
@@ -742,9 +740,31 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 }
 
                 st.markdown(valid_args, unsafe_allow_html=True)
-
-                result = trail_scout_simple(**valid_args)
-                res_data = result.model_dump() if hasattr(result, 'model_dump') else result
+                target_km = float(valid_args["total_length_km"])
+                tol = 0.15
+                base_seed = int(valid_args["seed"])
+                tries = 5
+                best_res_data = None
+                best_score = float("inf")
+                for i in range(tries):
+                    valid_args_try = dict(valid_args)
+                    valid_args_try["seed"] = base_seed + i
+                    result = trail_scout_simple(**valid_args_try)
+                    res_data_try = result.model_dump() if hasattr(result, "model_dump") else result
+                    if not res_data_try or res_data_try.get("status") != "Success":
+                        continue
+                    info = res_data_try.get("info") or {}
+                    dist_km = info.get("distance_km")
+                    if dist_km is None:
+                        continue
+                    score = abs(float(dist_km) - target_km) / target_km
+                    if score <= tol:
+                        best_res_data = res_data_try
+                        break
+                    if score < best_score:
+                        best_score = score
+                        best_res_data = res_data_try
+                res_data = best_res_data
 
                 if not res_data or res_data is False:
                     status.update(label="Route planning failed", state="error")

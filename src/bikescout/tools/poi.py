@@ -14,185 +14,241 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import requests
+from __future__ import annotations
+
+import logging
 import sys
-from math import radians, cos, sin, asin, sqrt
+from dataclasses import dataclass
+from math import asin, cos, radians, sin, sqrt
+from typing import Any
 
-# OpenRouteService POIs API endpoint
+import requests
+
+
 ORS_POIS_URL = "https://api.openrouteservice.org/pois"
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
-def get_poi_scout_free(lat: float, lon: float, total_length_km: float):
-    """
-    Finds cycling POIs using Overpass API (No API Key required).
-    Features: Water, Bike Repair, Shelters, and Picnic areas.
-    """
 
-    # Overpass handles large radii better than ORS
-    total_length_m = total_length_km * 1000
+class PoiScoutError(Exception):
+    """Domain-specific POI scout error."""
 
-    # We search for specific OSM tags:
-    # - drinking_water / water_point
-    # - bicycle_repair_station / bicycle_shop
-    # - shelter / picnic_site
-    query = f"""
-    [out:json][timeout:25];
-    (
-      node["amenity"="drinking_water"](around:{total_length_m},{lat},{lon});
-      node["amenity"="bicycle_repair_station"](around:{total_length_m},{lat},{lon});
-      node["shop"="bicycle"](around:{total_length_m},{lat},{lon});
-      node["amenity"="shelter"](around:{total_length_m},{lat},{lon});
-      node["leisure"="picnic_table"](around:{total_length_m},{lat},{lon});
-    );
-    out body;
-    """
 
-    try:
-        response = requests.post(OVERPASS_URL, data={'data': query})
+@dataclass(frozen=True)
+class PoiScoutConfig:
+    ors_pois_url: str = ORS_POIS_URL
+    request_timeout_seconds: float = 10.0
+    min_buffer_m: int = 1
+    max_buffer_m: int = 2000
+    result_limit: int = 20
+    target_categories: tuple[int, ...] = (162, 372, 371, 331, 332)
 
-        if response.status_code != 200:
-            print(f"Overpass Error: {response.status_code}", file=sys.stderr)
-            return {"status": "Error", "message": "Overpass server busy"}
 
-        data = response.json()
-        elements = data.get('elements', [])
+class PoiScoutService:
+    def __init__(
+            self,
+            config: PoiScoutConfig | None = None,
+            session: requests.sessions.Session | None = None,
+            logger: logging.Logger | None = None,
+            stderr=None,
+    ) -> None:
+        self.config = config or PoiScoutConfig()
+        self.session = session or requests
+        self.logger = logger or logging.getLogger(__name__)
+        self.stderr = stderr if stderr is not None else sys.stderr
 
-        all_amenities = []
-        for el in elements:
-            tags = el.get('tags', {})
+    def get_poi_scout(
+            self,
+            api_key: str,
+            lat: float,
+            lon: float,
+            total_length_km: float,
+    ) -> dict[str, Any]:
+        try:
+            self._validate_inputs(api_key, lat, lon, total_length_km)
 
-            label = "Point of Interest"
-            if tags.get('amenity') == 'drinking_water':
-                label = "Water Fountain 💧"
-            elif 'bicycle' in tags.get('amenity', '') or 'bicycle' in tags.get('shop', ''):
-                label = "Bike Support 🔧"
-            elif tags.get('amenity') == 'shelter' or tags.get('leisure') == 'picnic_table':
-                label = "Rest Area 🧺"
+            safe_buffer = self._compute_safe_buffer_m(total_length_km)
+            headers = self._build_headers(api_key)
+            body = self._build_request_body(lat, lon, safe_buffer)
 
-            current_lat = el.get('lat')
-            current_lon = el.get('lon')
-            distance_m = 0
-            if current_lat and current_lon and lat and lon:
-                distance_m = round(haversine_distance(lat, lon, current_lat, current_lon))
+            response = self.session.post(
+                self.config.ors_pois_url,
+                json=body,
+                headers=headers,
+                timeout=self.config.request_timeout_seconds,
+            )
 
-            all_amenities.append({
-                "name": tags.get('name') or tags.get('amenity') or tags.get('operator') or label,
-                "type": label,
-                "distance_m": distance_m,
-                "location": {"lat": current_lat, "lon": current_lon},
-                "osm_id": el.get('id')  # Optional
-            })
+            if not response.ok:
+                print(
+                    f"ORS API Error: {response.status_code} - {response.text}",
+                    file=self.stderr,
+                )
+                return {
+                    "status": "Error",
+                    "message": f"ORS API error {response.status_code}",
+                }
 
-        return {
-            "status": "Success",
-            "search_km": f"{total_length_m}m",
-            "total_found": len(all_amenities),
-            "amenities": all_amenities
-        }
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise PoiScoutError("ORS returned invalid JSON.") from exc
 
-    except Exception as e:
-        print(f"Overpass Critical Exception: {str(e)}", file=sys.stderr)
-        return {"status": "Error", "message": str(e)}
+            amenities = self._extract_amenities(data)
 
-def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float):
-    """
-    Finds cycling-specific POIs (Water, Repair, Rest Areas).
-    Strictly follows ORS server constraints: Max 2000m buffer and 5 specific categories.
-    """
-
-    headers = {
-        'Authorization': api_key,
-        'Content-Type': 'application/json; charset=utf-8',
-        'Accept': 'application/json, application/geo+json'
-    }
-
-    # Buffer MUST be an integer between 1 and 2000 meters.
-    safe_buffer = int(min(max(total_length_km * 1000, 1), 2000))
-
-    # Category Selection (STRICT LIMIT: 5 categories per request)
-    # These IDs are verified from your server's whitelist:
-    # 162: Drinking Water
-    # 372: Bicycle Shop
-    # 371: Bicycle Rental / Repair Station
-    # 331: Picnic Site
-    # 332: Playground (Reliable source of benches/water)
-    target_categories = [162, 372, 371, 331, 332]
-
-    body = {
-        "request": "pois",
-        "geometry": {
-            "geojson": {
-                "type": "Point",
-                "coordinates": [float(lon), float(lat)] # GeoJSON is [Longitude, Latitude]
-            },
-            "buffer": safe_buffer
-        },
-        "filters": {
-            "category_ids": target_categories
-        },
-        "limit": 20,
-        "sortby": "distance"
-    }
-
-    try:
-        # Use json=body to ensure clean serialization and correct Content-Type
-        response = requests.post(ORS_POIS_URL, json=body, headers=headers)
-
-        if not response.ok:
-            # We log the specific API error message to stderr
-            # This prevents breaking the MCP JSON-RPC protocol on stdout
-            print(f"ORS API Error: {response.status_code} - {response.text}", file=sys.stderr)
             return {
-                "status": "Error",
-                "message": f"ORS API error {response.status_code}"
+                "status": "Success",
+                "search_km": f"{safe_buffer}m",
+                "total_found": len(amenities),
+                "amenities": sorted(amenities, key=lambda x: x["distance_m"]),
             }
 
-        data = response.json()
-        features = data.get('features', [])
+        except PoiScoutError as exc:
+            return {"status": "Error", "message": str(exc)}
+        except Exception as exc:
+            print(f"POI Engine Critical Exception: {str(exc)}", file=self.stderr)
+            self.logger.exception("Unexpected POI scout failure")
+            return {
+                "status": "Error",
+                "message": f"Internal Engine failure: {str(exc)}",
+            }
 
-        all_amenities = []
+    def _validate_inputs(self, api_key: str, lat: float, lon: float, total_length_km: float) -> None:
+        if not api_key or not api_key.strip():
+            raise PoiScoutError("API key must not be empty.")
+
+        try:
+            lat_f = float(lat)
+            lon_f = float(lon)
+            total_f = float(total_length_km)
+        except (TypeError, ValueError) as exc:
+            raise PoiScoutError("Latitude, longitude, and total_length_km must be numeric.") from exc
+
+        if not (-90.0 <= lat_f <= 90.0):
+            raise PoiScoutError("Latitude must be between -90 and 90.")
+        if not (-180.0 <= lon_f <= 180.0):
+            raise PoiScoutError("Longitude must be between -180 and 180.")
+        if total_f < 0:
+            raise PoiScoutError("total_length_km must be non-negative.")
+
+    def _compute_safe_buffer_m(self, total_length_km: float) -> int:
+        meters = int(float(total_length_km) * 1000)
+        return min(max(meters, self.config.min_buffer_m), self.config.max_buffer_m)
+
+    def _build_headers(self, api_key: str) -> dict[str, str]:
+        return {
+            "Authorization": api_key,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json, application/geo+json",
+        }
+
+    def _build_request_body(self, lat: float, lon: float, safe_buffer: int) -> dict[str, Any]:
+        return {
+            "request": "pois",
+            "geometry": {
+                "geojson": {
+                    "type": "Point",
+                    "coordinates": [float(lon), float(lat)],
+                },
+                "buffer": safe_buffer,
+            },
+            "filters": {
+                "category_ids": list(self.config.target_categories),
+            },
+            "limit": self.config.result_limit,
+            "sortby": "distance",
+        }
+
+    def _extract_amenities(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+        if not isinstance(data, dict):
+            raise PoiScoutError("ORS returned unexpected payload format.")
+
+        features = data.get("features", [])
+        if not isinstance(features, list):
+            raise PoiScoutError("ORS returned invalid features payload.")
+
+        all_amenities: list[dict[str, Any]] = []
+
         for feature in features:
-            props = feature.get('properties', {})
-            geom = feature.get('geometry', {}).get('coordinates', [])
-            tags = props.get('osm_tags', {})
+            if not isinstance(feature, dict):
+                continue
 
-            # Map category IDs back to readable labels
-            # Keys in props['category_ids'] are returned as strings by ORS
-            found_cats = props.get('category_ids', {}).keys()
+            props = feature.get("properties", {})
+            geometry = feature.get("geometry", {})
 
-            label = "Point of Interest"
-            if '162' in found_cats:
-                label = "Water Fountain 💧"
-            elif '372' in found_cats or '371' in found_cats:
-                label = "Bike Support 🚲"
-            elif '331' in found_cats or '332' in found_cats:
-                label = "Rest Area 🧺"
+            if not isinstance(props, dict) or not isinstance(geometry, dict):
+                continue
 
-            all_amenities.append({
-                "name": tags.get('name') or tags.get('amenity') or tags.get('operator') or label,
-                "type": label,
-                "distance_m": round(props.get('distance', 0)),
-                "location": {"lat": geom[1], "lon": geom[0]}
-            })
+            coords = geometry.get("coordinates", [])
+            if not isinstance(coords, list) or len(coords) < 2:
+                continue
 
-        return {
-            "status": "Success",
-            "search_km": f"{safe_buffer}m",
-            "total_found": len(all_amenities),
-            "amenities": sorted(all_amenities, key=lambda x: x['distance_m'])
-        }
+            try:
+                lon = float(coords[0])
+                lat = float(coords[1])
+            except (TypeError, ValueError):
+                continue
 
-    except Exception as e:
-        print(f"POI Engine Critical Exception: {str(e)}", file=sys.stderr)
-        return {
-            "status": "Error",
-            "message": f"Internal Engine failure: {str(e)}"
-        }
+            category_ids = props.get("category_ids", {})
+            label = self._label_from_category_ids(category_ids)
 
-def haversine_distance(lat1, lon1, lat2, lon2):
-    r = 6371000
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    return 2 * r * asin(sqrt(a))
+            osm_tags = props.get("osm_tags", {})
+            if not isinstance(osm_tags, dict):
+                osm_tags = {}
+
+            distance_raw = props.get("distance", 0)
+            try:
+                distance_m = round(float(distance_raw))
+            except (TypeError, ValueError):
+                distance_m = 0
+
+            name = (
+                    osm_tags.get("name")
+                    or osm_tags.get("amenity")
+                    or osm_tags.get("operator")
+                    or label
+            )
+
+            all_amenities.append(
+                {
+                    "name": name,
+                    "type": label,
+                    "distance_m": distance_m,
+                    "location": {"lat": lat, "lon": lon},
+                }
+            )
+
+        return all_amenities
+
+    def _label_from_category_ids(self, category_ids: Any) -> str:
+        if isinstance(category_ids, dict):
+            found_cats = set(str(k) for k in category_ids.keys())
+        elif isinstance(category_ids, list):
+            found_cats = set(str(x) for x in category_ids)
+        else:
+            found_cats = set()
+
+        if "162" in found_cats:
+            return "Water Fountain"
+        if "372" in found_cats or "371" in found_cats:
+            return "Bike Support"
+        if "331" in found_cats or "332" in found_cats:
+            return "Rest Area"
+        return "Point of Interest"
+
+    @staticmethod
+    def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        r = 6371000.0
+        lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+        return 2 * r * asin(sqrt(a))
+
+
+service = PoiScoutService()
+
+
+def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float) -> dict[str, Any]:
+    return service.get_poi_scout(api_key, lat, lon, total_length_km)
+
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    return PoiScoutService.haversine_distance(lat1, lon1, lat2, lon2)

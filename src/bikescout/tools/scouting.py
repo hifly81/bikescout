@@ -22,7 +22,7 @@ from typing import Literal, Optional
 from bikescout.tools.maps import save_local_tactical_map
 from bikescout.tools.weather import get_weather_forecast, apply_weather_windowing
 from bikescout.tools.surface import get_surface_analyzer
-from bikescout.tools.poi import get_poi_scout, get_poi_scout_free
+from bikescout.tools.poi import get_poi_scout
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.altimetry import get_elevation_profile_image
 from bikescout.tools.nutrition import get_nutrition_plan
@@ -356,10 +356,7 @@ def get_complete_trail_scout(
 
         if include_poi:
             try:
-                if api_key and api_key.strip():
-                    poi_res = get_poi_scout(api_key, latitude, longitude, mission.total_length_km)
-                else:
-                    poi_res = get_poi_scout_free(latitude, longitude, mission.total_length_km)
+                poi_res = get_poi_scout(api_key, latitude, longitude, mission.total_length_km)
                 amenities = poi_res.get('amenities', []) if poi_res.get('status') == "Success" else []
                 if poi_res.get('status') == 'Success':
                     if "logistics" not in response_payload or response_payload["logistics"] is None:

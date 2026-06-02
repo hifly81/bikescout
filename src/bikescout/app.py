@@ -741,9 +741,9 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
                 st.markdown(valid_args, unsafe_allow_html=True)
                 target_km = float(valid_args["total_length_km"])
-                tol = 0.15
+                tol = 0.20
                 base_seed = int(valid_args["seed"])
-                tries = 5
+                tries = 3
                 best_res_data = None
                 best_score = float("inf")
                 for i in range(tries):

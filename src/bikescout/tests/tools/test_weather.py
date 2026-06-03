@@ -160,13 +160,13 @@ def test_forecast_summary(service):
     assert result == [
         {
             "time": "09:00",
-            "temp": "20�C",
-            "app_temp": "19�C",
-            "rain_prob": "30%",
-            "rain_mm": "0.5 mm",
-            "wind": "12 km/h",
-            "gusts": "20 km/h",
-            "wind_direction": "180�",
+            "temp": "20",
+            "app_temp": "19",
+            "rain_prob": "30",
+            "rain_mm": "0.5",
+            "wind": "12",
+            "gusts": "20",
+            "wind_direction": "180",
         }
     ]
 
@@ -360,9 +360,9 @@ def test_get_weather_forecast_empty_temperature_max(service, fixed_now):
 def test_apply_weather_windowing_updates_reference_conditions():
     weather_data = {
         "tactical_forecast": [
-            {"time": "08:00", "temp": "18�C", "wind": "10 km/h", "wind_direction": "180�"},
-            {"time": "09:00", "temp": "20�C", "wind": "12 km/h", "wind_direction": "190�"},
-            {"time": "10:00", "temp": "22�C", "wind": "14 km/h", "wind_direction": "200�"},
+            {"time": "08:00", "temp": "18", "wind": "10", "wind_direction": "180"},
+            {"time": "09:00", "temp": "20", "wind": "12", "wind_direction": "190"},
+            {"time": "10:00", "temp": "22", "wind": "14", "wind_direction": "200"},
         ],
         "reference_conditions": {},
     }
@@ -379,7 +379,7 @@ def test_apply_weather_windowing_updates_reference_conditions():
 def test_apply_weather_windowing_creates_reference_conditions_if_missing():
     weather_data = {
         "tactical_forecast": [
-            {"time": "09:00", "temp": "20�C", "wind": "12 km/h", "wind_direction": "190�"},
+            {"time": "09:00", "temp": "20", "wind": "12", "wind_direction": "190"},
         ]
     }
 
@@ -392,10 +392,10 @@ def test_apply_weather_windowing_creates_reference_conditions_if_missing():
 def test_apply_weather_windowing_skips_bad_rows():
     weather_data = {
         "tactical_forecast": [
-            {"time": "bad", "temp": "20�C", "wind": "12 km/h", "wind_direction": "190�"},
-            {"time": "09:00", "temp": "bad", "wind": "12 km/h", "wind_direction": "190�"},
-            {"time": "10:00", "temp": "22�C", "wind": "14 km/h", "wind_direction": "200�"},
-            {"temp": "22�C", "wind": "14 km/h", "wind_direction": "200�"},
+            {"time": "bad", "temp": "20", "wind": "12", "wind_direction": "190"},
+            {"time": "09:00", "temp": "bad", "wind": "12", "wind_direction": "190"},
+            {"time": "10:00", "temp": "22", "wind": "14", "wind_direction": "200"},
+            {"temp": "22", "wind": "14", "wind_direction": "200"},
         ],
         "reference_conditions": {},
     }

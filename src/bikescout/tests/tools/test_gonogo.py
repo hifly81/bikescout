@@ -61,3 +61,66 @@ class TestPlanner:
         assert _clean_weather_value("15 km/h") == 15.0
         assert _clean_weather_value(None) == 0.0
         assert _clean_weather_value("Invalid") == 0.0
+
+    @patch("bikescout.tools.gonogo.sun")
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
+    def test_solar_visibility_exception(self, mock_mud, mock_weather, mock_sun, mock_weather_data):
+        mock_sun.side_effect = Exception("Astral calculation failed")
+        mock_weather.return_value = mock_weather_data
+        mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
+
+        result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2, surface_type="asphalt")
+
+        assert result["status"] == "Success"
+        assert result["metadata"]["solar_window"] == "7:00 - 18:00"
+
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
+    def test_malformed_forecast_hour_skips(self, mock_mud, mock_weather):
+        malformed_forecast = {"tactical_forecast": [
+            {"time": "ORARIO_NON_VALIDO", "rain_prob": 0, "wind": 10, "temp": 20},
+            {"time": "12:00", "rain_prob": 0, "wind": 10, "temp": 20},
+            {"time": "13:00", "rain_prob": 0, "wind": 10, "temp": 20}
+        ]}
+        mock_weather.return_value = malformed_forecast
+        mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
+
+        result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2, surface_type="asphalt")
+
+        assert result["status"] == "Success"
+        assert result["planner_report"]["best_window"] == "12:00 - 13:00"
+
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
+    def test_scoring_extreme_cold(self, mock_mud, mock_weather):
+        freezing_weather = {"tactical_forecast": [
+            {"time": f"{h:02d}:00", "rain_prob": 0, "wind": 10, "temp": -5} for h in range(24)
+        ]}
+        mock_weather.return_value = freezing_weather
+        mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
+
+        result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2, surface_type="asphalt")
+
+        assert result["status"] == "Success"
+        assert result["planner_report"]["tactical_color"] in ["YELLOW", "RED"]
+
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
+    def test_scoring_extreme_heat(self, mock_mud, mock_weather):
+        scorching_weather = {"tactical_forecast": [
+            {"time": f"{h:02d}:00", "rain_prob": 0, "wind": 10, "temp": 38} for h in range(24)
+        ]}
+        mock_weather.return_value = scorching_weather
+        mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
+
+        result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2, surface_type="asphalt")
+
+        assert result["status"] == "Success"
+        assert result["planner_report"]["tactical_color"] in ["YELLOW", "RED"]
+
+    def test_calculate_ride_windows_global_exception(self):
+        result = calculate_ride_windows(41.9, 12.4, target_date="not-a-valid-date-string")
+
+        assert result["status"] == "Error"
+        assert "Tactical Planner failed" in result["message"]

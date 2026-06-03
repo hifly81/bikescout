@@ -41,144 +41,314 @@ st.set_page_config(
     page_title="BikeScout",
     page_icon="🚴",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-st.markdown("""
-    <style>
-    
-    .stApp, [data-testid="stHeader"] {
-        background-color: #000000 !important;
-        color: #e0e0e0 !important;
-    }
 
-    [data-testid="stChatInput"] {
-        background-color: #000000 !important;
-        padding-bottom: 20px;
-    }
-    
-    [data-testid="stChatInput"] textarea {
-        background-color: #000000 !important;
-        color: #e0e0e0 !important;
-        border: 1px solid #30363d !important;
-        border-radius: 10px !important;
-    }
+def inject_global_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,800;1,9..40,800&display=swap');
 
-    [data-testid="stChatMessage"] {
-        background-color: #000000 !important;
-        border: 1px solid #30363d !important;
-        border-radius: 15px;
-    }
-    
-    .stChatMessage p, .stChatMessage span {
-        color: #e0e0e0 !important;
-    }
+        :root {
+            --bs-bg: #0a0c10;
+            --bs-surface: #12151c;
+            --bs-surface-2: #1a1f2a;
+            --bs-border: #2a3140;
+            --bs-text: #e8ecf4;
+            --bs-muted: #8b95a8;
+            --bs-accent: #bef264;
+            --bs-radius: 14px;
+        }
 
-    .stExpander, [data-testid="stMetric"] {
-        background-color: #161b22 !important;
-        border: 1px solid #30363d !important;
-        border-radius: 10px !important;
-    }
+        .stApp, [data-testid="stAppViewContainer"] {
+            background: radial-gradient(ellipse 120% 80% at 10% -20%, rgba(190, 242, 100, 0.06), transparent 50%),
+                        radial-gradient(ellipse 80% 60% at 100% 0%, rgba(56, 189, 248, 0.05), transparent 45%),
+                        var(--bs-bg) !important;
+            color: var(--bs-text) !important;
+            font-family: 'DM Sans', system-ui, sans-serif !important;
+        }
 
-    h1, h2, h3, h4, h5, h6, label {
-        color: #ffffff !important;
-    }
+        footer, button[title="Change theme"], .stDeployButton { visibility: hidden !important; }
+        [data-testid="stHeader"] { background: transparent !important; border: none !important; }
+        h1, h2, h3, h4, h5, h6, label, p, span { color: var(--bs-text) !important; }
 
-    .status-card {
-        background-color: #161b22;
-        padding: 10px;
-        border-radius: 10px;
-        border-left: 5px solid #007bff;
-        margin-top: 10px;
-    }
+        [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+            background: linear-gradient(180deg, #0d0f14 0%, #0a0c10 100%) !important;
+            border-right: 1px solid var(--bs-border) !important;
+        }
 
-    footer {visibility: hidden;}
-    header {background-color: rgba(0,0,0,0) !important;}
-    
-    html, body, [data-testid="stAppViewContainer"] {
-        background-color: #0e1117 !important;
-        color: #e0e0e0 !important;
-    }
-    
-    button[title="Change theme"] {
-        display: none !important;
-    }
+        [data-testid="stChatInput"] textarea {
+            background: var(--bs-surface) !important;
+            border: 1px solid var(--bs-border) !important;
+            border-radius: var(--bs-radius) !important;
+            color: var(--bs-text) !important;
+        }
 
-    [data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0) !important;
-        border-bottom: none !important;
-    }
+        [data-testid="stChatMessage"] {
+            background: var(--bs-surface) !important;
+            border: 1px solid var(--bs-border) !important;
+            border-radius: var(--bs-radius) !important;
+        }
 
-    [data-testid="stChatInput"] {
-        background-color: #0e1117 !important;
-    }
-    
-    [data-testid="stChatInput"] textarea {
-        background-color: #161b22 !important;
-        color: #e0e0e0 !important;
-        border: 1px solid #30363d !important;
-    }
+        .stExpander, [data-testid="stMetric"] {
+            background: var(--bs-surface) !important;
+            border: 1px solid var(--bs-border) !important;
+            border-radius: var(--bs-radius) !important;
+        }
 
-    [data-testid="stChatMessage"], [data-testid="stMetric"], .stExpander {
-        background-color: #161b22 !important;
-        border: 1px solid #30363d !important;
-        border-radius: 12px !important;
-    }
+        div[data-testid="stForm"] {
+            border: 1px solid var(--bs-border);
+            border-radius: var(--bs-radius);
+            padding: 1.25rem;
+            background: var(--bs-surface);
+        }
 
-    .stDeployButton {
-        display: none !important;
-    }
+        .stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, #a3e635 0%, #84cc16 100%) !important;
+            color: #0a0c10 !important;
+            border: none !important;
+            font-weight: 700 !important;
+            border-radius: 10px !important;
+        }
 
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@900&display=swap');
+        .stButton > button[kind="secondary"] {
+            border: 1px solid var(--bs-border) !important;
+            background: var(--bs-surface-2) !important;
+            color: var(--bs-text) !important;
+            border-radius: 10px !important;
+        }
 
-    .brand-container {
-        font-family: 'Inter', sans-serif;
-        text-decoration: none;
-        font-size: 1.8rem;
-        font-weight: 900;
-        font-style: italic;
-        text-transform: uppercase;
-        letter-spacing: -0.05em;
-        color: white;
-    }
+        .brand-container {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 2.1rem;
+            font-weight: 800;
+            font-style: italic;
+            text-transform: uppercase;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
+            color: white;
+            margin: 0;
+        }
 
-    .neon-text {
-        color: #bef264; 
-        text-shadow: 0 0 5px #bef264, 0 0 10px #bef264; 
-    }
-    
-    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
-        background-color: #000000 !important;
-    }
+        .neon-text {
+            color: var(--bs-accent);
+            text-shadow: 0 0 24px rgba(190, 242, 100, 0.45);
+        }
 
-    [data-testid="stSidebar"] .stMarkdown, 
-    [data-testid="stSidebar"] label, 
-    [data-testid="stSidebar"] p {
-        color: #e0e0e0 !important;
-    }
+        .bs-tagline {
+            color: var(--bs-muted);
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-top: 6px;
+        }
 
-    [data-testid="stSidebar"] div[data-baseweb="select"] {
-        background-color: #161b22 !important;
-        border-radius: 8px;
-    }
+        .status-card {
+            background: var(--bs-surface);
+            border: 1px solid var(--bs-border);
+            border-radius: var(--bs-radius);
+            padding: 14px 16px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+        }
 
-    [data-testid="stSidebar"] {
-        border-right: 1px solid #30363d !important;
-    }
+        .status-card .status-label {
+            color: var(--bs-muted);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
 
-    .sidebar-brand {
-        font-family: 'Inter', sans-serif;
-        font-weight: 900;
-        font-style: italic;
-        text-transform: uppercase;
-        letter-spacing: -0.05em;
-        font-size: 1.2rem;
-        color: white;
-        margin-bottom: 20px;
-    }
-    
-    </style>
-    """, unsafe_allow_html=True)
+        .status-card .status-value {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .status-dot--ok { color: #4ade80; background: #4ade80; }
+        .status-dot--warn { color: #fbbf24; background: #fbbf24; }
+
+        .sidebar-brand {
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 800;
+            font-style: italic;
+            text-transform: uppercase;
+            letter-spacing: -0.04em;
+            font-size: 1.15rem;
+            color: white;
+        }
+
+        .bs-sidebar-section {
+            color: var(--bs-muted);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        .bs-hero {
+            background: linear-gradient(135deg, var(--bs-surface) 0%, var(--bs-surface-2) 100%);
+            border: 1px solid var(--bs-border);
+            border-radius: var(--bs-radius);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .bs-hero h3 {
+            margin: 0 0 0.35rem 0 !important;
+            font-size: 1.05rem !important;
+            font-weight: 700 !important;
+        }
+
+        .bs-hero p {
+            margin: 0 !important;
+            color: var(--bs-muted) !important;
+            font-size: 0.9rem !important;
+            line-height: 1.5 !important;
+        }
+
+        .bs-section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 1.25rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--bs-border);
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .bs-metric-card {
+            background: var(--bs-surface);
+            border: 1px solid var(--bs-border);
+            border-left: 4px solid var(--accent, var(--bs-accent));
+            border-radius: 12px;
+            padding: 14px 16px;
+            min-height: 88px;
+            margin-bottom: 8px;
+        }
+
+        .bs-metric-label {
+            color: var(--bs-muted);
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .bs-metric-value {
+            color: var(--bs-text);
+            font-size: 1.45rem;
+            font-weight: 800;
+            margin-top: 6px;
+            line-height: 1.2;
+        }
+
+        .bs-poi-card {
+            background: var(--bs-surface);
+            border: 1px solid var(--bs-border);
+            border-left: 4px solid var(--accent, #38bdf8);
+            border-radius: 10px;
+            padding: 12px 14px;
+            min-height: 96px;
+            margin-bottom: 10px;
+        }
+
+        .bs-poi-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bs-poi-meta { color: var(--bs-muted); font-size: 0.8rem; margin-top: 4px; }
+        .bs-poi-dist { font-weight: 600; font-size: 0.85rem; margin-top: 6px; }
+
+        div[data-testid="stRadio"] > div {
+            background: var(--bs-surface);
+            border: 1px solid var(--bs-border);
+            border-radius: var(--bs-radius);
+            padding: 6px 10px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_metric_card(label: str, value: str, accent: str, icon: str = "") -> None:
+    label_html = f"{icon} {label}".strip()
+    st.markdown(
+        f"""
+        <div class="bs-metric-card" style="--accent: {accent};">
+            <div class="bs-metric-label">{label_html}</div>
+            <div class="bs-metric-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_section_header(title: str, icon: str = "") -> None:
+    st.markdown(
+        f'<div class="bs-section-title">{icon} {title}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_status_card(model_name: str, ors_active: bool, server_ok: bool) -> None:
+    ors_cls = "status-dot--ok" if ors_active else "status-dot--warn"
+    ors_txt = "ACTIVE" if ors_active else "OFFLINE"
+    srv_cls = "status-dot--ok" if server_ok else "status-dot--warn"
+    srv_txt = "LOADED" if server_ok else "MISSING"
+    st.markdown(
+        f"""
+        <div class="status-card">
+            <div class="status-label">Engine status</div>
+            <div class="status-value">
+                <span class="status-dot {srv_cls}"></span>{srv_txt}
+                &nbsp;·&nbsp;
+                <span class="status-dot {ors_cls}"></span>ORS {ors_txt}
+            </div>
+            <div style="margin-top:8px;color:var(--bs-muted);font-size:0.85rem;">
+                Model <code style="color:var(--bs-accent);">{model_name}</code>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_chat_welcome() -> None:
+    st.markdown(
+        """
+        <div class="bs-hero">
+            <h3>🎯 Mission control online</h3>
+            <p>
+                Describe your ride: distance, location, bike type, and overlays
+                (GPX, weather, POI, altimetry, nutrition, go/no-go).
+                Example: <em>52 km loop near Moab on a 29er with amenities.</em>
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+inject_global_styles()
+
 
 def get_local_model_path(model_name: str) -> str:
     filename = AVAILABLE_MODELS[model_name]["file"]
@@ -197,7 +367,11 @@ def load_llm(model_name: str, n_gpu_layers: int):
         verbose=False
     )
 
-def generate_tactical_response(messages_history: list, llm_instance: Llama) -> str:
+def generate_tactical_response(
+        messages_history: list,
+        llm_instance: Llama,
+        mission_context: dict | None = None,
+) -> str:
     json_schema = {
         "type": "json_object",
         "schema": {
@@ -223,10 +397,21 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
                                         },
                                         "tire_size": {"type": "string"},
                                         "distance": {"type": "number"},
+                                        "route_mode": {
+                                            "type": "string",
+                                            "enum": ["round_trip", "point_to_point"],
+                                            "description": "round_trip = same start/end loop. point_to_point = A to B different places."
+                                        },
                                         "location_name": {
                                             "type": "string",
-                                            "description": "MANDATORY. Use the place from the current prompt or RECOVER it from history if missing."
+                                            "description": "START (A). Required for round_trip; required for point_to_point as departure."
                                         },
+                                        "destination_name": {
+                                            "type": "string",
+                                            "description": "END (B). Required only when route_mode is point_to_point."
+                                        },
+                                        "dest_latitude": {"type": "number"},
+                                        "dest_longitude": {"type": "number"},
                                         "latitude": {"type": "number"},
                                         "longitude": {"type": "number"},
                                         "include_weather": {"type": "boolean"},
@@ -239,6 +424,16 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
                                         "is_ebike": {"type": "boolean"},
                                         "weight_kg": {"type": "number"},
                                         "seed": {"type": "number"},
+                                        "complexity": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 5,
+                                            "description": "MANDATORY. Route difficulty level from 1 (very easy) to 5 (extreme). Default is 3."
+                                        },
+                                        "profile": {
+                                            "type": "string",
+                                            "enum": ["cycling-mountain", "cycling-road", "cycling-electric"]
+                                        },
                                         "fitness_level": {
                                             "type": "string",
                                             "enum": ["beginner", "intermediate", "pro"]
@@ -248,7 +443,7 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
                                             "enum": ["male", "female"]
                                         },
                                     },
-                                    "required": ["bike_type", "tire_size"]
+                                    "required": ["bike_type", "tire_size", "location_name"]
                                 }
                             },
                             "required": ["name", "args"]
@@ -261,13 +456,21 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
         }
     }
 
+    mission_block = ""
+    if mission_context:
+        mission_block = f"""
+    === ACTIVE MISSION (reuse unless user changes place) ===
+    {json.dumps(mission_context, ensure_ascii=False)}
+    For follow-ups ("add POI", "30km", "more mud"): keep the same location_name and only change requested fields.
+    """
+
     system_prompt = """
     You are BikeScout Tactical AI, an expert cycling logistics and route-planning assistant.
     You MUST respond ONLY with a valid JSON object matching the provided schema. No markdown, no preambles.
     
     === 1. MISSION CONTROL (CRITICAL LOGIC) ===
-    - CAN_EXECUTE PROTOCOL: Set 'can_execute' to true ONLY if you have a clear geographic location AND the user wants to plan or analyze a cycling route. 
-    - REJECTION: If the user is chatting, asking about unrelated topics (e.g., soccer, politics), or if the location is completely unknown and missing from history, you MUST set 'can_execute' to false and 'tool' to null.
+    - CAN_EXECUTE PROTOCOL: Set 'can_execute' to true ONLY if geographic location is provided AND the user wants to plan or analyze a cycling route. 
+    - REJECTION: Set 'can_execute' to false and 'tool' to null ONLY if the user is explicitly chatting about completely non-geographic/unrelated topics (e.g., math, politics, pure social chit-chat). Never reject a valid geographical location.
     - TOOL SELECTION: When 'can_execute' is true, always set 'tool.name' to 'trail_scout_simple'.
     
     === 2. LOCATION PERSISTENCE (MANDATORY) ===
@@ -279,21 +482,28 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
     - BIKE_TYPE: Identify from context. Allowed values ONLY: ["mtb", "road", "gravel", "e-mtb", "enduro"].
     - TIRE_SIZE: Map explicit sizes (e.g., '29-inch' -> '29', '700c' -> '700c').
     - FITNESS_LEVEL: Map to ["beginner", "intermediate", "pro"].
+    - COMPLEXITY:  1 (Very Easy), 2 (Easy), 3 (Moderate - DEFAULT), 4 (Hard), 5 (Extreme)
     - Ensure 'distance', 'bike_type', and 'tire_size' are always included in the args if mentioned or logically inferred.
     
     === 4. TACTICAL OVERLAYS (Set to TRUE if context matches) ===
-    - 'include_weather' & 'include_mud_analysis': If user mentions 'tomorrow', 'weather', 'conditions', or 'go/no-go'.
-    - 'include_mud_analysis': If user mentions 'mud', 'terrain', 'conditions'.
-    - 'include_nutrition_plan': If user mentions 'food', 'eating', 'calories', or 'nutrition'.
-    - 'include_poi': If user mentions 'amenities', 'poi', 'bars', 'water', or 'places'.
-    - 'include_gpx': If user asks for 'gpx', 'track', or 'download'.
-    - 'include_altimetry': If user asks about 'altimetry', 'elevation', 'climb', or 'hills'.
-    - 'include_map': If user asks for a 'map', 'visual map', or 'layout'.
-    """
+    - 'include_gpx': user mentions gpx, track, download, navigation file.
+    - 'include_poi': user mentions poi, amenities, water, bars, places.
+    - 'include_nutrition_plan': user mentions nutrition, fueling, hydration, carbs, electrolytes, food, snacks.
+    
+    === 5. ROUTE MODE ===
+    - round_trip (default): one location, loop, use "distance" in km.
+    - point_to_point: user says "from A to B", "da A a B", "A -> B".
+      Set route_mode to point_to_point, location_name = start, destination_name = end.
+      Do NOT use round_trip length to force distance on A->B; distance is computed by the engine.
+    """ + mission_block
 
     formatted_messages = [{"role": "system", "content": system_prompt}]
-    last_messages = messages_history[-6:]
-    formatted_messages.extend(last_messages)
+    llm_history = [
+        m for m in messages_history
+        if m.get("role") == "user"
+           or (m.get("role") == "assistant" and m.get("content") != "Connection established. Provide input...")
+    ]
+    formatted_messages.extend(llm_history[-6:])
 
     response = llm_instance.create_chat_completion(
         messages=formatted_messages,
@@ -305,41 +515,39 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama) -> s
     return response["choices"][0]["message"]["content"].strip()
 
 with st.sidebar:
-    st.markdown("""
-        <div class="sidebar-brand">
-            BIKE<span class="neon-text">SCOUT</span>
-        </div>
-        <hr style="margin-top: -10px; border-color: #30363d;">
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="sidebar-brand">BIKE<span class="neon-text">SCOUT</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<p class="bs-tagline">Tactical cycling intelligence</p>', unsafe_allow_html=True)
+    st.divider()
 
-    st.subheader("Configuration")
+    st.markdown('<p class="bs-sidebar-section">API & routing</p>', unsafe_allow_html=True)
     existing_key = os.getenv("ORS_API_KEY", "")
     ors_key = st.text_input(
-        "OpenRouteService API Key",
+        "OpenRouteService key",
         value=st.session_state.get("ors_api_key", existing_key),
         type="password",
-        help="Required for routing, geocoding, and trail analysis. Get one at openrouteservice.org"
+        help="Required for routing, geocoding, and trail analysis.",
     )
 
     if ors_key:
         st.session_state["ors_api_key"] = ors_key
         os.environ["ORS_API_KEY"] = ors_key
-        st.success("ORS Status: ACTIVE")
-    else:
-        st.error("ORS Status: OFFLINE")
 
-    st.divider()
-
-    st.subheader("LLM Models")
+    st.markdown('<p class="bs-sidebar-section">Local LLM</p>', unsafe_allow_html=True)
     selected_model_name = st.selectbox(
-        "Select Local LLM",
+        "Model",
         options=list(AVAILABLE_MODELS.keys()),
-        help="Models are executed locally on your hardware for maximum privacy."
+        label_visibility="collapsed",
+        help="Runs locally for privacy.",
     )
 
-    st.caption(AVAILABLE_MODELS[selected_model_name]["description"])
+    desc = AVAILABLE_MODELS[selected_model_name]["description"]
+    if desc:
+        st.caption(desc)
 
-    gpu_enabled = st.toggle("GPU Acceleration", value=True, help="Enable this for faster reasoning speed.")
+    gpu_enabled = st.toggle("GPU acceleration", value=True, help="Faster local inference.")
     n_layers = -1 if gpu_enabled else 0
 
     model_path = get_local_model_path(selected_model_name)
@@ -367,37 +575,35 @@ with st.sidebar:
 
     st.divider()
 
-    if st.button("Clear Chat History", use_container_width=True):
+    if st.button("Clear chat & mission", use_container_width=True, type="secondary"):
         st.session_state.messages = []
+        st.session_state.mission_context = {}
+        st.session_state.pop("last_location_query", None)
+        st.session_state.pop("last_raw_distance", None)
         st.rerun()
 
 # --- MAIN INTERFACE ---
 head_col1, head_col2 = st.columns([0.7, 0.3])
 
 with head_col1:
-    st.markdown("""
-        <div class="brand-container">
-            BIKE<span class="neon-text">SCOUT</span>
-        </div>
-        <div style="margin-top: -10px; margin-bottom: 20px;">
-            <small style="color: #8b949e; letter-spacing: 1px; text-transform: uppercase;">
-                The AI Engine that turns raw geodata into Predictive Intel.
-            </small>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="brand-container">BIKE<span class="neon-text">SCOUT</span></div>
+        <p class="bs-tagline">Raw geodata → predictive ride intel</p>
+        """,
+        unsafe_allow_html=True,
+    )
 
 with head_col2:
-    st.markdown(f"""
-        <div class="status-card">
-            <small style="color: #8b949e;">ENGINE STATUS</small><br>
-            <span style="color: #238636;">●</span> <strong>READY</strong> | <code>{selected_model_name}</code>
-        </div>
-    """, unsafe_allow_html=True)
+    render_status_card(
+        selected_model_name,
+        ors_active=bool(st.session_state.get("ors_api_key") or os.getenv("ORS_API_KEY")),
+        server_ok=server_loaded,
+    )
 
 st.divider()
 llm = load_llm(selected_model_name, n_layers)
 
-# --- MODE SELECTOR ---
 mode = st.radio(
     "Select Operation Mode:",
     ["💬 BikeScout (Chat)", "🗺️ GPX Track Audit"],
@@ -424,6 +630,100 @@ def ext_cast(val, to_type, default):
         return to_type(val)
     except (ValueError, TypeError):
         return default
+
+def extract_location_hint(text: str) -> str | None:
+    if not text:
+        return None
+    patterns = [
+        r"(?i)\bnear(?:by)?\s+([^.;,\n]+)",
+        r"(?i)\b(?:around|in|at)\s+([^.;,\n]+)",
+        r"(?i)\b(?:vicino a|intorno a|da)\s+([^.;,\n]+)",
+    ]
+    for pat in patterns:
+        m = re.search(pat, text.strip())
+        if m:
+            hint = m.group(1).strip()
+            hint = re.split(r"(?i)\s+i'm\b|\s+add\b|\s+with\b", hint)[0].strip()
+            if len(hint) >= 3:
+                return hint
+    return None
+
+
+def resolve_location_query(args: dict, user_input: str) -> str | None:
+    return (
+            args.get("location_name")
+            or st.session_state.get("last_location_query")
+            or extract_location_hint(user_input)
+            or (st.session_state.get("mission_context") or {}).get("location_name")
+    )
+
+
+def update_mission_context(
+        location_name: str,
+        lat: float,
+        lon: float,
+        args: dict,
+        distance_km: float,
+        route_mode: str = "round_trip",
+        destination_name: str | None = None,
+        dest_lat: float | None = None,
+        dest_lon: float | None = None,
+):
+    st.session_state["last_location_query"] = location_name
+
+    ctx = {
+        "route_mode": route_mode,
+        "location_name": location_name,
+        "latitude": lat,
+        "longitude": lon,
+        "distance_km": distance_km,
+        "bike_type": args.get("bike_type"),
+        "tire_size": args.get("tire_size"),
+    }
+
+    if route_mode == "point_to_point":
+        ctx["destination_name"] = destination_name
+        ctx["dest_latitude"] = dest_lat
+        ctx["dest_longitude"] = dest_lon
+    else:
+        ctx["destination_name"] = None
+        ctx["dest_latitude"] = None
+        ctx["dest_longitude"] = None
+
+    st.session_state["mission_context"] = ctx
+
+def wants_overlay(user_input: str, llm_value, keywords: tuple[str, ...]) -> bool:
+    if llm_value is True:
+        return True
+    if user_input:
+        text = user_input.lower()
+        return any(k in text for k in keywords)
+    return bool(llm_value)
+
+def extract_point_to_point(user_input: str) -> tuple[str, str] | None:
+    if not user_input:
+        return None
+    patterns = [
+        r"(?i)\bfrom\s+(.+?)\s+to\s+(.+?)(?:\.|,| with | and |$)",
+        r"(?i)\bda\s+(.+?)\s+a\s+(.+?)(?:\.|,| con | e |$)",
+        r"(?i)^(.+?)\s*->\s*(.+?)$",
+    ]
+    for pat in patterns:
+        m = re.search(pat, user_input.strip())
+        if m:
+            start, end = m.group(1).strip(), m.group(2).strip()
+            if len(start) >= 2 and len(end) >= 2:
+                return start, end
+    return None
+
+
+def resolve_route_mode(args: dict, user_input: str) -> str:
+    mode = (args.get("route_mode") or "").lower()
+    if mode in ("point_to_point", "a_to_b", "a-b"):
+        return "point_to_point"
+    if extract_point_to_point(user_input):
+        return "point_to_point"
+    return "round_trip"
 
 def process_local_mcp_request(raw_llm_json: str, user_input: str):
     res_data = None
@@ -457,20 +757,43 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             args = tool_data.get("args", {})
 
             if tool_name == "trail_scout_simple":
-                current_query = args.get("location_name")
-                if current_query:
-                    st.session_state["last_location_query"] = current_query
-                    location_query = current_query
-                else:
-                    location_query = st.session_state.get("last_location_query")
+                route_mode = resolve_route_mode(args, user_input)
+                dest_lat, dest_lon = None, None
+                dest_display = None
 
-                geo = geocode_location(location_name=location_query)
-                if not geo:
+                location_query = resolve_location_query(args, user_input)
+                if not location_query:
                     status.update(label="Geolocalization failed", state="error")
-                    return "Geolocalization failed"
+                    return "Specify a location (eg. «nearby Potenza, Italy»)."
+                geo = geocode_location(location_name=location_query)
+                if getattr(geo, "status", None) != "Success":
+                    status.update(label="Geolocalization failed", state="error")
+                    return f"Geo failed for: {location_query}"
+
+                if route_mode == "point_to_point":
+                    dest_name = (
+                            args.get("destination_name")
+                            or (st.session_state.get("mission_context") or {}).get("destination_name")
+                    )
+                    if not dest_name:
+                        ab = extract_point_to_point(user_input)
+                        if ab:
+                            if not location_query:
+                                location_query = ab[0]
+                            dest_name = ab[1]
+                    if not dest_name:
+                        status.update(label="Missing destination", state="error")
+                        return "A→B specify start and end (eg. «from Rome to Albano Laziale»)."
+                    geo_dest = geocode_location(location_name=dest_name)
+                    if getattr(geo_dest, "status", None) != "Success":
+                        return f"Geolocalization destination failed: {dest_name}"
+                    dest_lat = float(geo_dest.lat)
+                    dest_lon = float(geo_dest.lon)
+                    dest_display = getattr(geo_dest, "display_name", dest_name)
 
                 args["latitude"] = geo.lat
                 args["longitude"] = geo.lon
+                display_name = getattr(geo, "display_name", location_query)
 
                 raw_distance = ext_cast(args.get("distance"), float, 25.0)
                 if raw_distance:
@@ -479,6 +802,18 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     st.session_state["last_raw_distance"] = raw_distance
                 else:
                     raw_distance = st.session_state.get("last_raw_distance")
+
+                update_mission_context(
+                    display_name,
+                    geo.lat,
+                    geo.lon,
+                    args,
+                    raw_distance,
+                    route_mode=route_mode,
+                    destination_name=dest_display if route_mode == "point_to_point" else None,
+                    dest_lat=dest_lat,
+                    dest_lon=dest_lon,
+                )
 
                 raw_bike = str(args.get("bike_type")).lower()
                 is_ebike = False
@@ -489,41 +824,112 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 elif "enduro" in raw_bike or "downhill" in raw_bike: final_bike = "enduro"
                 else: final_bike = "mtb"
 
+                MOUNTAIN_BIKES = {"mtb", "enduro", "downhill", "gravel"}
+                if final_bike in MOUNTAIN_BIKES:
+                    profile = "cycling-mountain"
+                elif final_bike == "road":
+                    profile = "cycling-road"
+                elif final_bike == "e-mtb":
+                    profile = "cycling-electric"
+                else:
+                    profile = "cycling-regular"
+
+                raw_complexity = args.get("complexity", 3)
+                try:
+                    complexity_val = int(raw_complexity)
+                    if complexity_val < 1: complexity_val = 1
+                    if complexity_val > 5: complexity_val = 5
+                except (ValueError, TypeError):
+                    complexity_val = 3
+
+                args["complexity"] = complexity_val
+
                 # TODO
                 # mapping missing for:
                 #         battery_wh: int = 625,
-                #         profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = "cycling-mountain",
                 #         surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
-                #         complexity: int = 3,
                 #         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
-                #         dest_latitude: Optional[float] = None,
-                #         dest_longitude: Optional[float] = None,
                 #         style: Literal["sparkline", "filled", "bars"] = "filled",
 
                 valid_args = {
                     "latitude": float(args.get("latitude")),
                     "longitude": float(args.get("longitude")),
+                    "dest_latitude": dest_lat,      # None → round trip
+                    "dest_longitude": dest_lon,
                     "total_length_km": raw_distance,
                     "tire_size": str(args.get("tire_size")),
-                    "include_weather": bool(args.get("include_weather")),
-                    "include_mud_analysis": bool(args.get("include_mud_analysis")),
-                    "include_nutrition_plan": bool(args.get("include_nutrition_plan")),
-                    "include_poi": bool(args.get("include_poi")),
-                    "include_gpx": bool(args.get("include_gpx")),
-                    "include_map": bool(args.get("include_map")),
-                    "include_altimetry": bool(args.get("include_altimetry")),
+                    "include_weather": True,
+                    "include_mud_analysis": True if final_bike != "road" else False,
+                    "include_nutrition_plan": wants_overlay(
+                        user_input,
+                        args.get("include_nutrition_plan"),
+                        (
+                            "nutrition",
+                            "nutrizione",
+                            "fueling",
+                            "fuel",
+                            "hydration",
+                            "idratazione",
+                            "carbs",
+                            "carbohydrates",
+                            "carboidrati",
+                            "electrolytes",
+                            "elettroliti",
+                            "sodium",
+                            "sodio",
+                            "eating",
+                            "food",
+                            "snack",
+                            "bonk",
+                        ),
+                    ),
+                    "include_poi": wants_overlay(
+                        user_input, args.get("include_poi"),
+                        ("poi", "amenities", "water", "bars", "places"),
+                    ),
+                    "include_gpx": wants_overlay(
+                        user_input, args.get("include_gpx"),
+                        ("gpx", "track", "download", ".gpx"),
+                    ),
+                    "include_map": True,
+                    "include_altimetry": True,
                     "weight_kg": ext_cast(args.get("weight_kg"), float, 75.0),
                     "gender": str(args.get("gender") or "male"),
                     "seed": random.randint(1, 999999),
+                    "complexity": complexity_val,
                     "bike_type": final_bike,
+                    "profile": profile,
                     "is_ebike": is_ebike,
                     "fitness_level": str(args.get("fitness_level") or "intermediate"),
                 }
 
-                #st.markdown(valid_args, unsafe_allow_html=True)
-
-                result = trail_scout_simple(**valid_args)
-                res_data = result.model_dump() if hasattr(result, 'model_dump') else result
+                with st.expander("⚙️ Engine parameters", expanded=False):
+                    st.json(valid_args)
+                target_km = float(valid_args["total_length_km"])
+                tol = 0.20
+                base_seed = int(valid_args["seed"])
+                tries = 3
+                best_res_data = None
+                best_score = float("inf")
+                for i in range(tries):
+                    valid_args_try = dict(valid_args)
+                    valid_args_try["seed"] = base_seed + i
+                    result = trail_scout_simple(**valid_args_try)
+                    res_data_try = result.model_dump() if hasattr(result, "model_dump") else result
+                    if not res_data_try or res_data_try.get("status") != "Success":
+                        continue
+                    info = res_data_try.get("info") or {}
+                    dist_km = info.get("distance_km")
+                    if dist_km is None:
+                        continue
+                    score = abs(float(dist_km) - target_km) / target_km
+                    if score <= tol:
+                        best_res_data = res_data_try
+                        break
+                    if score < best_score:
+                        best_score = score
+                        best_res_data = res_data_try
+                res_data = best_res_data
 
                 if not res_data or res_data is False:
                     status.update(label="Route planning failed", state="error")
@@ -566,7 +972,8 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
         conditions = res_data.get("conditions", {})
         dist, elev, diff = info.get("distance_km", "N/A"), info.get("ascent_m", "N/A"), info.get("difficulty", "N/A")
 
-        st.markdown(f"### 📍 Route")
+        route_type = info.get("route_type", "Round Trip")
+        render_section_header(f"Route overview · {route_type}", "📍")
 
     if surface_analysis:
         tactical_briefing = surface_analysis.get("tactical_briefing", {})
@@ -574,36 +981,23 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             climb_category = tactical_briefing.get("climb_category", "N/A")
             avg_gradient = tactical_briefing.get("avg_gradient", "N/A")
             avg_climb_gradient = tactical_briefing.get("avg_climb_gradient", "N/A")
+            diff_txt = diff.split("(")[0].strip() if isinstance(diff, str) else str(diff)
 
             r1_m1, r1_m2, r1_m3 = st.columns(3)
             with r1_m1:
-                st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #29b6f6;'>", unsafe_allow_html=True)
-                st.metric("🏃 Distance", f"{dist} km")
-                st.markdown("</div>", unsafe_allow_html=True)
+                render_metric_card("Distance", f"{dist} km", "#38bdf8", "🏃")
             with r1_m2:
-                st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #ab47bc;'>", unsafe_allow_html=True)
-                st.metric("🏔️ Total Ascent", f"{elev} m")
-                st.markdown("</div>", unsafe_allow_html=True)
+                render_metric_card("Total ascent", f"{elev} m", "#a78bfa", "🏔️")
             with r1_m3:
-                st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #ec407a;'>", unsafe_allow_html=True)
-                st.metric("⚡ Difficulty", diff.split('(')[0].strip() if isinstance(diff, str) else diff)
-                st.markdown("</div>", unsafe_allow_html=True)
-
-            st.write("")
+                render_metric_card("Difficulty", diff_txt, "#f472b6", "⚡")
 
             r2_m1, r2_m2, r2_m3 = st.columns(3)
             with r2_m1:
-                st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #26a69a;'>", unsafe_allow_html=True)
-                st.metric("📈 Avg Gradient", f"{avg_gradient}")
-                st.markdown("</div>", unsafe_allow_html=True)
+                render_metric_card("Avg gradient", str(avg_gradient), "#2dd4bf", "📈")
             with r2_m2:
-                st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #ffa726;'>", unsafe_allow_html=True)
-                st.metric("🧗 Climb Profile", f"{climb_category}")
-                st.markdown("</div>", unsafe_allow_html=True)
+                render_metric_card("Climb profile", str(climb_category), "#fb923c", "🧗")
             with r2_m3:
-                st.markdown("<div style='padding: 10px; border-radius: 5px; background-color: rgba(151, 166, 195, 0.1); border-left: 5px solid #ef5350;'>", unsafe_allow_html=True)
-                st.metric("🔺 Avg Climb Gradient", f"{avg_climb_gradient}")
-                st.markdown("</div>", unsafe_allow_html=True)
+                render_metric_card("Climb gradient", str(avg_climb_gradient), "#f87171", "🔺")
 
         surfaces = surface_analysis.get("surface_breakdown", [])
         if surfaces:
@@ -868,26 +1262,13 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
                             st.markdown(
                                 f"""
-                                <div style='
-                                    padding: 12px; 
-                                    border-radius: 6px; 
-                                    background-color: rgba(151, 166, 195, 0.1); 
-                                    border-left: 5px solid {border_color};
-                                    margin-bottom: 10px;
-                                    height: 105px;
-                                '>
-                                    <div style='font-size: 1.1em; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>
-                                        {icon} {p_name}
-                                    </div>
-                                    <div style='font-size: 0.85em; opacity: 0.8; margin-top: 4px;'>
-                                        Category: <b>{p_type.capitalize()}</b>
-                                    </div>
-                                    <div style='font-size: 0.9em; font-weight: 500; color: {border_color}; margin-top: 2px;'>
-                                        📏 Distance: {dist_str}
-                                    </div>
+                                <div class="bs-poi-card" style="--accent: {border_color};">
+                                    <div class="bs-poi-name">{icon} {p_name}</div>
+                                    <div class="bs-poi-meta">{p_type.capitalize()}</div>
+                                    <div class="bs-poi-dist" style="color:{border_color};">📏 {dist_str}</div>
                                 </div>
                                 """,
-                                unsafe_allow_html=True
+                                unsafe_allow_html=True,
                             )
 
                             p_loc = poi.get('location')
@@ -921,15 +1302,24 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
         map_uri, alt_uri = res_data.get("map_path"), res_data.get("elevation_profile_path")
         if map_uri or alt_uri:
-            st.divider()
+            render_section_header("Tactical visuals", "🗺️")
             v1, v2 = st.columns(2)
-            if map_uri: v1.image(map_uri, caption="Tactical Map")
-            if alt_uri: v2.image(alt_uri, caption="Elevation Profile")
+            if map_uri:
+                v1.image(map_uri, caption="Tactical map", use_container_width=True)
+            if alt_uri:
+                v2.image(alt_uri, caption="Elevation profile", use_container_width=True)
 
         gpx_path = res_data.get("gpx_export_path")
         if gpx_path and os.path.exists(gpx_path):
             with open(gpx_path, "rb") as file:
-                st.download_button("📥 Download Tactical GPX", file, file_name="mission.gpx", mime="application/gpx+xml")
+                st.download_button(
+                    "📥 Download tactical GPX",
+                    file,
+                    file_name="mission.gpx",
+                    mime="application/gpx+xml",
+                    type="primary",
+                    use_container_width=True,
+                )
 
     return briefing_text
 
@@ -939,36 +1329,60 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
 if mode == "💬 BikeScout (Chat)":
 
-    # Initialize chat history
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Connection established. Provide input..."}
-        ]
+        st.session_state.messages = []
+    if "mission_context" not in st.session_state:
+        st.session_state.mission_context = {}
 
-    # Display chat messages
+    if not st.session_state.messages:
+        with st.chat_message("assistant"):
+            render_chat_welcome()
+
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Chat Input Box
-    if user_input := st.chat_input("Plan a 30km mtb ride in Moab area"):
+    if user_input := st.chat_input(
+        "e.g. 52 km loop near Moab, 29er, amenities, go/no-go…"
+    ):
         st.session_state.messages.append({"role": "user", "content": user_input})
+
         with st.chat_message("user"):
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            raw_output = generate_tactical_response(st.session_state.messages, llm)
+            raw_output = generate_tactical_response(
+                st.session_state.messages,
+                llm,
+                mission_context=st.session_state.get("mission_context"),
+            )
             final_briefing = process_local_mcp_request(raw_output, user_input)
-            clean_briefing = re.sub(r'(?i)TOOL:.*', '', final_briefing, flags=re.DOTALL)
-            st.markdown(clean_briefing.strip())
+            clean_briefing = re.sub(r"(?i)TOOL:.*", "", final_briefing, flags=re.DOTALL).strip()
+            st.markdown(clean_briefing or "Done.")
 
-        clean_history_text = re.sub(r'(?i)TOOL:.*', '', final_briefing, flags=re.DOTALL).strip()
-        st.session_state.messages.append({"role": "assistant", "content": clean_history_text})
+        ctx = st.session_state.get("mission_context") or {}
+        location_note = ""
+        if ctx.get("location_name"):
+            if ctx.get("route_mode") == "point_to_point" and ctx.get("destination_name"):
+                location_note = (
+                    f"\n\n[Mission A→B: {ctx['location_name']} → {ctx['destination_name']}, "
+                    f"{ctx.get('bike_type', 'mtb')}]"
+                )
+            else:
+                location_note = (
+                    f"\n\n[Mission: {ctx['location_name']}, "
+                    f"{ctx.get('distance_km', '?')} km {ctx.get('bike_type', 'mtb')}]"
+                )
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": (clean_briefing or "Done.") + location_note,
+        })
 
 
 elif mode == "🗺️ GPX Track Audit":
-    st.subheader("GPX Tactical Audit")
-    st.caption("Perform a professional analysis of a GPX track by calculating VAM, W/kg, weather risks, and UCI categories.")
+    render_section_header("GPX tactical audit", "🗺️")
+    st.caption("VAM, W/kg, weather risks, UCI climb categories, and optional PDF report.")
 
     with st.form("gpx_audit_form"):
         gpx_url = st.text_input(
@@ -1047,9 +1461,24 @@ elif mode == "🗺️ GPX Track Audit":
                     track_metrics = res_data.get("track_metrics", {})
                     if track_metrics:
                         m1, m2, m3 = st.columns(3)
-                        m1.metric("Total Distance", f"{track_metrics.get('distance_km')} km")
-                        m2.metric("Elevation Gain", f"+{track_metrics.get('total_ascent')} m")
-                        m3.metric("Max Altitude", f"{track_metrics.get('max_altitude')} m")
+                        with m1:
+                            render_metric_card(
+                                "Distance",
+                                f"{track_metrics.get('distance_km')} km",
+                                "#38bdf8",
+                            )
+                        with m2:
+                            render_metric_card(
+                                "Elevation gain",
+                                f"+{track_metrics.get('total_ascent')} m",
+                                "#a78bfa",
+                            )
+                        with m3:
+                            render_metric_card(
+                                "Max altitude",
+                                f"{track_metrics.get('max_altitude')} m",
+                                "#2dd4bf",
+                            )
 
                     st.divider()
 

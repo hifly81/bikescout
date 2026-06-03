@@ -1,338 +1,516 @@
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from types import SimpleNamespace
+
 import requests
-from bikescout.tools.scouting import calculate_detailed_difficulty, generate_tactical_gpx, get_complete_trail_scout, calculate_performance_metrics, _map_surface_id
 
-class TestMasterOrchestrator:
+import bikescout.tools.scouting as scouting_module
+from bikescout.tools.scouting import (
+    TrailScoutConfig,
+    TrailScoutService,
+    _map_surface_id,
+    calculate_detailed_difficulty,
+    calculate_performance_metrics,
+    generate_tactical_gpx,
+    get_complete_trail_scout,
+)
 
-    def test_difficulty_grading(self):
-        assert "Expert" in calculate_detailed_difficulty(10, 1000)
-        assert "Beginner" in calculate_detailed_difficulty(5, 50)
 
-    def test_gpx_elevation_healing(self):
-        bad_coords = [[9.0, 45.0, 100.0], [9.1, 45.1, 105.0], [9.2, 45.2, 0.0], [9.3, 45.3, 110.0]]
+class FakeResponse:
+    def __init__(self, payload=None, raise_exc=None):
+        self.payload = payload if payload is not None else {}
+        self.raise_exc = raise_exc
 
-        with patch("builtins.open", MagicMock()):
-            report = generate_tactical_gpx("test_uuid", bad_coords)
+    def raise_for_status(self):
+        if self.raise_exc:
+            raise self.raise_exc
 
-        assert report["status"] == "Success"
-        assert report["tactical_stats"]["healed_points"] == 1
+    def json(self):
+        return self.payload
 
-    @patch("bikescout.tools.scouting.requests.post")
-    def test_complete_scout_fallback(self, mock_post):
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {
-            "features": [{
-                "geometry": {"coordinates": [[9.0, 45.0, 100], [9.1, 45.1, 200]]},
-                "properties": {
-                    "summary": {"distance": 50000}, # 50km
-                    "ascent": 1200
-                }
-            }]
-        }
 
-        m_rider = MagicMock()
-        m_rider.weight_kg = 70.0
-        m_rider.fitness_level = "pro"
-        m_rider.gender = "M"
-        m_rider.sweat_profile = "normal"
+class FakeSession:
+    def __init__(self, response=None, exc=None):
+        self.response = response
+        self.exc = exc
+        self.calls = []
 
-        m_bike = MagicMock()
-        m_bike.bike_type = "road"
-        m_bike.is_ebike = False
-
-        m_mission = MagicMock()
-        m_mission.total_length_km = 50.0
-        m_mission.profile = "cycling-road"
-        m_mission.seed = 42
-
-        with patch("bikescout.tools.scouting.get_weather_forecast", side_effect=Exception("Weather Down")):
-            with patch("bikescout.tools.scouting.get_surface_analyzer") as mock_surface:
-                mock_surface.return_value = {"status": "Error", "message": "Surface service down"}
-
-                result = get_complete_trail_scout("api_key", 45.0, 9.0, m_rider, m_bike, m_mission,
-                                                  include_weather=True, include_gpx=False)
-
-        assert result["status"] == "Success", f"Errore rilevato: {result.get('error_message')}"
-        assert result["info"]["distance_km"] == 50.0
-
-    @patch("bikescout.tools.scouting.requests.post")
-    @patch("bikescout.tools.scouting.get_weather_forecast")
-    @patch("bikescout.tools.scouting.get_surface_analyzer")
-    @patch("bikescout.tools.scouting.get_mud_risk_analysis")
-    @patch("bikescout.tools.scouting.get_nutrition_plan")
-    @patch("bikescout.tools.scouting.generate_tactical_gpx")
-    @patch("bikescout.tools.scouting.get_elevation_profile_image")
-    def test_complete_scout_full_integration(self, m_alt, m_gpx, m_nut, m_mud, m_surf, m_weath, m_post):
-
-        # Setup Mock ORS
-        m_post.return_value.status_code = 200
-        m_post.return_value.json.return_value = {
-            "features": [{
-                "geometry": {"coordinates": [[9,45,100], [9.1,45.1,200]]},
-                "properties": {"summary": {"distance": 10000}, "ascent": 500}
-            }]
-        }
-
-        m_weath.return_value = {
-            "status": "Success",
-            "tactical_forecast": [{"temp": "22°C", "condition": "Sunny"}],
-            "reference_conditions": {"temp_actual": 22.0}
-        }
-        m_surf.return_value = {"status": "Success", "tactical_briefing": {"distance_km": 10, "elevation_gain_m": 500}}
-        m_mud.return_value = {"status": "Success", "risk_level": "Low"}
-        m_nut.return_value = {"status": "Success", "plan": "2 gels per hour"}
-        m_gpx.return_value = {"status": "Success", "file_location": "/tmp/test.gpx", "mcp_resource_uri": "..."}
-        m_alt.return_value = {"status": "Success", "file_location": "/tmp/test.png", "mcp_resource_uri": "..."}
-
-        rider = MagicMock(weight_kg=75, fitness_level="intermediate", gender="M", sweat_profile="high")
-        bike = MagicMock(bike_type="gravel", is_ebike=True, battery_wh=500)
-        mission = MagicMock(total_length_km=10, profile="cycling-gravel", seed=123)
-
-        result = get_complete_trail_scout(
-            "key", 45.0, 9.0, rider, bike, mission,
-            include_weather=True,
-            include_mud_analysis=True,
-            include_nutrition_plan=True,
-            include_gpx=True,
-            include_altimetry=True,
-            include_poi=True
+    def post(self, url, json=None, headers=None, timeout=None):
+        self.calls.append(
+            {
+                "url": url,
+                "json": json,
+                "headers": headers,
+                "timeout": timeout,
+            }
         )
+        if self.exc:
+            raise self.exc
+        return self.response
 
-        assert result["status"] == "Success"
-        assert "nutrition_plan" in result["logistics"]
-        assert "gpx_export_path" in result
 
-    @patch("bikescout.tools.scouting.requests.post")
-    def test_scouting_a_to_b_and_edge_cases(self, mock_post):
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {
-            "features": [{
-                "geometry": {"coordinates": [[9,45,100], [10,46,200]]},
-                "properties": {"summary": {"distance": 100000}, "ascent": 2000}
-            }]
-        }
+def make_rider(weight_kg=75.0, fitness_level="intermediate", gender="male", sweat_profile="standard"):
+    return SimpleNamespace(
+        weight_kg=weight_kg,
+        fitness_level=fitness_level,
+        gender=gender,
+        sweat_profile=sweat_profile,
+    )
 
-        m_rider = MagicMock(weight_kg=80, fitness_level="intermediate", gender="M", sweat_profile="low")
-        m_bike = MagicMock(bike_type="mtb", is_ebike=False)
-        m_mission = MagicMock(total_length_km=100, profile="cycling-mountain", seed=999)
 
-        result = get_complete_trail_scout(
-            "key", 45.0, 9.0, m_rider, m_bike, m_mission,
-            dest_latitude=46.0, dest_longitude=10.0, # Trigger A -> B logic
-            include_weather=True
-        )
+def make_bike(bike_type="gravel", is_ebike=False):
+    return SimpleNamespace(
+        bike_type=bike_type,
+        is_ebike=is_ebike,
+    )
 
-        assert result["info"]["route_type"] == "A to B"
-        assert result["status"] == "Success"
 
-    def test_performance_metrics_extremes(self):
+def make_mission(profile="cycling-regular", total_length_km=40.0, seed=42):
+    return SimpleNamespace(
+        profile=profile,
+        total_length_km=total_length_km,
+        seed=seed,
+    )
 
-        m_rider_pro = MagicMock(fitness_level="pro")
-        m_bike_alien = MagicMock(bike_type="unicycle", is_ebike=False)
 
-        perf = calculate_performance_metrics(100, 2000, m_rider_pro, m_bike_alien)
+def test_calculate_detailed_difficulty_unknown():
+    assert calculate_detailed_difficulty(0, 100) == "Unknown"
 
-        assert perf["applied_vam"] == 1000.0
-        assert perf["applied_base_speed"] == 16.0
 
-    @patch("bikescout.tools.scouting.requests.post")
-    @patch("bikescout.tools.scouting.get_weather_forecast")
-    @patch("bikescout.tools.scouting.get_surface_analyzer")
-    @patch("bikescout.tools.scouting.get_poi_scout")
-    @patch("bikescout.tools.scouting.generate_tactical_gpx")
-    @patch("bikescout.tools.scouting.get_elevation_profile_image")
-    @patch("bikescout.tools.scouting.save_local_tactical_map")
-    def test_scouting_ultimate_coverage(self, m_map, m_alt, m_gpx, m_poi, m_surf, m_weath, m_post):
-        m_post.return_value.status_code = 200
-        m_post.return_value.json.return_value = {
-            "features": [{
-                "geometry": {"coordinates": [[9,45,100], [10,46,200]]},
-                "properties": {"summary": {"distance": 65000}, "ascent": 1500}
-            }]
-        }
+def test_calculate_detailed_difficulty_expert():
+    assert calculate_detailed_difficulty(60, 200) == "Expert (Challenging distance or very steep climbs)"
 
-        m_weath.return_value = {
-            "status": "Success",
-            "tactical_forecast": [{"temp": " 28.5 °C ", "condition": "Hot"}], # Spazi e °C per il .strip().replace()
-            "reference_conditions": {"temp_actual": 28.5},
-            "safety_advice": "Stay hydrated"
-        }
 
-        m_surf.return_value = {"status": "Success", "tactical_briefing": {"distance_km": 65, "elevation_gain_m": 1500}}
-        m_poi.return_value = {"status": "Success", "amenities": [{"name": "Fountain", "location": {"lat": 45.1, "lon": 9.1}}]}
-        m_gpx.return_value = {"status": "Success", "file_location": "/tmp/test.gpx", "mcp_resource_uri": "uri://gpx"}
-        m_alt.return_value = {"status": "Success", "file_location": "/tmp/test.png", "mcp_resource_uri": "uri://alt"}
-        m_map.return_value = {"status": "Success", "file_location": "/tmp/map.html", "mcp_resource_uri": "uri://map"}
+def test_calculate_detailed_difficulty_advanced():
+    assert calculate_detailed_difficulty(35, 200) == "Advanced (Requires good fitness and stamina)"
 
-        rider = MagicMock(weight_kg=70, fitness_level="pro", gender="F", sweat_profile="high")
-        bike = MagicMock(bike_type="alien_bike", is_ebike=True)
-        mission = MagicMock(total_length_km=65, profile="cycling-road", seed=1)
 
-        result = get_complete_trail_scout(
-            "key", 45.0, 9.0, rider, bike, mission,
-            dest_latitude=46.0, dest_longitude=10.0, 
-            include_weather=True, include_gpx=True, include_altimetry=True,
-            include_map=True, include_poi=True
-        )
+def test_calculate_detailed_difficulty_moderate():
+    assert calculate_detailed_difficulty(20, 200) == "Moderate (Accessible for regular cyclists)"
 
-        assert result["status"] == "Success"
-        assert "gpx_export_path" in result
-        assert "elevation_profile_path" in result
-        assert result["info"]["route_type"] == "A to B"
 
-    def test_gpx_generation_edge_cases_and_anomalies(self):
-        # Test GPX with an Object containing a .coordinates attribute (Line 55)
-        mock_geo = MagicMock()
-        mock_geo.coordinates = [[9.0, 45.0, 100.0], [9.1, 45.1, 105.0]]
-        with patch("builtins.open", MagicMock()):
-            res_attr = generate_tactical_gpx("attr_test", mock_geo)
-        assert res_attr["status"] == "Success"
+def test_calculate_detailed_difficulty_beginner():
+    assert calculate_detailed_difficulty(10, 100) == "Beginner (Short and relatively flat, ideal for everyone)"
 
-        # Generate 30 points spaced far enough apart to satisfy dist > 60
-        steep_coords = []
-        for i in range(30):
-            # 0.001 degrees of latitude is roughly 111 meters (satisfying dist > 60)
-            lat = 45.0 + (i * 0.002)
-            lon = 9.0
-            # Elevate steadily to create a steep grade between 10% and 45%
-            ele = 100.0 + (i * 30.0)
-            steep_coords.append([lon, lat, ele])
 
-        with patch("builtins.open", MagicMock()):
-            res_steep = generate_tactical_gpx("steep_test", steep_coords)
+def test_generate_tactical_gpx_with_routegeometry_and_amenities(tmp_path, monkeypatch):
+    monkeypatch.setattr(scouting_module.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(scouting_module.time, "time", lambda: 1000000)
 
-        assert res_steep["status"] == "Success"
-        assert res_steep["tactical_stats"]["waypoints_count"] > 0
+    geojson_data = SimpleNamespace(
+        coordinates=[
+            [10.0, 45.0, 100],
+            [10.001, 45.001, 0],
+            [10.002, 45.002, 120],
+            [10.003, 45.003, 130],
+            [10.004, 45.004, 140],
+            [10.005, 45.005, 150],
+            [10.006, 45.006, 170],
+            [10.007, 45.007, 190],
+            [10.008, 45.008, 210],
+            [10.009, 45.009, 230],
+            [10.010, 45.010, 250],
+            [10.011, 45.011, 270],
+            [10.012, 45.012, 290],
+            [10.013, 45.013, 310],
+            [10.014, 45.014, 330],
+            [10.015, 45.015, 350],
+        ]
+    )
 
-    @patch("bikescout.tools.scouting.requests.post")
-    def test_surface_breakdown_fallbacks(self, mock_post):
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {
-            "features": [{"geometry": {"coordinates": [[9,45,100], [9.1,45.1,200]]}, "properties": {"summary": {"distance": 5000}, "ascent": 200}}]
-        }
+    amenities = [{"name": "Water", "location": {"lat": 45.1, "lon": 10.1}}]
 
-        m_rider = MagicMock(weight_kg=70, fitness_level="intermediate", gender="M", sweat_profile="normal")
-        m_bike = MagicMock(bike_type="gravel", is_ebike=False)
-        m_mission = MagicMock(total_length_km=5, profile="cycling-gravel", seed=42)
+    result = generate_tactical_gpx("abc123", geojson_data, amenities)
 
-        # Force ValueError boundary by providing an unparseable item inside the collection
-        with patch("bikescout.tools.scouting.get_surface_analyzer") as mock_surface:
-            mock_surface.return_value = {
-                "status": "Success",
-                "tactical_briefing": {"distance_km": 5, "elevation_gain_m": 200},
-                "info": {
-                    "surface_analysis": {
-                        # Elements present, but entry string forces lambda conversion crash
-                        "surface_breakdown": [{"type": "gravel", "percentage": "broken_value"}]
-                    }
+    assert result["status"] == "Success"
+    assert result["mcp_resource_uri"] == "bikescout://gpx/tactical_route_abc123.gpx"
+    assert Path(result["file_location"]).exists()
+    assert result["tactical_stats"]["healed_points"] >= 1
+
+
+def test_generate_tactical_gpx_with_feature_dict(tmp_path, monkeypatch):
+    monkeypatch.setattr(scouting_module.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(scouting_module.time, "time", lambda: 1000000)
+
+    geojson_data = {
+        "features": [
+            {
+                "geometry": {
+                    "coordinates": [
+                        [10.0, 45.0, 100],
+                        [10.001, 45.001, 101],
+                    ]
                 }
             }
+        ]
+    }
 
-            result = get_complete_trail_scout("key", 45.0, 9.0, m_rider, m_bike, m_mission, include_gpx=False)
-            assert result["info"]["surface_analysis"]["status"] == "Success"
+    result = generate_tactical_gpx("xyz789", geojson_data, [])
+    assert result["status"] == "Success"
 
-    @patch("bikescout.tools.scouting.requests.post")
-    def test_master_orchestrator_subservice_failures(self, mock_post):
-        # Setup valid mapping configuration to parse payload safely up until subservices
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {
-            "features": [{
-                "geometry": {"coordinates": [[9,45,100], [9.1,45.1,200]]},
-                "properties": {"summary": {"distance": 5000}, "ascent": 100}
-            }]
-        }
 
-        rider = MagicMock(weight_kg=70, fitness_level="intermediate", gender="M", sweat_profile="normal")
-        bike = MagicMock(bike_type="road", is_ebike=False)
-        mission = MagicMock(total_length_km=5, profile="cycling-road", seed=1)
+def test_generate_tactical_gpx_cleanup_old_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(scouting_module.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(scouting_module.time, "time", lambda: 2000000)
 
-        # 1. Test handled sub-service exceptions (GPX & Altimetry)
-        # include_map is set to False because save_local_tactical_map lacks an internal try/except block
-        with patch("bikescout.tools.scouting.generate_tactical_gpx", side_effect=Exception("GPX Writer Crash")), \
-                patch("bikescout.tools.scouting.get_elevation_profile_image", side_effect=Exception("Altimetry Engine Crash")):
+    gpx_dir = tmp_path / ".bikescout" / "gpx"
+    gpx_dir.mkdir(parents=True, exist_ok=True)
+    old_file = gpx_dir / "old.gpx"
+    old_file.write_text("old", encoding="utf-8")
 
-            result = get_complete_trail_scout(
-                "key", 45.0, 9.0, rider, bike, mission,
-                include_map=False, include_gpx=True, include_altimetry=True
-            )
+    original_stat = Path.stat
 
-            # Verify orchestrator survived the safe sub-service failures
-            assert result["status"] == "Success"
-            assert "gpx_error" in result
-            assert "elevation_error" in result
+    def fake_stat(self):
+        result = original_stat(self)
+        class Stat:
+            st_mtime = 1
+        return Stat()
 
-        # 2. Force the global orchestrator routing exception block
-        mock_post.side_effect = requests.exceptions.Timeout("Connection Timed Out")
-        err_result = get_complete_trail_scout("key", 45.0, 9.0, rider, bike, mission)
+    monkeypatch.setattr(Path, "stat", fake_stat)
 
-        assert err_result["status"] == "Error"
-        assert "Master Orchestrator failed" in err_result["error_message"]
+    result = generate_tactical_gpx("cleanme", [[10.0, 45.0, 100], [10.001, 45.001, 101]], [])
+    assert result["status"] == "Success"
 
-    def test_surface_id_mapping_and_gpx_writer_exceptions(self):
-        assert _map_surface_id(999) == "dirt"
-        assert _map_surface_id(1) == "asphalt"
 
-        malformed_report = generate_tactical_gpx("break", None)
-        assert malformed_report["status"] == "Error"
-        assert "GPX Generation failed" in malformed_report["message"]
+def test_generate_tactical_gpx_error():
+    result = generate_tactical_gpx("bad", None, [])
+    assert result["status"] == "Error"
+    assert "GPX Generation failed" in result["message"]
 
-    def test_isolated_utility_and_gpx_branches(self):
-        assert calculate_detailed_difficulty(0, 500) == "Unknown"
 
-        assert _map_surface_id(999) == "dirt"
-        mock_geojson_dict = {
-            "features": [{
-                "geometry": {
-                    "coordinates": [[9.0, 45.0, 100.0], [9.001, 45.001, 102.0]]
-                }
-            }]
-        }
-        with patch("builtins.open", MagicMock()):
-            res_dict = generate_tactical_gpx("geojson_dict_test", mock_geojson_dict)
-        assert res_dict["status"] == "Success"
+def test_calculate_performance_metrics_standard():
+    rider = make_rider()
+    bike = make_bike("gravel", False)
 
-        # Needs > 60 total points so that the index math loops cleanly past last_wall_index trackers
-        wall_coords = []
-        for i in range(80):
-            # 0.002 degrees latitude handles the dist > 60 meters check easily
-            lat = 45.0 + (i * 0.002)
-            lon = 9.0
-            # Climbing 25 meters every point ensures an acceptable grade (~11%) inside the 10-45% window
-            ele = 100.0 + (i * 25.0)
-            wall_coords.append([lon, lat, ele])
+    result = calculate_performance_metrics(40.0, 500.0, rider, bike)
 
-        with patch("builtins.open", MagicMock()):
-            res_walls = generate_tactical_gpx("wall_test", wall_coords)
-        assert res_walls["status"] == "Success"
-        assert res_walls["tactical_stats"]["waypoints_count"] > 0
+    assert result["estimated_hours"] > 0
+    assert result["intensity_score"] == 2
+    assert result["applied_vam"] == 700.0
+    assert result["applied_base_speed"] == 20.0
 
-    @patch("bikescout.tools.scouting.requests.post")
-    def test_orchestrator_routing_and_subservice_bounds(self, mock_post):
-        # Setup reusable standard mock parameter objects
-        m_rider = MagicMock(weight_kg=75, fitness_level="intermediate", gender="M", sweat_profile="normal")
-        m_bike = MagicMock(bike_type="gravel", is_ebike=False)
-        m_mission = MagicMock(total_length_km=20, profile="cycling-gravel", seed=42)
 
-        mock_post.side_effect = requests.exceptions.Timeout("API Connection Lost")
-        err_routing = get_complete_trail_scout("key", 45.0, 9.0, m_rider, m_bike, m_mission)
-        assert err_routing["status"] == "Error"
-        assert "Master Orchestrator failed" in err_routing["error_message"]
+def test_calculate_performance_metrics_ebike_boost():
+    rider = make_rider(fitness_level="beginner")
+    bike = make_bike("e-mtb", True)
 
-        # Restore stable base behavior for the rest of the execution checks
-        mock_post.side_effect = None
-        mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {
-            "features": [{
-                "geometry": {"coordinates": [[9.0, 45.0, 100.0], [9.1, 45.1, 200.0]]},
-                "properties": {"summary": {"distance": 10000}, "ascent": 100}
-            }]
-        }
+    result = calculate_performance_metrics(70.0, 1000.0, rider, bike)
 
-        with patch("bikescout.tools.scouting.generate_tactical_gpx", side_effect=Exception("GPX Stream Error")):
-            res_gpx_err = get_complete_trail_scout("key", 45.0, 9.0, m_rider, m_bike, m_mission, include_gpx=True)
-            assert "gpx_error" in res_gpx_err
+    assert result["applied_vam"] == 850.0
+    assert result["applied_base_speed"] == 21.0
+    assert result["intensity_score"] == 3
 
-        with patch("bikescout.tools.scouting.save_local_tactical_map", side_effect=Exception("Map File Engine Failure")):
-            res_fatal = get_complete_trail_scout("key", 45.0, 9.0, m_rider, m_bike, m_mission, include_map=True)
-            assert res_fatal["status"] == "Error"
-            assert "Master Orchestrator failed" in res_fatal["error_message"]
+
+def test_map_surface_id():
+    assert _map_surface_id(1) == "asphalt"
+    assert _map_surface_id(2) == "unpaved"
+    assert _map_surface_id(5) == "gravel"
+    assert _map_surface_id(10) == "dirt"
+    assert _map_surface_id(11) == "grass"
+    assert _map_surface_id(12) == "compact"
+    assert _map_surface_id(999) == "dirt"
+
+
+def test_routing_payload_round_trip():
+    mission = make_mission()
+    payload = TrailScoutService._routing_payload(45.0, 10.0, mission, None, None)
+
+    assert payload["coordinates"] == [[10.0, 45.0]]
+    assert payload["options"]["round_trip"]["length"] == 40000.0
+
+
+def test_routing_payload_a_to_b():
+    mission = make_mission()
+    payload = TrailScoutService._routing_payload(45.0, 10.0, mission, 46.0, 11.0)
+
+    assert payload["coordinates"] == [[10.0, 45.0], [11.0, 46.0]]
+    assert "options" not in payload
+
+
+def test_base_response_payload():
+    result = TrailScoutService._base_response_payload(40.0, 500.0, None, None)
+    assert result["info"]["route_type"] == "Round Trip"
+
+    result_ab = TrailScoutService._base_response_payload(40.0, 500.0, 46.0, 11.0)
+    assert result_ab["info"]["route_type"] == "A to B"
+
+
+def test_dominant_surface_from_breakdown():
+    breakdown = [{"type": "Gravel", "percentage": "70%"}, {"type": "Asphalt", "percentage": "30%"}]
+    assert TrailScoutService._dominant_surface_from_breakdown(breakdown) == "Gravel"
+    assert TrailScoutService._dominant_surface_from_breakdown([]) == "Unknown"
+    assert TrailScoutService._dominant_surface_from_breakdown([{"type": "Gravel", "percentage": None}]) == "Unknown"
+
+
+def test_weather_snapshot_list():
+    weather_report = {
+        "tactical_forecast": [
+            {"time": "09:00", "temp": 20, "app_temp": 19, "rain_prob": 10, "rain_mm": 0.0, "wind": 12, "gusts": 20},
+            {"hour": "10:00", "temp": 21},
+        ]
+    }
+
+    result = TrailScoutService._weather_snapshot_list(weather_report)
+
+    assert result[0]["time"] == "09:00"
+    assert result[1]["time"] == "10:00"
+
+
+def test_ensure_logistics():
+    payload = {}
+    TrailScoutService._ensure_logistics(payload)
+    assert payload["logistics"] == {}
+
+    payload = {"logistics": None}
+    TrailScoutService._ensure_logistics(payload)
+    assert payload["logistics"] == {}
+
+
+def make_service(session):
+    return TrailScoutService(
+        config=TrailScoutConfig(),
+        http_session=session,
+        map_saver=lambda filename_part, data: {
+            "status": "Success",
+            "file_location": f"/tmp/{filename_part}.html",
+            "mcp_resource_uri": f"bikescout://map/{filename_part}",
+        },
+        weather_getter=lambda lat, lon, target_date=None: {
+            "status": "Success",
+            "tactical_forecast": [{"time": "09:00", "temp": 20, "app_temp": 19, "rain_prob": 10, "rain_mm": 0.0, "wind": 12, "gusts": 20}],
+            "reference_conditions": {"temp_max": 24},
+            "safety_advice": {"status": "? [GO]"},
+        },
+        weather_windowing=lambda weather_report, start, end: weather_report,
+        surface_analyzer=lambda api_key, latitude, longitude, rider, bike, mission, target_date=None: {
+            "status": "Success",
+            "tactical_briefing": {"distance_km": 42.0, "elevation_gain_m": 600.0},
+            "info": {"surface_analysis": {"surface_breakdown": [{"type": "Gravel", "percentage": "70%"}]}},
+        },
+        poi_scout=lambda api_key, latitude, longitude, total_length_km: {
+            "status": "Success",
+            "amenities": [{"name": "Water", "location": {"lat": 45.1, "lon": 10.1}}],
+        },
+        mud_analyzer=lambda latitude, longitude, dominant_surface, target_date=None: {
+            "status": "Success",
+            "mud_risk": "medium",
+        },
+        altimetry_getter=lambda geometry, uuid_input, style: {
+            "status": "Success",
+            "file_location": f"/tmp/{uuid_input}.png",
+            "mcp_resource_uri": f"bikescout://altimetry/{uuid_input}",
+        },
+        nutrition_getter=lambda estimated_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile: {
+            "status": "Success",
+            "mission_nutrition_briefing": {},
+        },
+        gpx_generator=lambda filename_part, geojson_data, amenities=None: {
+            "status": "Success",
+            "file_location": f"/tmp/{filename_part}.gpx",
+            "mcp_resource_uri": f"bikescout://gpx/{filename_part}",
+        },
+        uuid_func=lambda: "fixedid",
+    )
+
+
+def test_get_complete_trail_scout_success_all_features():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    session = FakeSession(response=FakeResponse(payload=payload))
+    service = make_service(session)
+
+    rider = make_rider()
+    bike = make_bike("gravel", False)
+    mission = make_mission()
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=rider,
+        bike=bike,
+        mission=mission,
+        include_gpx=True,
+        include_map=True,
+        include_poi=True,
+        include_altimetry=True,
+        include_weather=True,
+        include_mud_analysis=True,
+        include_nutrition_plan=True,
+    )
+
+    assert result["status"] == "Success"
+    assert result["info"]["surface_analysis"]["status"] == "Success"
+    assert result["conditions"]["weather"] is not None
+    assert result["conditions"]["mud_risk"]["status"] == "Success"
+    assert result["logistics"]["nutrition_plan"]["status"] == "Success"
+    assert result["logistics"]["nearby_amenities"]
+    assert result["map_path"] == "/tmp/fixedid.html"
+    assert result["gpx_export_path"] == "/tmp/fixedid.gpx"
+    assert result["elevation_profile_path"] == "/tmp/fixedid.png"
+
+
+def test_get_complete_trail_scout_surface_failure_weather_unavailable():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    session = FakeSession(response=FakeResponse(payload=payload))
+    service = TrailScoutService(
+        config=TrailScoutConfig(),
+        http_session=session,
+        surface_analyzer=lambda *args, **kwargs: {"status": "Error"},
+        weather_getter=lambda *args, **kwargs: {"status": "Error"},
+        weather_windowing=lambda x, start, end: x,
+        gpx_generator=lambda *args, **kwargs: {"status": "Success", "file_location": "/tmp/x.gpx", "mcp_resource_uri": "uri"},
+        uuid_func=lambda: "fixedid",
+    )
+
+    rider = make_rider()
+    bike = make_bike()
+    mission = make_mission()
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=rider,
+        bike=bike,
+        mission=mission,
+        include_weather=True,
+    )
+
+    assert result["status"] == "Success"
+    assert result["conditions"]["weather_status"] == "Unavailable"
+
+
+def test_get_complete_trail_scout_weather_exception():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    session = FakeSession(response=FakeResponse(payload=payload))
+    service = TrailScoutService(
+        config=TrailScoutConfig(),
+        http_session=session,
+        surface_analyzer=lambda *args, **kwargs: {"status": "Error"},
+        weather_getter=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+        weather_windowing=lambda x, start, end: x,
+        gpx_generator=lambda *args, **kwargs: {"status": "Success", "file_location": "/tmp/x.gpx", "mcp_resource_uri": "uri"},
+        uuid_func=lambda: "fixedid",
+    )
+
+    rider = make_rider()
+    bike = make_bike()
+    mission = make_mission()
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=rider,
+        bike=bike,
+        mission=mission,
+        include_weather=True,
+    )
+
+    assert result["status"] == "Success"
+    assert "Technical bypass: boom" == result["conditions"]["weather_error"]
+
+
+def test_get_complete_trail_scout_gpx_and_altimetry_errors():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    session = FakeSession(response=FakeResponse(payload=payload))
+    service = TrailScoutService(
+        config=TrailScoutConfig(),
+        http_session=session,
+        surface_analyzer=lambda *args, **kwargs: {"status": "Error"},
+        gpx_generator=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("gpx fail")),
+        altimetry_getter=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("alt fail")),
+        uuid_func=lambda: "fixedid",
+    )
+
+    rider = make_rider()
+    bike = make_bike()
+    mission = make_mission()
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=rider,
+        bike=bike,
+        mission=mission,
+        include_gpx=True,
+        include_altimetry=True,
+    )
+
+    assert result["status"] == "Success"
+    assert result["gpx_error"] == "GPX failed: gpx fail"
+    assert result["elevation_error"] == "Altimetry failed: alt fail"
+
+
+def test_get_complete_trail_scout_master_error():
+    session = FakeSession(exc=requests.exceptions.RequestException("network down"))
+    service = make_service(session)
+
+    rider = make_rider()
+    bike = make_bike()
+    mission = make_mission()
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=rider,
+        bike=bike,
+        mission=mission,
+    )
+
+    assert result["status"] == "Error"
+    assert "Master Orchestrator failed: network down" == result["error_message"]
+
+
+def test_module_level_wrapper(monkeypatch):
+    class FakeService:
+        def __init__(self):
+            self.calls = []
+
+        def get_complete_trail_scout(self, **kwargs):
+            self.calls.append(kwargs)
+            return {"status": "Success"}
+
+    fake_service = FakeService()
+    monkeypatch.setattr(scouting_module, "service", fake_service)
+
+    result = get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=make_rider(),
+        bike=make_bike(),
+        mission=make_mission(),
+    )
+
+    assert result == {"status": "Success"}
+    assert len(fake_service.calls) == 1

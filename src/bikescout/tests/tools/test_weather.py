@@ -67,17 +67,17 @@ def service(fixed_now):
 
 def test_get_safety_advice_not_recommended():
     result = get_safety_advice(app_temp=10, rain_prob=10, rain_mm=12.0, wind_speed=20, wind_gusts=20)
-    assert result["status"] == "? [NOT RECOMMENDED]"
+    assert result["status"] == "[NOT RECOMMENDED]"
 
 
 def test_get_safety_advice_caution():
     result = get_safety_advice(app_temp=10, rain_prob=10, rain_mm=3.0, wind_speed=20, wind_gusts=20)
-    assert result["status"] == "? [CAUTION]"
+    assert result["status"] == "[CAUTION]"
 
 
 def test_get_safety_advice_watch():
     result = get_safety_advice(app_temp=10, rain_prob=40, rain_mm=0.0, wind_speed=20, wind_gusts=20)
-    assert result["status"] == "? [WATCH]"
+    assert result["status"] == "[WATCH]"
 
 
 def test_get_safety_advice_go_and_gear_ranges():
@@ -90,7 +90,7 @@ def test_get_safety_advice_go_and_gear_ranges():
     assert mild["gear_advice"].startswith("Spring/Fall")
     assert warm["gear_advice"].startswith("Standard")
     assert hot["gear_advice"].startswith("High Summer")
-    assert warm["status"] == "? [GO]"
+    assert warm["status"] == "[GO]"
 
 
 def test_resolve_timezone_name(service):

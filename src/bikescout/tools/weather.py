@@ -32,16 +32,16 @@ def get_safety_advice(app_temp: float, rain_prob: int, rain_mm: float, wind_spee
     wind_risk_score = (wind_speed * 0.4) + (wind_gusts * 0.6)
 
     if rain_mm > 10.0 or wind_risk_score > 55:
-        status_label = "? [NOT RECOMMENDED]"
+        status_label = "[NOT RECOMMENDED]"
         status_msg = "Critical risk: Heavy rain volume or dangerous wind gusts. Riding is unsafe."
     elif rain_mm > 2.0 or wind_risk_score > 35:
-        status_label = "? [CAUTION]"
+        status_label = "[CAUTION]"
         status_msg = "Significant hazards: Moderate rain or strong crosswinds expected. Use extreme care."
     elif rain_prob > 30 or wind_speed > 25:
-        status_label = "? [WATCH]"
+        status_label = "[WATCH]"
         status_msg = "Sub-optimal: Light rain possible or stiff breeze. Manageable for experienced riders."
     else:
-        status_label = "? [GO]"
+        status_label = "[GO]"
         status_msg = "Ideal conditions: Low wind, dry, and safe."
 
     if app_temp < 5:

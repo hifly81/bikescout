@@ -1,5 +1,30 @@
 # Changelog - BikeScout
 
+## [1.5.1]
+* release: prepare version 1.5.1 ([3c7e9d2](https://github.com/hifly81/bikescout/commit/3c7e9d23a5b3b702b9bf729891932ea06f9ef8d1))
+* Refactor race analysis engine with backward-compatible output and full test coverage ([eaff9f5](https://github.com/hifly81/bikescout/commit/eaff9f54b104fce5a42f25993a98593edbc5d387))
+* Refactor surface analyzer with backward-compatible output and full test coverage ([7d3c4e4](https://github.com/hifly81/bikescout/commit/7d3c4e491d5aac656ac5834868047ad5cc5d0f7f))
+* Refactor weather engine with backward-compatible output and full test coverage ([2254ec1](https://github.com/hifly81/bikescout/commit/2254ec1d2759417be1b591d605a22aa11d3972f0))
+* Refactor mud risk analysis with backward-compatible output and full test coverage ([ae5270c](https://github.com/hifly81/bikescout/commit/ae5270cb4098cd64d1cebe513f97b90797ed24c5))
+* Refactor nutrition service internals while preserving legacy response format ([76ad578](https://github.com/hifly81/bikescout/commit/76ad578f2a5b08cf07155550bf8d64f34b0a1434))
+* Refactor battery drain model with backward-compatible output and full test coverage ([7911cbb](https://github.com/hifly81/bikescout/commit/7911cbbe615a2a98c7ba45946ae687a34384d2dd))
+* gui refactoring ([ae733db](https://github.com/hifly81/bikescout/commit/ae733db46fa8ba20193dc486b26096264ee79263))
+* Refactor bike setup with backward-compatible output and full test coverage ([4fc3ca2](https://github.com/hifly81/bikescout/commit/4fc3ca2a4587b256f5589a96af86a42367007e46))
+* Refactor POI scouting into validated service with robust ORS parsing and 100% test coverage ([16c9ede](https://github.com/hifly81/bikescout/commit/16c9edeba8dfa46b6215169e125d11955c50e8e1))
+* gui: now support route A-B ([da028dd](https://github.com/hifly81/bikescout/commit/da028ddd42d43ced3e234811ab4e82975fe45349))
+* Refactor geocoding into provider-based service with retries, validation, and full test coverage ([680cf4b](https://github.com/hifly81/bikescout/commit/680cf4bdf78c39404a377f13f9640ee9af09fffb))
+* Refactor map generation into production-grade service with validation, cleanup, and tests ([36657de](https://github.com/hifly81/bikescout/commit/36657dec2f2b97dff52cc8833bae02c433e1ea43))
+* Refactor altimetry into production-grade service with tests and distance benchmark ([b9b48d9](https://github.com/hifly81/bikescout/commit/b9b48d95ee19103ba282feb79874b97433c6ef28))
+* fix(maps): correct local slope calculation by adjusting for longitude convergence ([a8ed420](https://github.com/hifly81/bikescout/commit/a8ed42087e896692b0c0bf18579ddfb59ccc13a8))
+* gui: added complexity in PROMPT ([b88978f](https://github.com/hifly81/bikescout/commit/b88978fb1fe18319d822a1a366526db3adb7af6f))
+* test: added new test to fill coverage - part 2 ([4026888](https://github.com/hifly81/bikescout/commit/4026888c6120637d5039a3739eee0978ddd0e9d1))
+* test: added new test to fill coverage ([0a3b7fc](https://github.com/hifly81/bikescout/commit/0a3b7fca019d24df4de70344e95385fc205f1feb))
+* fix: resolve weather index alignment fallback and wind direction tracking bug ([a638278](https://github.com/hifly81/bikescout/commit/a6382785ab85b8145c12acf5b9d84c318d34cd43))
+* fix: resolve enduro/mtb detection failure in surface analyzer ([67f1118](https://github.com/hifly81/bikescout/commit/67f1118eb28bb27ded2a500516235718c14972f5))
+* perf(altimetry): optimize geodetic distance calculation and fix test assertions ([9e2d72a](https://github.com/hifly81/bikescout/commit/9e2d72abb1446b4e3316b6a5f727f4c38f486153))
+* fix: improve altimetry healing using slope gradients and absolute bounds ([1cdf733](https://github.com/hifly81/bikescout/commit/1cdf733b8dec8baeaaa0f19fa03aeb8253009e06))
+* added changelog ([52e876d](https://github.com/hifly81/bikescout/commit/52e876df16a04d9355aac009f1e14709fbd64d6f))
+
 ## [1.5.0]
 * release: prepare version 1.5.0 ([d0b3f10](https://github.com/hifly81/bikescout/commit/d0b3f10ce717deedb3ea637ea85a3c4515b89edb))
 * feat(seo): optimize README ([9bd7626](https://github.com/hifly81/bikescout/commit/9bd7626aa210adc5108e539b6445e8c95b946f21))

@@ -4,7 +4,7 @@ GitHub: https://github.com/hifly81
 Location: Italy
 
 /* SITE */
-Last update: 2026/04/24
+Last update: 2026/06/15
 Language: English
 Standards: HTML5, CSS3, Tailwind CSS
 Components: AI, Agents, MCP (Model Context Protocol), Python, OpenStreetMap

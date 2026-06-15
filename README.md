@@ -30,7 +30,7 @@ The system provides precise setup advice, tailoring your equipment to the demand
     <h3 style="display: inline;">📸 Click to watch BikeScout GUI</h3>
   </summary>
   <p align="center">
-    <img width="1886" height="777" alt="gui" src="https://github.com/user-attachments/assets/d9f589f4-cf65-4e77-b807-b76bb37cae28" />
+    <img width="1886" height="777" alt="gui" src="https://github.com/user-attachments/assets/edba3595-f711-45ef-9ada-ee1d41f11772" />
   </p>
 </details>
 

@@ -26,12 +26,14 @@ The system provides precise setup advice, tailoring your equipment to the demand
 - instruction, using your favourite MCP Agent client: [Claude Desktop, Cursor, Codex, Google Antigravity, Windsurf](https://hifly81.github.io/bikescout/documentation/index.html#mcp-gui)
 
 <details>
-  <summary style="cursor: pointer;">
-    <h3 style="display: inline;">📸 Click to watch BikeScout GUI</h3>
+ <summary style="cursor: pointer;">
+    <h3 style="display: inline; color: #0366d6;">🎥 Click to watch BikeScout GUI</h3>
   </summary>
-  <p align="center">
-    <img width="1886" height="777" alt="gui" src="https://github.com/user-attachments/assets/edba3595-f711-45ef-9ada-ee1d41f11772" />
-  </p>
+  <br>
+  <div align="center">
+    <video src="https://github.com/user-attachments/assets/edba3595-f711-45ef-9ada-ee1d41f11772" width="100%" controls autoplay muted loop>
+    </video>
+  </div>
 </details>
 
 

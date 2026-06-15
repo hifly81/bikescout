@@ -1,5 +1,12 @@
 # Changelog - BikeScout
 
+## [1.5.2]
+* release: prepare version 1.5.2 ([8c259e1](https://github.com/hifly81/bikescout/commit/8c259e1a3ee3c9557c1077fdc3fb2efc417aa56a))
+* gui: refactor ([9fb400c](https://github.com/hifly81/bikescout/commit/9fb400cd425b7b0e266bacbb3e7a76fd6420c914))
+* Enhance README with video for BikeScout GUI ([26d4afe](https://github.com/hifly81/bikescout/commit/26d4afec6bed11b37eb48c3883ed4d9696fbdd28))
+* Update GUI image link in README.md ([f21c3af](https://github.com/hifly81/bikescout/commit/f21c3af87e1f6cd32da6b77e054c4c3cae8d788c))
+* added changelog ([f1e06d0](https://github.com/hifly81/bikescout/commit/f1e06d06565eb947661a4d51b965a938c894bc96))
+
 ## [1.5.1]
 * release: prepare version 1.5.1 ([3c7e9d2](https://github.com/hifly81/bikescout/commit/3c7e9d23a5b3b702b9bf729891932ea06f9ef8d1))
 * Refactor race analysis engine with backward-compatible output and full test coverage ([eaff9f5](https://github.com/hifly81/bikescout/commit/eaff9f54b104fce5a42f25993a98593edbc5d387))

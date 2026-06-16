@@ -730,16 +730,32 @@
                 <p class="text-slate-400 mb-6">You can test BikeScout using the <a href="https://github.com/modelcontextprotocol/inspector">MCP Inspector</a>, a web-based tool for testing MCP servers.
                     To launch the inspector and interact with the tools manually, run the following command from the root directory:
 
-                <ol class="list-decimal list-outside ml-6 text-slate-300 text-sm mb-4 space-y-4">
-                    <li>SET ORS_API_KEY as environment variable:
-                        <div class="code-block text-xs">export ORS_API_KEY=YOUR_KEY</div>
-                    </li>
-                    <li>Launch MCP Inspector:
-                        <div class="code-block text-xs">PYTHONPATH=./src npx @modelcontextprotocol/inspector ./venv/bin/python3 -m bikescout.mcp_server</div>
+                        <div style="background-color: #1e293b; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #334155;">
+                        <ol style="list-style-type: decimal; padding-left: 1.25rem; color: #e2e8f0;">
+                        <li style="margin-bottom: 1.5rem;">
+                            SET ORS_API_KEY as environment variable:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="debug-ors">export ORS_API_KEY=YOUR_KEY</code></pre>
+                                <button onclick="copyToClipboard('debug-ors', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+                        </li>
+
+                            <li style="margin-bottom: 1.5rem;">
+                                Launch MCP Inspector:
+                                <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                    <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="debug-insp">PYTHONPATH=./src npx @modelcontextprotocol/inspector ./venv/bin/python3 -m bikescout.mcp_server</code></pre>
+                                    <button onclick="copyToClipboard('debug-insp', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                                </div>
+
                     </li>
                 </ol>
+                    </div>
 
-                        <div>
+                        <div id="debug3" class="mb-12">
+                            </div>
+
+
+                        <div id="debug2" class="mb-12">
                             <h3 class="text-xl font-semibold text-slate-200 mb-4 flex items-center">
                                 Automated Unit Tests & Coverage
                             </h3>

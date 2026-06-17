@@ -13,10 +13,6 @@ BikeScout is a specialized AI engine for MTB, Road, E-Bike, and Gravel mission p
 It transforms raw map data into Tactical Intelligence, predicting terrain conditions and trail hazards.
 The system provides precise setup advice, tailoring your equipment to the demands of the specific route, identifying technical challenges and environmental risks before you even leave the garage.
 
-<p align="center">
-  <img width="632" height="345" alt="logo-medium" src="https://github.com/user-attachments/assets/f7e15304-0a91-465d-9c7f-ba35933609ed" />
-</p>
-
 ---
 
 ## Quickstart

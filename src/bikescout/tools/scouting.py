@@ -39,6 +39,7 @@ from bikescout.tools.weather import apply_weather_windowing, get_weather_forecas
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 ORS_BASE_URL = "https://api.openrouteservice.org/v2/directions"
+EARTH_METERS_PER_DEGREE = 111_320.0
 
 
 @dataclass(frozen=True)
@@ -232,18 +233,15 @@ class TrailScoutService:
             dest_longitude=dest_longitude,
         )
 
-        try:
-            endpoint = f"{ORS_BASE_URL}/{mission.profile}/geojson"
-            headers = {"Authorization": api_key, "Content-Type": "application/json"}
+        preferred_anchor = routing_payload.pop("preferred_anchor", None)
 
-            response = self.http_session.post(
-                endpoint,
-                json=routing_payload,
-                headers=headers,
-                timeout=self.config.routing_timeout_seconds,
+        try:
+            data = self._select_best_route_candidate(
+                api_key=api_key,
+                mission=mission,
+                payload=routing_payload,
+                anchor=preferred_anchor,
             )
-            response.raise_for_status()
-            data = response.json()
 
             feature = data["features"][0]
             props = feature["properties"]
@@ -370,6 +368,213 @@ class TrailScoutService:
             return {"status": "Error", "error_message": f"Master Orchestrator failed: {str(e)}"}
 
     @staticmethod
+    def _normalize_direction_bias(direction_bias) -> list[str]:
+        if not direction_bias:
+            return []
+        allowed = {"north", "south", "east", "west"}
+        normalized = []
+        for item in direction_bias:
+            item_str = str(item).strip().lower()
+            if item_str in allowed and item_str not in normalized:
+                normalized.append(item_str)
+        return normalized
+
+    @staticmethod
+    def _bias_anchor_offset_km(mission) -> float:
+        base_distance_km = float(getattr(mission, "total_length_km", 30) or 30)
+        priority_mode = str(getattr(mission, "priority_mode", "balanced")).strip().lower()
+
+        if priority_mode == "distance_first":
+            ratio = 0.18
+        elif priority_mode == "ride_character_first":
+            ratio = 0.28
+        else:
+            ratio = 0.22
+
+        anchor_km = base_distance_km * ratio
+        return max(3.0, min(anchor_km, 20.0))
+
+    @staticmethod
+    def _build_directional_anchor(latitude: float, longitude: float, mission):
+        direction_bias = TrailScoutService._normalize_direction_bias(
+            getattr(mission, "direction_bias", []) or []
+        )
+        if not direction_bias:
+            return None
+
+        offset_km = TrailScoutService._bias_anchor_offset_km(mission)
+        offset_m = offset_km * 1000.0
+
+        lat_shift = 0.0
+        lon_shift = 0.0
+
+        if "north" in direction_bias:
+            lat_shift += offset_m / EARTH_METERS_PER_DEGREE
+        if "south" in direction_bias:
+            lat_shift -= offset_m / EARTH_METERS_PER_DEGREE
+
+        lon_scale = EARTH_METERS_PER_DEGREE * max(math.cos(math.radians(latitude)), 0.2)
+        if "east" in direction_bias:
+            lon_shift += offset_m / lon_scale
+        if "west" in direction_bias:
+            lon_shift -= offset_m / lon_scale
+
+        anchor_lat = latitude + lat_shift
+        anchor_lon = longitude + lon_shift
+
+        return {
+            "latitude": round(anchor_lat, 6),
+            "longitude": round(anchor_lon, 6),
+            "offset_km": round(offset_km, 2),
+            "direction_bias": direction_bias,
+        }
+
+    @staticmethod
+    def _extract_route_distance_km(route_data: dict) -> float:
+        try:
+            return round(
+                float(route_data["features"][0]["properties"]["summary"]["distance"]) / 1000.0,
+                2,
+                )
+        except Exception:
+            return 0.0
+
+    @staticmethod
+    def _distance_to_anchor_m(route_data: dict, anchor: dict) -> float:
+        try:
+            coords = route_data["features"][0]["geometry"]["coordinates"]
+        except Exception:
+            return float("inf")
+
+        if not coords or not anchor:
+            return float("inf")
+
+        anchor_lat = float(anchor["latitude"])
+        anchor_lon = float(anchor["longitude"])
+        lon_scale = EARTH_METERS_PER_DEGREE * max(math.cos(math.radians(anchor_lat)), 0.2)
+
+        best_m = float("inf")
+        for point in coords:
+            if not isinstance(point, (list, tuple)) or len(point) < 2:
+                continue
+
+            lon, lat = float(point[0]), float(point[1])
+            dy = (lat - anchor_lat) * EARTH_METERS_PER_DEGREE
+            dx = (lon - anchor_lon) * lon_scale
+            dist_m = math.sqrt((dx * dx) + (dy * dy))
+
+            if dist_m < best_m:
+                best_m = dist_m
+
+        return best_m
+
+    @staticmethod
+    def _route_candidate_score(route_data: dict, mission, anchor: dict | None) -> float:
+        target_km = float(getattr(mission, "total_length_km", 0) or 0)
+        actual_km = TrailScoutService._extract_route_distance_km(route_data)
+        distance_error_km = abs(actual_km - target_km)
+
+        priority_mode = str(getattr(mission, "priority_mode", "balanced")).strip().lower()
+
+        if priority_mode == "distance_first":
+            distance_weight = 3.0
+            anchor_weight = 1.0
+        elif priority_mode == "ride_character_first":
+            distance_weight = 1.0
+            anchor_weight = 3.0
+        else:
+            distance_weight = 2.0
+            anchor_weight = 2.0
+
+        anchor_distance_m = 0.0
+        if anchor:
+            anchor_distance_m = TrailScoutService._distance_to_anchor_m(route_data, anchor)
+
+        return (distance_error_km * distance_weight * 1000.0) + (anchor_distance_m * anchor_weight)
+
+    def _request_route_candidate(self, api_key: str, mission, payload: dict) -> dict:
+        endpoint = f"{ORS_BASE_URL}/{mission.profile}/geojson"
+        headers = {"Authorization": api_key, "Content-Type": "application/json"}
+
+        response = self.http_session.post(
+            endpoint,
+            json=payload,
+            headers=headers,
+            timeout=self.config.routing_timeout_seconds,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def _select_best_route_candidate(self, api_key: str, mission, payload: dict, anchor: dict | None) -> dict:
+        base_seed = int(getattr(mission, "seed", 42) or 42)
+
+        if not anchor:
+            return self._request_route_candidate(api_key, mission, payload)
+
+        candidate_payloads = []
+        for seed_offset in (0, 17, 43):
+            candidate = dict(payload)
+            candidate_options = dict(candidate.get("options", {}))
+            round_trip = dict(candidate_options.get("round_trip", {}))
+            round_trip["seed"] = base_seed + seed_offset
+            candidate_options["round_trip"] = round_trip
+            candidate["options"] = candidate_options
+            candidate_payloads.append(candidate)
+
+        best_data = None
+        best_score = float("inf")
+
+        for candidate_payload in candidate_payloads:
+            try:
+                route_data = self._request_route_candidate(api_key, mission, candidate_payload)
+                score = self._route_candidate_score(route_data, mission, anchor)
+                if score < best_score:
+                    best_score = score
+                    best_data = route_data
+            except Exception:
+                continue
+
+        if best_data is None:
+            return self._request_route_candidate(api_key, mission, payload)
+
+        return best_data
+
+    @staticmethod
+    def _build_directional_anchor(latitude: float, longitude: float, mission):
+        direction_bias = TrailScoutService._normalize_direction_bias(
+            getattr(mission, "direction_bias", []) or []
+        )
+        if not direction_bias:
+            return None
+
+        offset_km = TrailScoutService._bias_anchor_offset_km(mission)
+        offset_m = offset_km * 1000.0
+
+        lat_shift = 0.0
+        lon_shift = 0.0
+
+        if "north" in direction_bias:
+            lat_shift += offset_m / EARTH_METERS_PER_DEGREE
+        if "south" in direction_bias:
+            lat_shift -= offset_m / EARTH_METERS_PER_DEGREE
+
+        lon_scale = EARTH_METERS_PER_DEGREE * max(math.cos(math.radians(latitude)), 0.2)
+        if "east" in direction_bias:
+            lon_shift += offset_m / lon_scale
+        if "west" in direction_bias:
+            lon_shift -= offset_m / lon_scale
+
+        anchor_lat = latitude + lat_shift
+        anchor_lon = longitude + lon_shift
+
+        return {
+            "latitude": round(anchor_lat, 6),
+            "longitude": round(anchor_lon, 6),
+            "offset_km": round(offset_km, 2),
+            "direction_bias": direction_bias,
+        }
+
+    @staticmethod
     def _routing_payload(latitude, longitude, mission, dest_latitude, dest_longitude):
         if dest_latitude is not None and dest_longitude is not None:
             return {
@@ -377,12 +582,29 @@ class TrailScoutService:
                 "elevation": "true",
                 "extra_info": ["surface", "steepness"],
             }
-        return {
+
+        effective_length_m = TrailScoutService._effective_round_trip_length_m(mission)
+        directional_anchor = TrailScoutService._build_directional_anchor(latitude, longitude, mission)
+
+        round_trip_options = {
+            "length": effective_length_m,
+            "seed": mission.seed,
+            "points": mission.complexity,
+        }
+
+        payload = {
             "coordinates": [[longitude, latitude]],
-            "options": {"round_trip": {"length": mission.total_length_km * 1000, "seed": mission.seed}},
+            "options": {
+                "round_trip": round_trip_options,
+            },
             "elevation": "true",
             "extra_info": ["surface", "steepness"],
         }
+
+        if directional_anchor:
+            payload["preferred_anchor"] = directional_anchor
+
+        return payload
 
     @staticmethod
     def _base_response_payload(dist_km, ascent_m, dest_latitude, dest_longitude):
@@ -412,6 +634,28 @@ class TrailScoutService:
             except (ValueError, KeyError, TypeError, AttributeError):
                 dominant_surface = "Unknown"
         return dominant_surface
+
+    @staticmethod
+    def _effective_round_trip_length_m(mission) -> float:
+        base_length_m = float(mission.total_length_km) * 1000.0
+        flex_percent = max(0, min(30, int(getattr(mission, "distance_flex_percent", 10))))
+        priority_mode = str(getattr(mission, "priority_mode", "balanced")).strip().lower()
+        avoid_urban = bool(getattr(mission, "avoid_urban", False))
+        prefer_rural = bool(getattr(mission, "prefer_rural", False))
+        direction_bias = list(getattr(mission, "direction_bias", []) or [])
+
+        if priority_mode == "distance_first":
+            multiplier = 1.0
+        elif priority_mode == "ride_character_first":
+            multiplier = 1.0 - (flex_percent / 100.0)
+        else:
+            multiplier = 1.0 - (flex_percent / 200.0)
+
+        if avoid_urban or prefer_rural or direction_bias:
+            multiplier = min(multiplier, 0.95)
+
+        effective_length_m = base_length_m * multiplier
+        return max(5000.0, round(effective_length_m, 0))
 
     @staticmethod
     def _weather_snapshot_list(weather_report):

@@ -153,6 +153,11 @@ def trail_scout_simple(
         complexity: int = 3,
         seed: int = 42,
         assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
+        direction_bias: Optional[list[str]] = None,
+        avoid_urban: bool = False,
+        prefer_rural: bool = False,
+        distance_flex_percent: int = 10,
+        priority_mode: Literal["balanced", "distance_first", "ride_character_first"] = "balanced",
         dest_latitude: Optional[float] = None,
         dest_longitude: Optional[float] = None,
         style: Literal["sparkline", "filled", "bars"] = "filled",
@@ -198,6 +203,11 @@ def trail_scout_simple(
         complexity: Route complexity factor (1-5). Higher values allow more turns and technical segments.
         seed: Random seed for route generation consistency.
         assist_mode: E-bike motor support level (affects range estimation).
+        direction_bias: Preferred route quadrant bias, e.g. ["south", "east"].
+        avoid_urban: Bias route generation away from dense urban sections when possible.
+        prefer_rural: Bias route generation toward countryside or quieter roads when possible.
+        distance_flex_percent: Allowed tolerance on target distance when route character matters more than exact mileage.
+        priority_mode: Optimization strategy between exact distance and ride character.
         dest_latitude: Optional. Latitude of the finish line (for A-to-B missions).
         dest_longitude: Optional. Longitude of the finish line (for A-to-B missions).
         style: Visual style for the elevation profile graphic.
@@ -225,7 +235,6 @@ def trail_scout_simple(
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
     """
     try:
-
         rider = RiderProfile(
             weight_kg=weight_kg,
             gender=gender,
@@ -246,7 +255,12 @@ def trail_scout_simple(
             surface_preference=surface_preference,
             complexity=complexity,
             seed=seed,
-            assist_mode=assist_mode
+            assist_mode=assist_mode,
+            direction_bias=direction_bias or [],
+            avoid_urban=avoid_urban,
+            prefer_rural=prefer_rural,
+            distance_flex_percent=distance_flex_percent,
+            priority_mode=priority_mode,
         )
 
         return trail_scout(
@@ -260,15 +274,18 @@ def trail_scout_simple(
             style=style,
             include_gpx=include_gpx,
             include_map=include_map,
-            include_poi = include_poi,
-            include_altimetry = include_altimetry,
-            include_weather = include_weather,
-            include_mud_analysis = include_mud_analysis,
-            include_nutrition_plan = include_nutrition_plan
+            include_poi=include_poi,
+            include_altimetry=include_altimetry,
+            include_weather=include_weather,
+            include_mud_analysis=include_mud_analysis,
+            include_nutrition_plan=include_nutrition_plan
         )
 
-    except Exception as e:
-        return FullMissionBriefingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error")
+    except Exception:
+        return FullMissionBriefingResponse(
+            payload_version=BIKESCOUT_PROTOCOL_VERSION,
+            status="Error"
+        )
 
 @mcp.tool()
 def check_trail_weather(lat: float, lon: float, target_date: Optional[str] = None) -> TacticalForecastResponse:

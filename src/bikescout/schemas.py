@@ -130,6 +130,38 @@ class MissionConstraints(BaseModel):
         description="E-bike motor assistance level. Influences battery range predictions.",
         json_schema_extra={"examples": ["Trail"]}
     )
+    direction_bias: List[Literal["north", "south", "east", "west"]] = Field(
+        default_factory=list,
+        description="Preferred geographic bias for route exploration.",
+        json_schema_extra={"examples": [["south", "east"]]}
+    )
+    avoid_urban: bool = Field(
+        False,
+        description="Bias route generation away from dense urban sections when possible.",
+        json_schema_extra={"examples": [True]}
+    )
+    prefer_rural: bool = Field(
+        False,
+        description="Bias route generation toward open countryside and lower-density road networks when possible.",
+        json_schema_extra={"examples": [True]}
+    )
+    distance_flex_percent: int = Field(
+        10,
+        ge=0,
+        le=30,
+        description="Allowed flexibility around target distance when route character matters more than exact distance.",
+        json_schema_extra={"examples": [10, 15]}
+    )
+    priority_mode: Literal["balanced", "distance_first", "ride_character_first"] = Field(
+        "balanced",
+        description="Optimization strategy between exact target distance and requested route character.",
+        json_schema_extra={"examples": ["balanced", "ride_character_first"]}
+    )
+
+    @field_validator("direction_bias")
+    @classmethod
+    def normalize_direction_bias(cls, value: List[str]) -> List[str]:
+        return list(dict.fromkeys([str(v).strip().lower() for v in value if str(v).strip()]))
 
 class RouteGeometry(BaseModel):
     """

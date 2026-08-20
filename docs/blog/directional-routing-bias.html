@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directional Route Bias for Cyclists: South-East Loops, Rural Preference, and Smarter Distance Matching</title>
+    <meta name="description" content="Learn how BikeScout now preserves ride character with directional route bias, multi-seed route selection, rural preference, and smarter distance flexibility for better cycling loops.">
+    <meta name="keywords" content="AI, cycling routing, route bias, countryside cycling, road cycling AI, gravel route planner, directional loop generation, multi-seed routing">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://hifly81.github.io/bikescout/blog/directional-route-bias.html">
+    <link rel="icon" type="image/svg+xml" href="../images/favicon.svg">
+    <meta property="og:title" content="BikeScout | Directional Route Bias">
+    <meta property="og:description" content="BikeScout now understands route direction, countryside preference, and when ride character matters more than exact mileage.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://hifly81.github.io/bikescout/blog/directional-route-bias.html">
+    <meta property="og:image" content="https://hifly81.github.io/bikescout/images/preview.png">
+    <meta http-equiv="content-language" content="en">
+
+    <script async src="../js/gtag.js?id=G-YTC60Z790M"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-YTC60Z790M');
+    </script>
+
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": "Directional Route Bias: Smarter Loops for Real Riders",
+            "description": "BikeScout introduces directional route bias, rural preference, and multi-seed candidate selection to preserve ride character instead of over-optimizing only for exact mileage.",
+            "author": {
+                "@type": "Person",
+                "name": "hifly81",
+                "url": "https://github.com/hifly81"
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": "BikeScout"
+            },
+            "mainEntityOfPage": "https://hifly81.github.io/bikescout/blog/directional-route-bias.html",
+            "image": "https://hifly81.github.io/bikescout/images/preview.png"
+        }
+    </script>
+
+    <script src="../js/tailwindcss-3.4.1.js"></script>
+    <link rel="stylesheet" href="../css/font-awesome-all.min-6.0.0.css">
+    <link href="../css/jetbrains-css2.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; padding-top: 80px; line-height: 1.8; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .neon-text { color: #bef264; }
+        .article-content h2 { color: white; font-weight: 900; font-style: italic; text-transform: uppercase; margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem; }
+        .article-content p { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content strong { color: #e2e8f0; }
+        .article-content ul { margin-bottom: 1.5rem; color: #94a3b8; font-size: 1.125rem; }
+        .article-content li { margin-bottom: 0.6rem; }
+        .tech-box {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #334155;
+            border-left: 4px solid #84cc16;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f1a] text-slate-200">
+
+<div id="mobile-menu" class="hidden fixed inset-0 bg-[#0b0f1a] z-[100] flex flex-col items-center justify-center w-full h-full">
+    <button id="close-btn" class="absolute top-6 right-6 text-3xl neon-text p-4">
+        <i class="fas fa-times"></i>
+    </button>
+    <div class="flex flex-col items-center gap-8 text-2xl font-black uppercase italic text-white">
+        <a href="../index.html">Home</a>
+        <a href="../blog.html">Blog</a>
+        <a href="../cycling_encyclopedia.html">Encyclopedia</a>
+        <a href="../race_analysis.html">Race Analysis</a>
+        <a href="../about.html">About</a>
+    </div>
+</div>
+
+<nav class="fixed top-0 left-0 w-full z-50 bg-[#0b0f1a]/90 backdrop-blur-md border-b border-slate-800 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <a href="../index.html" class="text-xl font-black italic uppercase tracking-tighter text-white">
+            Bike<span class="neon-text">Scout</span>
+        </a>
+        <div class="hidden md:flex gap-8 font-bold text-xs uppercase tracking-widest text-slate-400">
+            <a href="../blog.html" class="text-neon-text">Blog</a>
+            <a href="../cycling_encyclopedia.html" class="hover:text-neon-text transition-colors">Encyclopedia</a>
+            <a href="../race_analysis.html" class="hover:text-neon-text transition-colors">Race Analysis</a>
+            <a href="../about.html" class="hover:text-neon-text transition-colors">About</a>
+        </div>
+        <button id="menu-btn" class="md:hidden text-white text-2xl"><i class="fas fa-bars"></i></button>
+    </div>
+</nav>
+
+<article class="max-w-3xl mx-auto py-20 px-6">
+    <header class="mb-12 border-b border-slate-800 pb-12">
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">
+            Directional Intelligence: <br><span class="neon-text">Smarter Route Bias</span>
+        </h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Released: August 20, 2026</p>
+    </header>
+
+    <div class="article-content">
+        <p>A route is not just a distance target. A real cyclist doesn't ask only for <strong>60 kilometers</strong>. They ask for <strong>60 kilometers to the south-east, away from the city, on quieter roads, with the right character for the day</strong>. Until now, most routing engines — and most AI wrappers on top of them — were better at matching the number than preserving the feeling. <strong>BikeScout now changes that.</strong></p>
+
+        <p>Today we introduce a major routing upgrade: <strong>Directional Route Bias with Multi-Seed Candidate Selection</strong>. This system allows BikeScout to interpret requests like <code>"keep it south and east"</code>, <code>"avoid urban streets"</code>, and <code>"prefer countryside roads"</code> as real tactical constraints, not just decorative language around a distance request.</p>
+
+        <h2>The Problem: Distance Was Winning Too Often</h2>
+        <p>Traditional route generation is biased toward what the engine can easily assemble. Around a dense city, this often means a route will drift toward urban networks simply because they offer more connection options and make it easier to hit a target mileage exactly.</p>
+
+        <p>That creates a familiar problem for riders: you ask for a road loop with open countryside character, but the engine quietly pulls you back toward busier roads, denser grids, and less desirable terrain just to satisfy the number on the screen.</p>
+
+        <h2>The New Logic: Route Character Becomes a First-Class Constraint</h2>
+        <p>BikeScout now supports a set of explicit routing preferences that shape route generation before the final result is chosen:</p>
+
+        <ul class="list-disc list-inside mb-4 text-slate-400">
+            <li><strong class="text-green-400">Direction Bias:</strong> steer the route north, south, east, west, or combinations like south-east.</li>
+            <li><strong class="text-green-400">Avoid Urban:</strong> push selection away from denser city sections when possible.</li>
+            <li><strong class="text-green-400">Prefer Rural:</strong> favor quieter, lower-density countryside riding.</li>
+            <li><strong class="text-green-400">Distance Flex:</strong> allow the route to deviate slightly from exact mileage when preserving ride quality matters more.</li>
+            <li><strong class="text-green-400">Priority Mode:</strong> choose between balanced planning, exact distance matching, or ride-character-first logic.</li>
+        </ul>
+
+        <h2>The Tactical Engine: Directional Anchors</h2>
+        <p>To make directional requests real, BikeScout now generates a <strong>virtual anchor point</strong> in the requested quadrant. If a rider asks for a loop that stays south and east of town, the system computes a tactical anchor in that direction and uses it as a target reference during route selection.</p>
+
+        <div class="tech-box">
+            <span class="mono text-neon-text font-bold">// DIRECTIONAL BIAS CONCEPT</span><br>
+            <span class="mono text-slate-400">User intent → virtual anchor point → multiple route candidates → select candidate with best anchor proximity and acceptable distance error</span>
+        </div>
+
+        <p>This is the key difference: BikeScout no longer treats direction as a vague textual hint. It turns it into geometry.</p>
+
+        <h2>The Selection Upgrade: Multi-Seed Candidate Search</h2>
+        <p>Generating a single loop is not enough when the rider has strong spatial intent. So BikeScout now runs multiple round-trip candidates using different routing seeds, then scores them based on two tactical criteria:</p>
+
+        <ul class="list-disc list-inside mb-4 text-slate-400">
+            <li><strong class="text-yellow-400">Distance Error:</strong> how far the result is from the requested target mileage.</li>
+            <li><strong class="text-yellow-400">Anchor Proximity:</strong> how closely the route passes through the requested directional zone.</li>
+        </ul>
+
+        <p>This means the selected loop is no longer just "valid." It is <strong>the best available compromise between geography and mileage</strong>.</p>
+
+        <h2>Smarter Flexibility: When 60 km Should Not Mean 60.00 km at Any Cost</h2>
+        <p>Exact distance matching is not always the most important part of planning. If the rider says <code>"about 60 km"</code> or signals that the ride character matters more than precision, BikeScout now relaxes the target distance within a configurable tolerance window.</p>
+
+        <p>That flexibility is critical. It allows the engine to reject awkward urban detours and instead choose cleaner, more coherent loops that better reflect the requested experience.</p>
+
+        <h2>Real-World Impact</h2>
+        <p>This feature is especially powerful for riders living near cities or mixed urban-rural boundaries. A request such as:</p>
+
+        <div class="tech-box">
+            <span class="mono text-neon-text font-bold">"Plan a 60 km road loop near Edinburgh. Keep it south and east, avoid urban streets, prefer countryside roads."</span>
+        </div>
+
+        <p>now gives BikeScout the tools to preserve the intended direction of travel and the desired ride atmosphere, rather than simply optimizing for a mathematical loop closure near the start point.</p>
+
+        <h2>What This Unlocks Next</h2>
+        <p>This release is the first major step toward truly intent-aware route generation. The next tactical upgrades will build on the same system with:</p>
+
+        <ul class="list-disc list-inside mb-4 text-slate-400">
+            <li>urban density penalties based on map topology</li>
+            <li>road-class preference scoring for quiet roads versus arterial links</li>
+            <li>stronger rural/countryside inference</li>
+            <li>surface-aware directional selection for road, gravel, and MTB modes</li>
+        </ul>
+
+        <p>In other words: BikeScout is moving from <strong>route calculation</strong> toward <strong>route interpretation</strong>. The engine is no longer asking only, <em>"Can I build a loop?"</em> It is starting to ask, <em>"Is this the loop the rider actually meant?"</em></p>
+
+        <div class="mt-16 flex flex-wrap gap-4">
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#DirectionalBias</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#RouteIntelligence</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#CyclingAI</span>
+        </div>
+    </div>
+</article>
+
+<footer class="py-12 border-t border-slate-900 text-center text-slate-600 mono text-[10px] uppercase tracking-[0.4em] leading-relaxed">
+    <div class="mb-4">
+        BikeScout @ 2026 // <span class="text-white"><a href="mailto:bikescout.mcp@gmail.com">hifly81</a></span>
+    </div>
+
+    <div class="mb-4">
+        Licensed under <a href="https://github.com/hifly81/bikescout/blob/main/LICENSE" class="text-slate-400 hover:text-white transition-colors">AGPL-3.0</a> //
+        Data by <span class="text-slate-500">OSM - ORS - Open-Meteo</span>
+    </div>
+
+    <div class="max-w-2xl mx-auto opacity-50">
+        Disclaimer: Tactical models are simulations // Verify conditions in person // Ride at your own risk
+    </div>
+</footer>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    });
+
+    closeBtn.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    });
+</script>
+</body>
+</html>

@@ -2412,6 +2412,48 @@ def render_plan_tab():
             st.info("Distance is computed automatically for A → B routes.")
             distance = None
 
+        st.markdown("#### Route character")
+
+        rc1, rc2 = st.columns(2)
+        with rc1:
+            direction_bias = st.multiselect(
+                "Preferred direction",
+                options=["north", "south", "east", "west"],
+                default=[],
+                help="Bias loop generation toward one or more directions relative to the start area.",
+                key="guided_direction_bias",
+            )
+            avoid_urban = st.checkbox(
+                "Avoid urban streets",
+                value=False,
+                help="Bias the route away from denser city sections when possible.",
+                key="guided_avoid_urban",
+            )
+
+        with rc2:
+            prefer_rural = st.checkbox(
+                "Prefer countryside / quieter roads",
+                value=False,
+                help="Bias the route toward quieter, lower-density rural roads when possible.",
+                key="guided_prefer_rural",
+            )
+            priority_mode = st.selectbox(
+                "Priority mode",
+                ["balanced", "distance_first", "ride_character_first"],
+                index=0,
+                help="Choose whether the engine should prioritize exact mileage or the qualitative character of the ride.",
+                key="guided_priority_mode",
+            )
+
+        distance_flex_percent = st.slider(
+            "Distance flexibility (%)",
+            min_value=0,
+            max_value=30,
+            value=10,
+            help="Allowed tolerance around target distance when the route character matters more than exact mileage.",
+            key="guided_distance_flex_percent",
+        )
+
         st.markdown("#### Options")
         o1, o2, o3 = st.columns(3)
         with o1:
@@ -2453,6 +2495,30 @@ def render_plan_tab():
                 f"{goal_hint}, tire size {tire_size}, difficulty {complexity}. "
             )
 
+        if direction_bias:
+            if len(direction_bias) == 1:
+                prompt += f"Keep it mostly to the {direction_bias[0]}. "
+            else:
+                prompt += f"Keep it mostly to the {' and '.join(direction_bias)}. "
+
+        if avoid_urban:
+            prompt += "Avoid urban streets. "
+
+        if prefer_rural:
+            prompt += "Prefer countryside or quieter roads. "
+
+        if priority_mode == "distance_first":
+            prompt += "Keep the route as close as possible to the requested distance. "
+        elif priority_mode == "ride_character_first":
+            prompt += "Prioritize the character of the ride over exact mileage. "
+        else:
+            prompt += "Balance route character and distance. "
+
+        if distance_flex_percent == 0:
+            prompt += "The distance should be exact if possible. "
+        else:
+            prompt += f"Allow about {distance_flex_percent}% flexibility on the target distance. "
+
         if include_poi:
             prompt += "Include POIs and amenities. "
         if include_weather:
@@ -2475,6 +2541,11 @@ def render_plan_tab():
             "tire_size": tire_size,
             "complexity": complexity,
             "goal": goal,
+            "direction_bias": direction_bias,
+            "avoid_urban": avoid_urban,
+            "prefer_rural": prefer_rural,
+            "distance_flex_percent": distance_flex_percent,
+            "priority_mode": priority_mode,
             "include_poi": include_poi,
             "include_weather": include_weather,
             "include_mud": include_mud,

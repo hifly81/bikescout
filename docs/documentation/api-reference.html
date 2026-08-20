@@ -35,7 +35,7 @@
             "operatingSystem": "Independent",
             "downloadUrl": "https://github.com/hifly81/bikescout",
             "license": "https://www.gnu.org/licenses/agpl-3.0-standalone.html",
-            "softwareVersion": "1.5.2",
+            "softwareVersion": "1.6.0",
             "keywords": "AI, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
             "author": {
                 "@type": "Person",
@@ -157,7 +157,7 @@
     <section id="api-reference" class="block">
         <header class="mb-10">
             <h2 class="text-4xl font-black neon-text mb-4">API Reference</h2>
-            <h3 class="text-2xl font-black neon-text mb-4">version 1.5.2</h3>
+            <h3 class="text-2xl font-black neon-text mb-4">version 1.6.0</h3>
         </header>
 
         <!-- Schemas -->
@@ -203,12 +203,17 @@
                     <table>
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
-                        <tr><td><code>total_length_km</code></td><td><code>int</code></td><td>-</td><td>The total distance of the round trip in kilometers (e.g., 25.0).</td></tr>
-                        <tr><td><code>profile</code></td><td><code>string</code></td><td>cycling-mountain</td><td>ORS Routing profile (cycling-mountain, cycling-road, cycling-regular, cycling-electric).</td></tr>
-                        <tr><td><code>surface_preference</code></td><td><code>string</code></td><td>string</td><td>Complexity of the loop (higher = more circular).</td></tr>
-                        <tr><td><code>complexity</code></td><td><code>int</code></td><td>3</td><td>Triggers battery consumption logic.</td></tr>
-                        <tr><td><code>seed</code></td><td><code>int</code></td><td>42</td><td>Randomizer seed to reproduce specific route variations.</td></tr>
-                        <tr><td><code>assist_mode</code></td><td><code>string</code></td><td>Eco</td><td>Defines the motor's power output profile (Eco, Trail, Boost). This tactical parameter scales the energy consumption model by adjusting the motor-to-rider assistance ratio, directly impacting predicted battery range and "Safety Buffer" alerts based on terrain resistance.</td></tr>
+                        <tr><td><code>total_length_km</code></td><td><code>int</code></td><td>30</td><td>The total distance of the round trip in kilometers (e.g., 25.0).</td></tr>
+                        <tr><td><code>profile</code></td><td><code>string</code></td><td>cycling-mountain</td><td>ORS routing profile (<code>cycling-mountain</code>, <code>cycling-road</code>, <code>cycling-regular</code>, <code>cycling-electric</code>).</td></tr>
+                        <tr><td><code>surface_preference</code></td><td><code>string</code></td><td>neutral</td><td>User preference for road vs off-road surfaces (<code>neutral</code>, <code>prefer_paved</code>, <code>avoid_unpaved</code>).</td></tr>
+                        <tr><td><code>complexity</code></td><td><code>int</code></td><td>3</td><td>Number of waypoints / route-shaping points used to generate the loop. Higher values allow more articulated route shapes.</td></tr>
+                        <tr><td><code>seed</code></td><td><code>int</code></td><td>42</td><td>Randomizer seed used to reproduce specific route variations.</td></tr>
+                        <tr><td><code>assist_mode</code></td><td><code>string</code></td><td>Eco</td><td>Defines the motor assistance profile (<code>Eco</code>, <code>Trail</code>, <code>Boost</code>) and influences e-bike battery consumption estimates.</td></tr>
+                        <tr><td><code>direction_bias</code></td><td><code>list[string]</code></td><td>[]</td><td>Preferred geographic route bias, for example <code>["south"]</code> or <code>["south", "east"]</code>, used to steer loop generation toward a requested quadrant.</td></tr>
+                        <tr><td><code>avoid_urban</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation away from dense urban sections when possible.</td></tr>
+                        <tr><td><code>prefer_rural</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation toward quieter countryside roads and lower-density riding environments when possible.</td></tr>
+                        <tr><td><code>distance_flex_percent</code></td><td><code>int</code></td><td>10</td><td>Allowed flexibility around the requested target distance when route character matters more than exact mileage.</td></tr>
+                        <tr><td><code>priority_mode</code></td><td><code>string</code></td><td>balanced</td><td>Optimization mode for route generation: <code>balanced</code>, <code>distance_first</code>, or <code>ride_character_first</code>.</td></tr>
                         </tbody>
                     </table>
                 </div>

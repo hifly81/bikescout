@@ -622,7 +622,6 @@ def load_llm(model_name: str, n_gpu_layers: int):
         verbose=False,
     )
 
-
 def generate_tactical_response(messages_history: list, llm_instance: Llama, mission_context: dict | None = None) -> str:
     json_schema = {
         "type": "json_object",
@@ -679,6 +678,24 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama, miss
                                             "type": "string",
                                             "enum": ["male", "female"],
                                         },
+                                        "direction_bias": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string",
+                                                "enum": ["north", "south", "east", "west"],
+                                            },
+                                        },
+                                        "avoid_urban": {"type": "boolean"},
+                                        "prefer_rural": {"type": "boolean"},
+                                        "distance_flex_percent": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 30,
+                                        },
+                                        "priority_mode": {
+                                            "type": "string",
+                                            "enum": ["balanced", "distance_first", "ride_character_first"],
+                                        },
                                     },
                                     "required": ["bike_type", "tire_size", "location_name"],
                                 },
@@ -699,6 +716,7 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama, miss
 === ACTIVE MISSION ===
 {json.dumps(mission_context, ensure_ascii=False)}
 Reuse mission location unless user explicitly changes it.
+Reuse mission routing preferences unless user explicitly changes them.
 """
 
     system_prompt = f"""
@@ -707,9 +725,30 @@ Return ONLY valid JSON matching the schema.
 Set can_execute=true only when the user clearly wants a cycling route or route-related analysis.
 When can_execute=true, use tool trail_scout_simple.
 Always preserve location context for follow-up requests.
+Always preserve routing preference context for follow-up requests unless the user changes it.
 Distance must be in kilometers.
 Complexity range is 1..5, default 3.
 Use point_to_point only for A to B routes.
+
+Routing preference extraction rules:
+- If the user asks to stay south, north, east, or west of the start area, set direction_bias accordingly.
+- If the user asks for south-east, south and east, or similar, set direction_bias to multiple values, e.g. ["south", "east"].
+- If the user asks to avoid the city, avoid urban streets, or avoid traffic-heavy urban riding, set avoid_urban=true.
+- If the user asks for countryside, quieter roads, open country, rural roads, or scenic non-urban riding, set prefer_rural=true.
+- If the user cares more about the ride character than exact distance, set priority_mode="ride_character_first".
+- If the user explicitly wants the route as close as possible to the requested distance, set priority_mode="distance_first".
+- Otherwise use priority_mode="balanced".
+- If the user allows some tolerance on distance, set distance_flex_percent between 10 and 20 depending on wording.
+- If the user strongly prioritizes exact target distance, set distance_flex_percent=0.
+- If no directional or routing preference is mentioned, omit these fields or preserve them from active mission context.
+
+Examples:
+- "keep it south and east of town" -> direction_bias ["south", "east"]
+- "avoid the city and prefer countryside roads" -> avoid_urban true, prefer_rural true
+- "about 60 km, doesn't have to be exact" -> distance_flex_percent 10 or 15, priority_mode "balanced"
+- "the vibe matters more than exact mileage" -> priority_mode "ride_character_first"
+- "make it exactly 60 km if possible" -> priority_mode "distance_first", distance_flex_percent 0
+
 {mission_block}
 """
 
@@ -1120,6 +1159,22 @@ def render_chat_tab(llm):
         }
     )
 
+def _normalize_direction_bias(value) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        value = [value]
+
+    allowed = {"north", "south", "east", "west"}
+    normalized = []
+
+    for item in value:
+        item_str = str(item).strip().lower()
+        if item_str in allowed and item_str not in normalized:
+            normalized.append(item_str)
+
+    return normalized
+
 def execute_plan_request(plan_request: dict):
     if not plan_request:
         return "No plan request found.", False
@@ -1140,6 +1195,16 @@ def execute_plan_request(plan_request: dict):
 
         complexity_val = clamp_complexity(plan_request.get("complexity", 3))
         raw_distance = ext_cast(plan_request.get("distance"), float, 25.0)
+
+        direction_bias = _normalize_direction_bias(plan_request.get("direction_bias"))
+        avoid_urban = bool(plan_request.get("avoid_urban", False))
+        prefer_rural = bool(plan_request.get("prefer_rural", False))
+        distance_flex_percent = max(
+            0, min(30, ext_cast(plan_request.get("distance_flex_percent"), int, 10))
+        )
+        priority_mode = str(plan_request.get("priority_mode", "balanced")).strip().lower()
+        if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
+            priority_mode = "balanced"
 
         geo = geocode_location(location_name=start_location)
         if getattr(geo, "status", None) != "Success":
@@ -1168,6 +1233,11 @@ def execute_plan_request(plan_request: dict):
                 "bike_type": final_bike,
                 "tire_size": tire_size,
                 "complexity": complexity_val,
+                "direction_bias": direction_bias,
+                "avoid_urban": avoid_urban,
+                "prefer_rural": prefer_rural,
+                "distance_flex_percent": distance_flex_percent,
+                "priority_mode": priority_mode,
             },
             raw_distance if route_mode != "point_to_point" else 0,
             route_mode=route_mode,
@@ -1195,6 +1265,11 @@ def execute_plan_request(plan_request: dict):
             "profile": resolve_profile(final_bike),
             "is_ebike": is_ebike,
             "fitness_level": str(rider_profile.get("fitness_level", "intermediate")),
+            "direction_bias": direction_bias,
+            "avoid_urban": avoid_urban,
+            "prefer_rural": prefer_rural,
+            "distance_flex_percent": distance_flex_percent,
+            "priority_mode": priority_mode,
         }
 
         if route_mode == "point_to_point":
@@ -1911,6 +1986,94 @@ def render_route_results(res_data: dict) -> None:
                     use_container_width=True,
                 )
 
+def _extract_direction_bias_from_text(user_input: str) -> list[str]:
+    text = (user_input or "").lower()
+    bias = []
+
+    if "south" in text:
+        bias.append("south")
+    if "north" in text:
+        bias.append("north")
+    if "east" in text:
+        bias.append("east")
+    if "west" in text:
+        bias.append("west")
+
+    return list(dict.fromkeys(bias))
+
+
+def _extract_avoid_urban_from_text(user_input: str) -> bool:
+    text = (user_input or "").lower()
+    patterns = [
+        "avoid urban",
+        "avoid the city",
+        "avoid city",
+        "avoid urban streets",
+        "stay out of the city",
+        "less urban",
+        "non-urban",
+    ]
+    return any(p in text for p in patterns)
+
+
+def _extract_prefer_rural_from_text(user_input: str) -> bool:
+    text = (user_input or "").lower()
+    patterns = [
+        "prefer countryside",
+        "countryside roads",
+        "prefer rural",
+        "rural roads",
+        "open countryside",
+        "quieter roads",
+        "quiet roads",
+        "country roads",
+        "scenic roads",
+    ]
+    return any(p in text for p in patterns)
+
+
+def _extract_distance_flex_from_text(user_input: str) -> tuple[int, str | None]:
+    text = (user_input or "").lower()
+
+    if any(p in text for p in [
+        "exactly",
+        "as close as possible",
+        "precisely",
+        "exact distance",
+    ]):
+        return 0, "distance_first"
+
+    if any(p in text for p in [
+        "doesn't have to be exact",
+        "does not have to be exact",
+        "roughly",
+        "around",
+        "about",
+        "approximately",
+    ]):
+        return 10, "balanced"
+
+    if any(p in text for p in [
+        "ride character matters more",
+        "vibe matters more",
+        "more about the ride quality",
+        "prefer the character of the ride",
+    ]):
+        return 15, "ride_character_first"
+
+    return 10, None
+
+
+def _extract_distance_km_from_text(user_input: str):
+    text = user_input or ""
+    match = re.search(r"\b(\d+(?:\.\d+)?)\s*km\b", text.lower())
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
 def process_local_mcp_request(raw_llm_json: str, user_input: str):
     res_data = None
     briefing_text = "Analysis complete."
@@ -1935,6 +2098,31 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
             tool_name = tool_data.get("name")
             args = tool_data.get("args") or {}
+
+            parsed_distance = _extract_distance_km_from_text(user_input)
+            parsed_direction_bias = _extract_direction_bias_from_text(user_input)
+            parsed_avoid_urban = _extract_avoid_urban_from_text(user_input)
+            parsed_prefer_rural = _extract_prefer_rural_from_text(user_input)
+            parsed_flex_percent, parsed_priority_mode = _extract_distance_flex_from_text(user_input)
+
+            if parsed_distance is not None and not args.get("distance"):
+                args["distance"] = parsed_distance
+
+            if parsed_direction_bias and not args.get("direction_bias"):
+                args["direction_bias"] = parsed_direction_bias
+
+            if parsed_avoid_urban and "avoid_urban" not in args:
+                args["avoid_urban"] = True
+
+            if parsed_prefer_rural and "prefer_rural" not in args:
+                args["prefer_rural"] = True
+
+            if "distance_flex_percent" not in args:
+                args["distance_flex_percent"] = parsed_flex_percent
+
+            if parsed_priority_mode and not args.get("priority_mode"):
+                args["priority_mode"] = parsed_priority_mode
+
 
             if tool_name != "trail_scout_simple":
                 status_box.update(label="Completed", state="complete")
@@ -1994,6 +2182,45 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 final_bike,
                 )
 
+            direction_bias = _normalize_direction_bias(
+                args.get("direction_bias")
+                or (st.session_state.get("mission_context") or {}).get("direction_bias")
+            )
+            avoid_urban = bool(
+                args.get(
+                    "avoid_urban",
+                    (st.session_state.get("mission_context") or {}).get("avoid_urban", False),
+                )
+            )
+            prefer_rural = bool(
+                args.get(
+                    "prefer_rural",
+                    (st.session_state.get("mission_context") or {}).get("prefer_rural", False),
+                )
+            )
+            distance_flex_percent = max(
+                0,
+                min(
+                    30,
+                    ext_cast(
+                        args.get(
+                            "distance_flex_percent",
+                            (st.session_state.get("mission_context") or {}).get("distance_flex_percent", 10),
+                        ),
+                        int,
+                        10,
+                    ),
+                ),
+            )
+            priority_mode = str(
+                args.get(
+                    "priority_mode",
+                    (st.session_state.get("mission_context") or {}).get("priority_mode", "balanced"),
+                )
+            ).strip().lower()
+            if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
+                priority_mode = "balanced"
+
             update_mission_context(
                 display_name,
                 geo.lat,
@@ -2002,6 +2229,11 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     **args,
                     "bike_type": final_bike,
                     "tire_size": normalized_tire_size,
+                    "direction_bias": direction_bias,
+                    "avoid_urban": avoid_urban,
+                    "prefer_rural": prefer_rural,
+                    "distance_flex_percent": distance_flex_percent,
+                    "priority_mode": priority_mode,
                 },
                 raw_distance if route_mode != "point_to_point" else 0,
                 route_mode=route_mode,
@@ -2041,6 +2273,11 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 "profile": resolve_profile(final_bike),
                 "is_ebike": is_ebike,
                 "fitness_level": str(args.get("fitness_level") or rider_profile["fitness_level"]),
+                "direction_bias": direction_bias,
+                "avoid_urban": avoid_urban,
+                "prefer_rural": prefer_rural,
+                "distance_flex_percent": distance_flex_percent,
+                "priority_mode": priority_mode,
             }
 
             if route_mode == "point_to_point":
@@ -2175,6 +2412,48 @@ def render_plan_tab():
             st.info("Distance is computed automatically for A → B routes.")
             distance = None
 
+        st.markdown("#### Route character")
+
+        rc1, rc2 = st.columns(2)
+        with rc1:
+            direction_bias = st.multiselect(
+                "Preferred direction",
+                options=["north", "south", "east", "west"],
+                default=[],
+                help="Bias loop generation toward one or more directions relative to the start area.",
+                key="guided_direction_bias",
+            )
+            avoid_urban = st.checkbox(
+                "Avoid urban streets",
+                value=False,
+                help="Bias the route away from denser city sections when possible.",
+                key="guided_avoid_urban",
+            )
+
+        with rc2:
+            prefer_rural = st.checkbox(
+                "Prefer countryside / quieter roads",
+                value=False,
+                help="Bias the route toward quieter, lower-density rural roads when possible.",
+                key="guided_prefer_rural",
+            )
+            priority_mode = st.selectbox(
+                "Priority mode",
+                ["balanced", "distance_first", "ride_character_first"],
+                index=0,
+                help="Choose whether the engine should prioritize exact mileage or the qualitative character of the ride.",
+                key="guided_priority_mode",
+            )
+
+        distance_flex_percent = st.slider(
+            "Distance flexibility (%)",
+            min_value=0,
+            max_value=30,
+            value=10,
+            help="Allowed tolerance around target distance when the route character matters more than exact mileage.",
+            key="guided_distance_flex_percent",
+        )
+
         st.markdown("#### Options")
         o1, o2, o3 = st.columns(3)
         with o1:
@@ -2216,6 +2495,30 @@ def render_plan_tab():
                 f"{goal_hint}, tire size {tire_size}, difficulty {complexity}. "
             )
 
+        if direction_bias:
+            if len(direction_bias) == 1:
+                prompt += f"Keep it mostly to the {direction_bias[0]}. "
+            else:
+                prompt += f"Keep it mostly to the {' and '.join(direction_bias)}. "
+
+        if avoid_urban:
+            prompt += "Avoid urban streets. "
+
+        if prefer_rural:
+            prompt += "Prefer countryside or quieter roads. "
+
+        if priority_mode == "distance_first":
+            prompt += "Keep the route as close as possible to the requested distance. "
+        elif priority_mode == "ride_character_first":
+            prompt += "Prioritize the character of the ride over exact mileage. "
+        else:
+            prompt += "Balance route character and distance. "
+
+        if distance_flex_percent == 0:
+            prompt += "The distance should be exact if possible. "
+        else:
+            prompt += f"Allow about {distance_flex_percent}% flexibility on the target distance. "
+
         if include_poi:
             prompt += "Include POIs and amenities. "
         if include_weather:
@@ -2238,6 +2541,11 @@ def render_plan_tab():
             "tire_size": tire_size,
             "complexity": complexity,
             "goal": goal,
+            "direction_bias": direction_bias,
+            "avoid_urban": avoid_urban,
+            "prefer_rural": prefer_rural,
+            "distance_flex_percent": distance_flex_percent,
+            "priority_mode": priority_mode,
             "include_poi": include_poi,
             "include_weather": include_weather,
             "include_mud": include_mud,

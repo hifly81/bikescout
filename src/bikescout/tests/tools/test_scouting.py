@@ -64,11 +64,27 @@ def make_bike(bike_type="gravel", is_ebike=False):
     )
 
 
-def make_mission(profile="cycling-regular", total_length_km=40.0, seed=42):
+def make_mission(
+        profile="cycling-regular",
+        total_length_km=40.0,
+        seed=42,
+        direction_bias=None,
+        avoid_urban=False,
+        prefer_rural=False,
+        distance_flex_percent=10,
+        priority_mode="balanced",
+        complexity=3,
+):
     return SimpleNamespace(
         profile=profile,
         total_length_km=total_length_km,
         seed=seed,
+        direction_bias=direction_bias or [],
+        avoid_urban=avoid_urban,
+        prefer_rural=prefer_rural,
+        distance_flex_percent=distance_flex_percent,
+        priority_mode=priority_mode,
+        complexity=complexity,
     )
 
 
@@ -215,7 +231,9 @@ def test_routing_payload_round_trip():
     payload = TrailScoutService._routing_payload(45.0, 10.0, mission, None, None)
 
     assert payload["coordinates"] == [[10.0, 45.0]]
-    assert payload["options"]["round_trip"]["length"] == 40000.0
+    assert payload["options"]["round_trip"]["seed"] == 42
+    assert payload["options"]["round_trip"]["points"] == 3
+    assert payload["options"]["round_trip"]["length"] == 38000.0
 
 
 def test_routing_payload_a_to_b():
@@ -224,6 +242,265 @@ def test_routing_payload_a_to_b():
 
     assert payload["coordinates"] == [[10.0, 45.0], [11.0, 46.0]]
     assert "options" not in payload
+
+def test_build_directional_anchor_south_east():
+    mission = make_mission(
+        total_length_km=60.0,
+        direction_bias=["south", "east"],
+        priority_mode="ride_character_first",
+    )
+
+    anchor = TrailScoutService._build_directional_anchor(45.0, 10.0, mission)
+
+    assert anchor is not None
+    assert anchor["direction_bias"] == ["south", "east"]
+    assert anchor["latitude"] < 45.0
+    assert anchor["longitude"] > 10.0
+    assert anchor["offset_km"] >= 3.0
+
+
+def test_routing_payload_includes_preferred_anchor_when_direction_bias_present():
+    mission = make_mission(
+        total_length_km=50.0,
+        direction_bias=["south", "east"],
+        prefer_rural=True,
+    )
+
+    payload = TrailScoutService._routing_payload(45.0, 10.0, mission, None, None)
+
+    assert payload["coordinates"] == [[10.0, 45.0]]
+    assert "preferred_anchor" in payload
+    assert payload["preferred_anchor"]["direction_bias"] == ["south", "east"]
+
+
+def test_distance_to_anchor_m_prefers_route_closer_to_anchor():
+    anchor = {
+        "latitude": 44.95,
+        "longitude": 10.05,
+        "direction_bias": ["south", "east"],
+        "offset_km": 7.0,
+    }
+
+    near_route = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.049, 44.951, 100], [10.03, 44.97, 110]]},
+            }
+        ]
+    }
+
+    far_route = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[9.90, 45.10, 100], [9.91, 45.11, 110]]},
+            }
+        ]
+    }
+
+    near_dist = TrailScoutService._distance_to_anchor_m(near_route, anchor)
+    far_dist = TrailScoutService._distance_to_anchor_m(far_route, anchor)
+
+    assert near_dist < far_dist
+
+
+def test_route_candidate_score_prefers_anchor_when_ride_character_first():
+    mission = make_mission(
+        total_length_km=40.0,
+        direction_bias=["south", "east"],
+        priority_mode="ride_character_first",
+    )
+
+    anchor = {
+        "latitude": 44.95,
+        "longitude": 10.05,
+        "direction_bias": ["south", "east"],
+        "offset_km": 7.0,
+    }
+
+    closer_to_anchor_but_less_exact_distance = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 37000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.049, 44.951, 100], [10.03, 44.97, 110]]},
+            }
+        ]
+    }
+
+    exact_distance_but_far_from_anchor = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[9.90, 45.10, 100], [9.91, 45.11, 110]]},
+            }
+        ]
+    }
+
+    score_close = TrailScoutService._route_candidate_score(
+        closer_to_anchor_but_less_exact_distance,
+        mission,
+        anchor,
+    )
+    score_far = TrailScoutService._route_candidate_score(
+        exact_distance_but_far_from_anchor,
+        mission,
+        anchor,
+    )
+
+    assert score_close < score_far
+
+
+def test_select_best_route_candidate_uses_multiple_seeds_and_picks_best_anchor_match():
+    payload_seed_42 = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[9.90, 45.10, 100], [9.91, 45.11, 110]]},
+            }
+        ]
+    }
+    payload_seed_59 = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 38500}, "ascent": 500},
+                "geometry": {"coordinates": [[10.048, 44.952, 100], [10.03, 44.97, 110]]},
+            }
+        ]
+    }
+    payload_seed_85 = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 39200}, "ascent": 500},
+                "geometry": {"coordinates": [[10.02, 45.00, 100], [10.01, 44.99, 110]]},
+            }
+        ]
+    }
+
+    class MultiSeedSession:
+        def __init__(self):
+            self.calls = []
+
+        def post(self, url, json=None, headers=None, timeout=None):
+            self.calls.append(json)
+            seed = json["options"]["round_trip"]["seed"]
+
+            if seed == 42:
+                return FakeResponse(payload=payload_seed_42)
+            if seed == 59:
+                return FakeResponse(payload=payload_seed_59)
+            if seed == 85:
+                return FakeResponse(payload=payload_seed_85)
+
+            return FakeResponse(payload=payload_seed_42)
+
+    session = MultiSeedSession()
+    service = make_service(session)
+
+    mission = make_mission(
+        total_length_km=40.0,
+        seed=42,
+        direction_bias=["south", "east"],
+        priority_mode="ride_character_first",
+    )
+
+    payload = TrailScoutService._routing_payload(45.0, 10.0, mission, None, None)
+    anchor = payload.pop("preferred_anchor", None)
+
+    result = service._select_best_route_candidate(
+        api_key="key",
+        mission=mission,
+        payload=payload,
+        anchor=anchor,
+    )
+
+    assert result == payload_seed_59
+    used_seeds = [call["options"]["round_trip"]["seed"] for call in session.calls]
+    assert used_seeds == [42, 59, 85]
+
+
+def test_select_best_route_candidate_falls_back_to_single_request_without_anchor():
+    payload = {
+        "coordinates": [[10.0, 45.0]],
+        "options": {"round_trip": {"length": 38000.0, "seed": 42, "points": 3}},
+        "elevation": "true",
+        "extra_info": ["surface", "steepness"],
+    }
+
+    expected = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 38000}, "ascent": 450},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.01, 45.01, 101]]},
+            }
+        ]
+    }
+
+    session = FakeSession(response=FakeResponse(payload=expected))
+    service = make_service(session)
+    mission = make_mission()
+
+    result = service._select_best_route_candidate(
+        api_key="key",
+        mission=mission,
+        payload=payload,
+        anchor=None,
+    )
+
+    assert result == expected
+    assert len(session.calls) == 1
+
+
+def test_select_best_route_candidate_falls_back_when_all_multi_seed_attempts_fail():
+    class FailingSession:
+        def __init__(self):
+            self.calls = []
+
+        def post(self, url, json=None, headers=None, timeout=None):
+            self.calls.append(json)
+            seed = json["options"]["round_trip"]["seed"]
+            if seed in {42, 59, 85}:
+                raise requests.exceptions.RequestException("temporary failure")
+            return FakeResponse(
+                payload={
+                    "features": [
+                        {
+                            "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                            "geometry": {"coordinates": [[10.0, 45.0, 100], [10.01, 45.01, 101]]},
+                        }
+                    ]
+                }
+            )
+
+    session = FailingSession()
+    service = make_service(session)
+
+    mission = make_mission(
+        total_length_km=40.0,
+        seed=42,
+        direction_bias=["south"],
+        priority_mode="balanced",
+    )
+
+    payload = TrailScoutService._routing_payload(45.0, 10.0, mission, None, None)
+    anchor = payload.pop("preferred_anchor", None)
+
+    safe_payload = dict(payload)
+    safe_options = dict(safe_payload["options"])
+    safe_round_trip = dict(safe_options["round_trip"])
+    safe_round_trip["seed"] = 999
+    safe_options["round_trip"] = safe_round_trip
+    safe_payload["options"] = safe_options
+
+    result = service._select_best_route_candidate(
+        api_key="key",
+        mission=mission,
+        payload=safe_payload,
+        anchor=anchor,
+    )
+
+    assert result["features"][0]["properties"]["summary"]["distance"] == 40000
+    assert len(session.calls) == 4
 
 
 def test_base_response_payload():

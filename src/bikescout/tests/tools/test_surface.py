@@ -9,6 +9,7 @@ from bikescout.tools.surface import (
     _categorize_climb,
     _extract_dominant_surface,
     _sanitize_elevation_profile,
+    _cap_implausible_ascent,
     get_surface_analyzer,
 )
 
@@ -416,3 +417,38 @@ def test_module_level_wrapper(monkeypatch, rider, bike, mission):
 
     assert result == {"status": "Success"}
     assert len(fake_service.calls) == 1
+
+def test_sanitize_elevation_profile_limits_spiky_ascent():
+    geometry = [
+        [10.0, 45.0, 100],
+        [10.001, 45.001, 500],
+        [10.002, 45.002, 105],
+        [10.003, 45.003, 520],
+        [10.004, 45.004, 110],
+        [10.005, 45.005, 530],
+        [10.006, 45.006, 115],
+        [10.007, 45.007, 540],
+        [10.008, 45.008, 120],
+        [10.009, 45.009, 125],
+        [10.010, 45.010, 130],
+        [10.011, 45.011, 132],
+    ]
+
+    result = _sanitize_elevation_profile(
+        geometry,
+        window_size=5,
+        threshold=3.0,
+        max_step_up_m=25.0,
+        max_step_down_m=25.0,
+    )
+
+    assert result < 300
+
+def test_cap_implausible_ascent_for_mtb_route():
+    capped = _cap_implausible_ascent(
+        total_ascent_m=7284,
+        total_dist_m=44950,
+        bike_type="mtb",
+    )
+
+    assert capped == round((44.95 * 140.0), 0)

@@ -33,13 +33,31 @@ class SurfaceAnalyzerConfig:
     ors_timeout_seconds: float = 7.0
 
 
-def _sanitize_elevation_profile(geometry, window_size=11, threshold=2.0):
-    elevations = [p[2] for p in geometry if len(p) > 2]
+def _sanitize_elevation_profile(
+        geometry,
+        window_size=11,
+        threshold=3.0,
+        max_step_up_m=30.0,
+        max_step_down_m=30.0,
+):
+    elevations = [float(p[2]) for p in geometry if len(p) > 2 and isinstance(p[2], (int, float))]
     if len(elevations) < window_size:
         return 0.0
 
+    cleaned = [elevations[0]]
+    for ele in elevations[1:]:
+        prev = cleaned[-1]
+        delta = ele - prev
+
+        if delta > max_step_up_m:
+            ele = prev + max_step_up_m
+        elif delta < -max_step_down_m:
+            ele = prev - max_step_down_m
+
+        cleaned.append(ele)
+
     weights = np.ones(window_size) / window_size
-    smoothed = np.convolve(elevations, weights, mode="valid")
+    smoothed = np.convolve(cleaned, weights, mode="valid")
 
     total_ascent = 0.0
     last_valley = smoothed[0]
@@ -65,6 +83,24 @@ def _sanitize_elevation_profile(geometry, window_size=11, threshold=2.0):
         total_ascent += (last_peak - last_valley)
 
     return round(total_ascent, 0)
+
+def _cap_implausible_ascent(total_ascent_m: float, total_dist_m: float, bike_type: str) -> float:
+    if total_dist_m <= 0:
+        return 0.0
+
+    bike_type_low = str(bike_type).lower()
+    dist_km = total_dist_m / 1000.0
+    ascent_per_km = total_ascent_m / max(dist_km, 1e-6)
+
+    if "enduro" in bike_type_low:
+        hard_cap_per_km = 180.0
+    elif "mountain" in bike_type_low or "mtb" in bike_type_low:
+        hard_cap_per_km = 140.0
+    else:
+        hard_cap_per_km = 90.0
+
+    hard_cap_total = dist_km * hard_cap_per_km
+    return round(min(total_ascent_m, hard_cap_total), 0)
 
 
 def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
@@ -171,8 +207,19 @@ class SurfaceAnalyzerService:
                 geometry = feature.get("geometry", {}).get("coordinates", [])
                 extras = props.get("extras", {})
 
-                clean_ascent = _sanitize_elevation_profile(geometry, 7, 0.5)
                 real_dist_m = self._geometry_distance_m(geometry)
+                clean_ascent = _sanitize_elevation_profile(
+                    geometry,
+                    window_size=11,
+                    threshold=3.0,
+                    max_step_up_m=25.0,
+                    max_step_down_m=25.0,
+                )
+                clean_ascent = _cap_implausible_ascent(
+                    total_ascent_m=clean_ascent,
+                    total_dist_m=real_dist_m,
+                    bike_type=bike.bike_type,
+)
 
                 surface_map = {
                     0: "Unknown",

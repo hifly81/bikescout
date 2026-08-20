@@ -1,5 +1,20 @@
 # Changelog - BikeScout
 
+## [1.6.0]
+* added new blog docs ([1f26eff](https://github.com/hifly81/bikescout/commit/1f26effa84474f99da0368f806f255c743d94f1a))
+* fix(surface): cap implausible ascent and harden elevation sanitization ([9ee586d](https://github.com/hifly81/bikescout/commit/9ee586dd3bd2ee2d908f50efcb88484facba74d3))
+* Prepare for version 1.6.0 ([44d5932](https://github.com/hifly81/bikescout/commit/44d5932a46761ba98d80e11cb6a8187294ffd5b5))
+* feat(routing): add explicit route preferences and directional multi-seed selection ([237ac2b](https://github.com/hifly81/bikescout/commit/237ac2b37fc02e6ce81802dfa3e65b23655ca694))
+* Update author description with LinkedIn link ([913587b](https://github.com/hifly81/bikescout/commit/913587b6d6b78b981ce487c3653123843999d726))
+* Add author section to about.html ([5f39e74](https://github.com/hifly81/bikescout/commit/5f39e749065330af27e886fa7e3354079f88abec))
+* Refactor index.html layout and remove empty section ([5435782](https://github.com/hifly81/bikescout/commit/5435782736f71cfc008ffffd5910045bdb669db9))
+* Update description of BikeScout AI engine ([41b81c1](https://github.com/hifly81/bikescout/commit/41b81c1a2edeecb1031733178248ec0118b9e545))
+* Remove intelligence dashboard and update video source ([0015463](https://github.com/hifly81/bikescout/commit/0015463bd38284387ed344a834e7d3adeee7ff36))
+* Remove logo image from index.html header ([d5a5057](https://github.com/hifly81/bikescout/commit/d5a50576c6014abe0717033c6b60ca50ebcaf17c))
+* Update README.md ([e115b51](https://github.com/hifly81/bikescout/commit/e115b51bddbfa5ecf1576493f22a8bc98c00f83a))
+* site: add code examples ([0c11e6b](https://github.com/hifly81/bikescout/commit/0c11e6b5cdc8d77300756a44482bdac27e224fae))
+* Update CHANGELOG.md ([1f43366](https://github.com/hifly81/bikescout/commit/1f43366b3cee938cb1512fd2f2266c99e2fe11da))
+
 ## [1.5.2]
 * release: prepare version 1.5.2 ([8c259e1](https://github.com/hifly81/bikescout/commit/8c259e1a3ee3c9557c1077fdc3fb2efc417aa56a))
 * gui: refactor ([9fb400c](https://github.com/hifly81/bikescout/commit/9fb400cd425b7b0e266bacbb3e7a76fd6420c914))

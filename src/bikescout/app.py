@@ -847,21 +847,8 @@ def mini_kpi(label: str, value: str) -> None:
         unsafe_allow_html=True,
     )
 
-def render_status_panel(selected_model_name: str) -> None:
-    ors_active = bool(st.session_state.get("ors_api_key") or os.getenv("ORS_API_KEY"))
-
-    st.markdown('<div class="bs-panel-title">System status</div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        mini_kpi("Engine", "Loaded" if server_loaded else "Missing")
-    with c2:
-        mini_kpi("ORS", "Configured" if ors_active else "Missing")
-    with c3:
-        mini_kpi("Model", selected_model_name)
-    st.markdown("</div>", unsafe_allow_html=True)
-
 def render_home_dashboard(selected_model_name: str) -> None:
-    render_status_panel(selected_model_name)
+    pass
 
 def render_sidebar() -> tuple[str, int]:
     with st.sidebar:

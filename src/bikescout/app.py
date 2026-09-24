@@ -847,9 +847,6 @@ def mini_kpi(label: str, value: str) -> None:
         unsafe_allow_html=True,
     )
 
-def render_home_dashboard(selected_model_name: str) -> None:
-    pass
-
 def render_sidebar() -> tuple[str, int]:
     with st.sidebar:
         st.markdown(
@@ -2740,7 +2737,6 @@ def main():
     selected_model_name, n_layers = render_sidebar()
     llm = load_llm(selected_model_name, n_layers) if os.path.exists(get_local_model_path(selected_model_name)) else None
 
-    render_home_dashboard(selected_model_name)
     render_rider_profile_panel()
 
     tab_options = ["Plan a Ride", "Chat Planner", "GPX Audit"]

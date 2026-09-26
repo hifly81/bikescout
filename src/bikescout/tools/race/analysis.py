@@ -128,7 +128,28 @@ class RaceAnalysisService:
 
             start_lat, start_lon = points[0]["lat"], points[0]["lon"]
             distance_km = round(gpx.length_3d() / 1000, 2)
-            total_ascent = round(gpx.get_uphill_downhill().uphill, 1)
+
+            if distance_km == 0:
+                distance_meters = 0
+                for i in range(len(points) - 1):
+                    distance_meters += geodesic(
+                (points[i]["lat"], points[i]["lon"]),
+                      (points[i + 1]["lat"], points[i + 1]["lon"])
+                    ).meters
+                distance_km = round(distance_meters / 1000, 2)
+
+            _ud = gpx.get_uphill_downhill()
+            _native_uphill = getattr(_ud, "uphill", None) if _ud else None
+
+            if _native_uphill is not None and _native_uphill > 0:
+                total_ascent = round(_native_uphill, 1)
+            else:
+                _manual_uphill = sum(
+                    max(0.0, points[i+1]["ele"] - points[i]["ele"])
+                    for i in range(len(points) - 1)
+                    if points[i].get("ele") is not None and points[i+1].get("ele") is not None
+                )
+                total_ascent = round(_manual_uphill, 1)
 
             analysis_segments = _process_segments(points, activity_type)
             uci_climbs = _detect_uci_climbs(analysis_segments)
@@ -185,7 +206,7 @@ class RaceAnalysisService:
                 "track_metrics": {
                     "distance_km": distance_km,
                     "total_ascent": total_ascent,
-                    "max_altitude": round(getattr(elev_extremes, "maximum", 0), 1),
+                    "max_altitude": round(getattr(elev_extremes, "maximum", None) or max((p["ele"] for p in points if p.get("ele") is not None), default=0), 1),
                 },
                 "planning_tools": {
                     "weather_forecast": weather_data,
@@ -233,6 +254,17 @@ class RaceAnalysisService:
                                 "time": p.time,
                             }
                         )
+
+        for route in gpx.routes:
+            for p in route.points:
+                if p.elevation is not None:
+                    points.append({
+                        "lat": p.latitude,
+                        "lon": p.longitude,
+                        "ele": p.elevation,
+                        "time": p.time,
+                    })
+
         return points
 
     @staticmethod

@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><gpx version="1.1" creator="VeloViewer" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><metadata><link href="veloviewer.com"><text>VeloViewer</text></link><time>2025-11-25T06:18:14.000Z</time></metadata><wpt lat="45.4479836" lon="-73.4029992"><ele>23.0</ele><name>km 0</name><type>Generic</type></wpt><wpt lat="45.519467030471" lon="-73.1402836"><ele>32.6</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.51976623053" lon="-73.1407121"><ele>32.8</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.523955531193" lon="-73.1467105"><ele>37.7</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.526190031528" lon="-73.149895"><ele>44.9</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.37593006995" lon="-73.35774"><ele>36.3</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.375963370004" lon="-73.3584433"><ele>36.3</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.37569507037" lon="-73.3631588"><ele>35.9</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.37570007074" lon="-73.36804"><ele>35.7</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5046400106288" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500106765" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440107441" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100107686" lon="-73.61328"><ele>110.6</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.515175611274" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000112974" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400119706" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500120183" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440120859" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100121104" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756126157" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000126391" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400133126" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500133603" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440134279" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100134524" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756139577" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000139811" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400146545" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500147022" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440147698" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100147943" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756153" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000153234" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400159968" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500160445" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440161121" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100161366" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756166419" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000166654" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400173387" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500173864" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.509244017454" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100174785" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.515175617984" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000180075" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400186827" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500187304" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.509244018798" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100188225" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756193279" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000193514" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400200248" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500200725" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440201401" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100201646" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756206714" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000206949" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.504640021368" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500214157" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440214833" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100215078" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756220135" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.516200022037" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400227104" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500227581" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440228257" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100228502" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756233555" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000233789" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400240521" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500240998" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440241674" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.5107100241919" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756246974" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5162000247208" lon="-73.58803"><ele>75.1</ele><name>Feed end</name><type>Generic</type></wpt><wpt lat="45.5046400253942" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500254419" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440255095" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.510710025534" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5151756260393" lon="-73.5856522"><ele>80.7</ele><name>Feed</name><type>Food</type></wpt><wpt lat="45.5046400267362" lon="-73.61546"><ele>136.0</ele><name>Warning &lt;&lt;&lt;</name><type>Left</type></wpt><wpt lat="45.5042500267839" lon="-73.61796"><ele>108.6</ele><name>Waste zone</name><type>Generic</type></wpt><wpt lat="45.5092440268515" lon="-73.613444"><ele>113.5</ele><name>Waste zone end</name><type>Generic</type></wpt><wpt lat="45.510710026876" lon="-73.61328"><ele>110.2</ele><name>Central island</name><type>Danger</type></wpt><wpt lat="45.5146600273726" lon="-73.58451"><ele>79.8</ele>{
+  "payload_version": "1.0",
+  "status": "Success",
+  "mode": "ROAD",
+  "target_date": "2026-09-27",
+  "track_metrics": {
+    "distance_km": 277.93,
+    "total_ascent": 3813,
+    "max_altitude": 212.3
+  },
+  "planning_tools": {
+    "weather_forecast": {
+      "status": "Success",
+      "metadata": {
+        "date_analyzed": "2026-09-27",
+        "local_timezone": "America/Toronto",
+        "target_time_local": "09:00",
+        "location": {
+          "lat": 45.44498,
+          "lon": -73.43462
+        }
+      },
+      "tactical_forecast": [
+        {
+          "time": "09:00",
+          "temp": "14.4",
+          "app_temp": "9.7",
+          "rain_prob": "19",
+          "rain_mm": "0.0",
+          "wind": "27.5",
+          "gusts": "54.7",
+          "wind_direction": "37"
+        },
+        {
+          "time": "10:00",
+          "temp": "16.3",
+          "app_temp": "11.6",
+          "rain_prob": "19",
+          "rain_mm": "0.0",
+          "wind": "28.5",
+          "gusts": "49.7",
+          "wind_direction": "45"
+        },
+        {
+          "time": "11:00",
+          "temp": "17.8",
+          "app_temp": "13.0",
+          "rain_prob": "19",
+          "rain_mm": "0.0",
+          "wind": "29.3",
+          "gusts": "47.5",
+          "wind_direction": "47"
+        },
+        {
+          "time": "12:00",
+          "temp": "18.5",
+          "app_temp": "14.1",
+          "rain_prob": "19",
+          "rain_mm": "0.0",
+          "wind": "27.2",
+          "gusts": "41.4",
+          "wind_direction": "55"
+        },
+        {
+          "time": "13:00",
+          "temp": "18.8",
+          "app_temp": "14.7",
+          "rain_prob": "19",
+          "rain_mm": "0.0",
+          "wind": "26.2",
+          "gusts": "39.2",
+          "wind_direction": "47"
+        },
+        {
+          "time": "14:00",
+          "temp": "18.6",
+          "app_temp": "15.0",
+          "rain_prob": "19",
+          "rain_mm": "0.3",
+          "wind": "24.9",
+          "gusts": "38.5",
+          "wind_direction": "59"
+        },
+        {
+          "time": "15:00",
+          "temp": "16.3",
+          "app_temp": "14.6",
+          "rain_prob": "27",
+          "rain_mm": "0.5",
+          "wind": "12.2",
+          "gusts": "35.6",
+          "wind_direction": "71"
+        },
+        {
+          "time": "16:00",
+          "temp": "15.1",
+          "app_temp": "14.0",
+          "rain_prob": "27",
+          "rain_mm": "0.6",
+          "wind": "10.2",
+          "gusts": "30.6",
+          "wind_direction": "108"
+        },
+        {
+          "time": "17:00",
+          "temp": "15.8",
+          "app_temp": "14.2",
+          "rain_prob": "27",
+          "rain_mm": "0.1",
+          "wind": "12.0",
+          "gusts": "34.2",
+          "wind_direction": "41"
+        }
+      ],
+      "reference_conditions": {
+        "temp_actual": 14.4,
+        "temp_apparent": 9.7,
+        "rain_probability": 19,
+        "precipitation_mm": 0,
+        "wind_speed": 22,
+        "wind_gusts": 54.7,
+        "wind_direction": 37,
+        "reference_hour_local": "9:00",
+        "temp_max": 18.8,
+        "temp": 16.8,
+        "wind_dir_degrees": 56,
+        "reference_hour": "Calculated window 09-17"
+      },
+      "safety_advice": {
+        "status": "[CAUTION]",
+        "message": "Significant hazards: Moderate rain or strong crosswinds expected. Use extreme care.",
+        "wind_risk_score": 43.8,
+        "gear_advice": "Spring/Fall (Knee/arm warmers, windproof gilet, medium base layer)"
+      }
+    },
+    "nutrition_plan": {
+      "status": "Success",
+      "mission_nutrition_briefing": {
+        "fluids": {
+          "total_liters": 8.8,
+          "hourly_average_ml": 1042
+        },
+        "carbohydrates": {
+          "total_grams": 1008,
+          "hourly_target_g": 120,
+          "recommended_ratio": "2:1 Glucose-to-Fructose (or 1:0.8 ratio)",
+          "intensity_context": "Race / Threshold"
+        },
+        "electrolytes": {
+          "total_sodium_mg": 15768,
+          "hourly_sodium_mg": 1876
+        },
+        "tactical_advice": [
+          "FUELING ALERT: High target (120g/hr). Use 2:1 Glucose-to-Fructose (or 1:0.8 ratio) to prevent GI distress.",
+          "BONK RISK: Prolonged high intensity. Maintain feeding window to avoid glycogen crash.",
+          "ELECTROLYTE CRITICAL: High loss (1876mg/hr). Supplement bottles with salt."
+        ]
+      }
+    },
+    "mud_risk": null
+  },
+  "climb_analysis": [
+    {
+      "km_start": 103.8,
+      "dist_km": 3.25,
+      "gain_m": 137,
+      "avg_grade": 4.2,
+      "category": "Cat 4"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.83,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    },
+    {
+      "km_start": 116.2,
+      "dist_km": 2.82,
+      "gain_m": 156.4,
+      "avg_grade": 5.5,
+      "category": "Cat 3"
+    }
+  ],
+  "performance_simulation": [
+    {
+      "climb": "Climb @ km 103.8 (Cat 4)",
+      "est_time_min": 5.6,
+      "est_vam": 1471,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1734,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    },
+    {
+      "climb": "Climb @ km 116.2 (Cat 3)",
+      "est_time_min": 5.4,
+      "est_vam": 1740,
+      "target_wkg": 7.6,
+      "weather_adjusted_wkg": 7.75
+    }
+  ],
+  "tactical_alerts": [
+    {
+      "km": 3.3,
+      "type": "ECHELON RISK",
+      "detail": "22.0km/h Crosswind"
+    },
+    {
+      "km": 5.2,
+      "type": "ECHELON RISK",
+      "detail": "22.0km/h Crosswind"
+    },
+    {
+      "km": 15.4,
+      "type": "ECHELON RISK",
+      "detail": "22.0km/h Crosswind"
+    },
+    {
+      "km": 22.3,
+      "type": "ECHELON RISK",
+      "detail": "22.0km/h Crosswind"
+    }
+  ],
+  "pre_climb_positioning": [],
+  "tactical_action_zones": [
+    {
+      "km": 258.21,
+      "grade": -17.4,
+      "type": "Steep Technical Descent",
+      "difficulty": "high"
+    },
+    {
+      "km": 260.56,
+      "grade": 12.7,
+      "type": "Explosive Wall / Attack Point",
+      "difficulty": "medium"
+    },
+    {
+      "km": 271.63,
+      "grade": -17.4,
+      "type": "Steep Technical Descent",
+      "difficulty": "high"
+    },
+    {
+      "km": 273.99,
+      "grade": 12.7,
+      "type": "Explosive Wall / Attack Point",
+      "difficulty": "medium"
+    },
+    {
+      "km": 275.48,
+      "grade": -10.3,
+      "type": "Steep Technical Descent",
+      "difficulty": "low"
+    },
+    {
+      "km": 277.88,
+      "grade": -25,
+      "type": "Steep Technical Descent",
+      "difficulty": "high"
+    }
+  ],
+  "report_path": "..."
+}

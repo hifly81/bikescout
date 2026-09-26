@@ -19,3 +19,5 @@ __pycache__/
 *$py.class
 
 models/
+
+.agents/skills/developing-with-streamlit

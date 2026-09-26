@@ -296,7 +296,7 @@ class TrailScoutService:
                         weather_report = self.weather_windowing(weather_report, start=9, end=19)
                         weather_list = self._weather_snapshot_list(weather_report)
                         max_temp = weather_report.get("reference_conditions", {}).get("temp_max", "N/A")
-                        response_payload["conditions"]["max_temp_detected"] = f"{max_temp}�C"
+                        response_payload["conditions"]["max_temp_detected"] = f"{max_temp}"
                         response_payload["conditions"]["weather"] = weather_list if weather_list else None
 
                         safety_advice = weather_report.get("safety_advice", None)
@@ -540,41 +540,6 @@ class TrailScoutService:
         return best_data
 
     @staticmethod
-    def _build_directional_anchor(latitude: float, longitude: float, mission):
-        direction_bias = TrailScoutService._normalize_direction_bias(
-            getattr(mission, "direction_bias", []) or []
-        )
-        if not direction_bias:
-            return None
-
-        offset_km = TrailScoutService._bias_anchor_offset_km(mission)
-        offset_m = offset_km * 1000.0
-
-        lat_shift = 0.0
-        lon_shift = 0.0
-
-        if "north" in direction_bias:
-            lat_shift += offset_m / EARTH_METERS_PER_DEGREE
-        if "south" in direction_bias:
-            lat_shift -= offset_m / EARTH_METERS_PER_DEGREE
-
-        lon_scale = EARTH_METERS_PER_DEGREE * max(math.cos(math.radians(latitude)), 0.2)
-        if "east" in direction_bias:
-            lon_shift += offset_m / lon_scale
-        if "west" in direction_bias:
-            lon_shift -= offset_m / lon_scale
-
-        anchor_lat = latitude + lat_shift
-        anchor_lon = longitude + lon_shift
-
-        return {
-            "latitude": round(anchor_lat, 6),
-            "longitude": round(anchor_lon, 6),
-            "offset_km": round(offset_km, 2),
-            "direction_bias": direction_bias,
-        }
-
-    @staticmethod
     def _routing_payload(latitude, longitude, mission, dest_latitude, dest_longitude):
         if dest_latitude is not None and dest_longitude is not None:
             return {
@@ -617,7 +582,7 @@ class TrailScoutService:
                 "difficulty": "N/A",
             },
             "conditions": {
-                "max_temp_detected": "20.0�C",
+                "max_temp_detected": "20.0",
             },
         }
 

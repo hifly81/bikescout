@@ -1,5 +1,13 @@
 # Changelog - BikeScout
 
+## [1.6.1]
+* race: added wc elite men 2026 montreal ([aa74a49](https://github.com/hifly81/bikescout/commit/aa74a49bc9dc864a1ba304c33f585dcb1ca5a0a1))
+* fix(analysis): add fallbacks for route-based GPX parsing and metrics calculation ([04a5c9c](https://github.com/hifly81/bikescout/commit/04a5c9ce59578b37eed290d9a8baf7aa10e8da71))
+* removed status panel LLM in app ([9fbebe8](https://github.com/hifly81/bikescout/commit/9fbebe8999d8d8c7b4d9f5b4fadf3c775fde58af))
+* Update section header format in README ([273dada](https://github.com/hifly81/bikescout/commit/273dadaaf795de6bde10aaf310f120d6c0d55227))
+* changelog#2 ([b3fc5eb](https://github.com/hifly81/bikescout/commit/b3fc5ebc9b5849a757b6389740fe50488a54a2d1))
+* changelog ([52144bf](https://github.com/hifly81/bikescout/commit/52144bf7aa7b5d115c625a2ea705ac10cd41b2e1))
+
 ## [1.6.0]
 * added new blog docs ([1f26eff](https://github.com/hifly81/bikescout/commit/1f26effa84474f99da0368f806f255c743d94f1a))
 * fix(surface): cap implausible ascent and harden elevation sanitization ([9ee586d](https://github.com/hifly81/bikescout/commit/9ee586dd3bd2ee2d908f50efcb88484facba74d3))

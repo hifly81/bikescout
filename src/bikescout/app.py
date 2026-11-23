@@ -14,12 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import streamlit as st
 import json
 import os
 import random
 import re
 from datetime import date
+import streamlit as st
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 from bikescout.app_helpers import (
@@ -60,17 +60,11 @@ from bikescout.app_ui_helpers import (
     render_weather_tiles_native,
     render_rider_profile_panel
 )
-try:
-    from bikescout.mcp_server import (
-        analyze_gpx_track,
-        geocode_location,
-        trail_scout_simple,
-    )
-    server_loaded = True
-except SystemExit:
-    server_loaded = False
-except ImportError:
-    server_loaded = False
+from bikescout.mcp_server import (
+    analyze_gpx_track,
+    geocode_location,
+    trail_scout_simple,
+)
 
 AVAILABLE_MODELS = {
     "Qwen3.5-9B": {
@@ -348,7 +342,7 @@ Examples:
         messages=formatted_messages,
         response_format=json_schema,
         temperature=0.0,
-        max_tokens=512,
+        max_tokens=1024,
     )
     return response["choices"][0]["message"]["content"].strip()
 

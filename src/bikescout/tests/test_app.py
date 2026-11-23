@@ -83,7 +83,7 @@ class TestGenerateTacticalResponse:
         app_module.generate_tactical_response([{"role": "user", "content": "hi"}], llm)
         call = llm.calls[0]
         assert call["temperature"] == 0.0
-        assert call["max_tokens"] == 512
+        assert call["max_tokens"] == 1024
         assert call["response_format"]["type"] == "json_object"
         properties = call["response_format"]["schema"]["properties"]
         assert "briefing" in properties

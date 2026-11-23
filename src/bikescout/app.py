@@ -14,53 +14,51 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import streamlit as st
+import json
 import os
 import random
 import re
 from datetime import date
-from typing import Optional
-
-import streamlit as st
-from langchain_community.chat_models import ChatLlamaCpp
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import BaseModel, Field
-
+from huggingface_hub import hf_hub_download
+from llama_cpp import Llama
 from bikescout.app_helpers import (
     build_mission_snapshot,
     clamp_complexity,
     ext_cast,
-    extract_avoid_urban_from_text,
-    extract_direction_bias_from_text,
-    extract_distance_flex_from_text,
-    extract_distance_km_from_text,
+    extract_location_hint,
     extract_point_to_point,
     normalize_bike_type,
-    normalize_direction_bias,
     normalize_tire_size,
-    resolve_location_query,
     resolve_profile,
     resolve_route_mode,
     summarize_mission,
+    wants_overlay,
+    resolve_location_query,
     compute_readiness_score,
     compute_mission_intensity,
+    extract_direction_bias_from_text,
+    extract_distance_km_from_text,
+    extract_distance_flex_from_text,
+    extract_prefer_rural_from_text,
+    extract_avoid_urban_from_text,
+    normalize_direction_bias
 )
 from bikescout.app_ui_helpers import (
-    build_warning_ribbon,
-    get_poi_style,
-    get_surface_icon,
-    inject_component_styles,
     inject_global_styles,
+    inject_component_styles,
+    render_empty_state, get_poi_style,
+    get_surface_icon,
     metric_card,
-    render_empty_state,
+    section_intro,
+    mini_kpi,
+    render_score_card,
     render_mission_hud,
     render_mission_intensity_badge,
-    render_rider_profile_panel,
-    render_score_card,
     render_warning_ribbon,
+    build_warning_ribbon,
     render_weather_tiles_native,
-    section_intro,
+    render_rider_profile_panel
 )
 try:
     from bikescout.mcp_server import (
@@ -69,7 +67,9 @@ try:
         trail_scout_simple,
     )
     server_loaded = True
-except (SystemExit, ImportError):
+except SystemExit:
+    server_loaded = False
+except ImportError:
     server_loaded = False
 
 AVAILABLE_MODELS = {
@@ -94,178 +94,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------------------------
-# Pydantic schemas for structured LLM output
-# ---------------------------------------------------------------------------
-
-class TrailScoutArgs(BaseModel):
-    """Structured arguments the LLM requests for trail_scout_simple."""
-
-    bike_type: str = Field(
-        ..., enum=["mtb", "road", "gravel", "e-mtb", "enduro"],
-        description="Type of bicycle.",
-    )
-    tire_size: str = Field(..., description="Wheel/tire size (e.g. 29, 700c).")
-    total_length_km: Optional[float] = Field(
-        None, description="Target distance in km for round trips."
-    )
-    route_mode: str = Field(
-        ..., enum=["round_trip", "point_to_point"],
-        description="round_trip for loops, point_to_point for A → B.",
-    )
-    location_name: str = Field(..., description="Starting place name.")
-    destination_name: Optional[str] = Field(
-        None, description="Destination place name (A → B only)."
-    )
-    dest_latitude: Optional[float] = None
-    dest_longitude: Optional[float] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    include_weather: bool = True
-    include_mud_analysis: bool = True
-    include_nutrition_plan: bool = True
-    include_poi: bool = True
-    include_gpx: bool = True
-    include_map: bool = True
-    include_altimetry: bool = True
-    is_ebike: bool = False
-    weight_kg: float = 75.0
-    seed: int = 42
-    complexity: int = Field(3, ge=1, le=5)
-    profile: str = Field(
-        ..., enum=["cycling-mountain", "cycling-road", "cycling-electric"],
-    )
-    fitness_level: str = Field(
-        ..., enum=["beginner", "intermediate", "pro"],
-    )
-    gender: str = Field(..., enum=["male", "female"])
-    direction_bias: Optional[list[str]] = None
-    avoid_urban: bool = False
-    prefer_rural: bool = False
-    distance_flex_percent: int = Field(10, ge=0, le=30)
-    priority_mode: str = Field(
-        "balanced", enum=["balanced", "distance_first", "ride_character_first"],
-    )
-
-
-class TacticalResponse(BaseModel):
-    briefing: str = Field(..., description="Plain-language mission briefing.")
-    can_execute: bool = Field(
-        ..., description="True only when the user wants a cycling route/analysis."
-    )
-    tool: Optional[TrailScoutArgs] = Field(
-        None, description="Tool arguments when can_execute is true."
-    )
-
-
-# ---------------------------------------------------------------------------
-# LangChain setup
-# ---------------------------------------------------------------------------
-
-SYSTEM_PROMPT = """You are BikeScout Tactical AI.
-Return ONLY valid JSON matching the schema.
-
-Rules:
-- Set can_execute=true only when the user clearly wants a cycling route or route-related analysis.
-- When can_execute=true, use the trail_scout_simple tool via the `tool` field.
-- Always preserve location context for follow-up requests.
-- Always preserve routing preference context unless the user changes it.
-- Distance must be in kilometers. Complexity range is 1..5 (default 3).
-- Use point_to_point only for A to B routes; otherwise round_trip.
-
-Routing preference extraction:
-- N/S/E/W of start area -> direction_bias (e.g. ["south", "east"]).
-- "avoid the city / urban streets" -> avoid_urban=true.
-- "countryside / quieter roads / rural" -> prefer_rural=true.
-- "vibe matters more than mileage" -> priority_mode="ride_character_first".
-- "exactly X km" -> priority_mode="distance_first", distance_flex_percent=0.
-- "about / roughly X km" -> distance_flex_percent=10 or 15, priority_mode="balanced".
-- Otherwise priority_mode="balanced".
-- Omit routing fields when nothing is mentioned.
-
-Examples:
-- "keep it south and east of town" -> direction_bias ["south", "east"]
-- "avoid the city and prefer countryside roads" -> avoid_urban true, prefer_rural true
-- "about 60 km, doesn't have to be exact" -> distance_flex_percent 10, priority_mode balanced
-- "the vibe matters more than exact mileage" -> priority_mode ride_character_first
-- "make it exactly 60 km if possible" -> priority_mode distance_first, distance_flex_percent 0
-"""
-
-parser = JsonOutputParser(pydantic_object=TacticalResponse)
-
-prompt = ChatPromptTemplate.from_messages([
-    SystemMessage(content=SYSTEM_PROMPT),
-    MessagesPlaceholder(variable_name="history"),
-    ("human", "{input}"),
-])
-
-
-def get_local_model_path(model_name: str) -> str:
-    return os.path.join(LOCAL_MODELS_DIR, AVAILABLE_MODELS[model_name]["file"])
-
-
-@st.cache_resource
-def load_llm(model_name: str, n_gpu_layers: int) -> Optional[ChatLlamaCpp]:
-    path = get_local_model_path(model_name)
-    if not os.path.exists(path):
-        return None
-    return ChatLlamaCpp(
-        model_path=path,
-        n_ctx=8192,
-        n_gpu_layers=n_gpu_layers,
-        temperature=0.0,
-        max_tokens=512,
-        verbose=False,
-    )
-
-
-def build_chain(llm: ChatLlamaCpp):
-    return prompt | llm | parser
-
-
-def llm_history_from_messages(messages: list[dict]) -> list:
-    """Convert Streamlit chat messages into LangChain message objects."""
-    out: list = []
-    for m in messages:
-        role = m.get("role")
-        content = m.get("content", "")
-        if role == "user":
-            out.append(HumanMessage(content=content))
-        elif role == "assistant" and content != "Connection established. Provide input...":
-            out.append(AIMessage(content=content))
-    return out[-6:]
-
-
-# ---------------------------------------------------------------------------
-# Session state
-# ---------------------------------------------------------------------------
-
-def init_session_state() -> None:
-    defaults = {
-        "messages": [],
-        "mission_context": {},
-        "mission_history": [],
-        "ors_api_key": os.getenv("ORS_API_KEY", ""),
-        "last_location_query": None,
-        "rider_profile": {
-            "bike_type": "mtb",
-            "tire_size": "29",
-            "fitness_level": "intermediate",
-            "weight_kg": 75.0,
-            "gender": "male",
-        },
-        "workspace_tab_selector": "Plan a Ride",
-        "pending_tab_redirect": None,
-        "pending_plan_request": None,
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
-
-
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
 
 def render_sidebar() -> tuple[str, int]:
     with st.sidebar:
@@ -302,7 +130,6 @@ def render_sidebar() -> tuple[str, int]:
             if st.button(f"Download {selected_model_name}", use_container_width=True):
                 with st.status("Downloading local model...", expanded=True):
                     os.makedirs(LOCAL_MODELS_DIR, exist_ok=True)
-                    from huggingface_hub import hf_hub_download
                     hf_hub_download(
                         repo_id=AVAILABLE_MODELS[selected_model_name]["repo"],
                         filename=AVAILABLE_MODELS[selected_model_name]["file"],
@@ -313,31 +140,220 @@ def render_sidebar() -> tuple[str, int]:
                     st.rerun()
             st.warning("A local model is required to use the chat planner.")
 
+
         if st.button("Clear chat & mission", use_container_width=True):
             st.session_state["messages"] = []
             st.session_state["mission_context"] = {}
             st.session_state["mission_history"] = []
             st.session_state["last_location_query"] = None
+            st.session_state["last_raw_distance"] = 25.0
             st.rerun()
 
         return selected_model_name, n_layers
 
+def init_session_state() -> None:
+    defaults = {
+        "messages": [],
+        "mission_context": {},
+        "mission_history": [],
+        "ors_api_key": os.getenv("ORS_API_KEY", ""),
+        "last_location_query": None,
+        "last_raw_distance": 25.0,
+        "current_tab": "Plan a Ride",
+        "workspace_tab_selector": "Plan a Ride",
+        "pending_tab_redirect": None,
+        "pending_chat_prompt": None,
+        "pending_chat_hidden": False,
+        "pending_plan_request": None,
+        "rider_profile": {
+            "bike_type": "mtb",
+            "tire_size": "29",
+            "fitness_level": "intermediate",
+            "weight_kg": 75.0,
+            "gender": "male",
+        },
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-# ---------------------------------------------------------------------------
-# Mission context
-# ---------------------------------------------------------------------------
+
+def get_local_model_path(model_name: str) -> str:
+    return os.path.join(LOCAL_MODELS_DIR, AVAILABLE_MODELS[model_name]["file"])
+
+
+@st.cache_resource
+def load_llm(model_name: str, n_gpu_layers: int):
+    path = get_local_model_path(model_name)
+    if not os.path.exists(path):
+        return None
+
+    return Llama(
+        model_path=path,
+        n_ctx=8192,
+        n_gpu_layers=n_gpu_layers,
+        verbose=False,
+    )
+
+
+def generate_tactical_response(messages_history: list, llm_instance: Llama, mission_context: dict | None = None) -> str:
+    json_schema = {
+        "type": "json_object",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "briefing": {"type": "string"},
+                "can_execute": {"type": "boolean"},
+                "tool": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "enum": ["trail_scout_simple"]},
+                                "args": {
+                                    "type": "object",
+                                    "properties": {
+                                        "bike_type": {
+                                            "type": "string",
+                                            "enum": ["mtb", "road", "gravel", "e-mtb", "enduro"],
+                                        },
+                                        "tire_size": {"type": "string"},
+                                        "distance": {"type": "number"},
+                                        "route_mode": {
+                                            "type": "string",
+                                            "enum": ["round_trip", "point_to_point"],
+                                        },
+                                        "location_name": {"type": "string"},
+                                        "destination_name": {"type": "string"},
+                                        "dest_latitude": {"type": "number"},
+                                        "dest_longitude": {"type": "number"},
+                                        "latitude": {"type": "number"},
+                                        "longitude": {"type": "number"},
+                                        "include_weather": {"type": "boolean"},
+                                        "include_mud_analysis": {"type": "boolean"},
+                                        "include_nutrition_plan": {"type": "boolean"},
+                                        "include_poi": {"type": "boolean"},
+                                        "include_gpx": {"type": "boolean"},
+                                        "include_map": {"type": "boolean"},
+                                        "include_altimetry": {"type": "boolean"},
+                                        "is_ebike": {"type": "boolean"},
+                                        "weight_kg": {"type": "number"},
+                                        "seed": {"type": "number"},
+                                        "complexity": {"type": "integer", "minimum": 1, "maximum": 5},
+                                        "profile": {
+                                            "type": "string",
+                                            "enum": ["cycling-mountain", "cycling-road", "cycling-electric"],
+                                        },
+                                        "fitness_level": {
+                                            "type": "string",
+                                            "enum": ["beginner", "intermediate", "pro"],
+                                        },
+                                        "gender": {
+                                            "type": "string",
+                                            "enum": ["male", "female"],
+                                        },
+                                        "direction_bias": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string",
+                                                "enum": ["north", "south", "east", "west"],
+                                            },
+                                        },
+                                        "avoid_urban": {"type": "boolean"},
+                                        "prefer_rural": {"type": "boolean"},
+                                        "distance_flex_percent": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 30,
+                                        },
+                                        "priority_mode": {
+                                            "type": "string",
+                                            "enum": ["balanced", "distance_first", "ride_character_first"],
+                                        },
+                                    },
+                                    "required": ["bike_type", "tire_size", "location_name"],
+                                },
+                            },
+                            "required": ["name", "args"],
+                        },
+                        {"type": "null"},
+                    ]
+                },
+            },
+            "required": ["briefing", "tool", "can_execute"],
+        },
+    }
+
+    mission_block = ""
+    if mission_context:
+        mission_block = f"""
+=== ACTIVE MISSION ===
+{json.dumps(mission_context, ensure_ascii=False)}
+Reuse mission location unless user explicitly changes it.
+Reuse mission routing preferences unless user explicitly changes them.
+"""
+
+    system_prompt = f"""
+You are BikeScout Tactical AI.
+Return ONLY valid JSON matching the schema.
+Set can_execute=true only when the user clearly wants a cycling route or route-related analysis.
+When can_execute=true, use tool trail_scout_simple.
+Always preserve location context for follow-up requests.
+Always preserve routing preference context for follow-up requests unless the user changes it.
+Distance must be in kilometers.
+Complexity range is 1..5, default 3.
+Use point_to_point only for A to B routes.
+
+Routing preference extraction rules:
+- If the user asks to stay south, north, east, or west of the start area, set direction_bias accordingly.
+- If the user asks for south-east, south and east, or similar, set direction_bias to multiple values, e.g. ["south", "east"].
+- If the user asks to avoid the city, avoid urban streets, or avoid traffic-heavy urban riding, set avoid_urban=true.
+- If the user asks for countryside, quieter roads, open country, rural roads, or scenic non-urban riding, set prefer_rural=true.
+- If the user cares more about the ride character than exact distance, set priority_mode="ride_character_first".
+- If the user explicitly wants the route as close as possible to the requested distance, set priority_mode="distance_first".
+- Otherwise use priority_mode="balanced".
+- If the user allows some tolerance on distance, set distance_flex_percent between 10 and 20 depending on wording.
+- If the user strongly prioritizes exact target distance, set distance_flex_percent=0.
+- If no directional or routing preference is mentioned, omit these fields or preserve them from active mission context.
+
+Examples:
+- "keep it south and east of town" -> direction_bias ["south", "east"]
+- "avoid the city and prefer countryside roads" -> avoid_urban true, prefer_rural true
+- "about 60 km, doesn't have to be exact" -> distance_flex_percent 10 or 15, priority_mode "balanced"
+- "the vibe matters more than exact mileage" -> priority_mode "ride_character_first"
+- "make it exactly 60 km if possible" -> priority_mode "distance_first", distance_flex_percent 0
+
+{mission_block}
+"""
+
+    formatted_messages = [{"role": "system", "content": system_prompt}]
+    llm_history = [
+        m for m in messages_history
+        if m.get("role") == "user"
+           or (m.get("role") == "assistant" and m.get("content") != "Connection established. Provide input...")
+    ]
+    formatted_messages.extend(llm_history[-6:])
+
+    response = llm_instance.create_chat_completion(
+        messages=formatted_messages,
+        response_format=json_schema,
+        temperature=0.0,
+        max_tokens=512,
+    )
+    return response["choices"][0]["message"]["content"].strip()
+
 
 def update_mission_context(
-    location_name: str,
-    lat: float,
-    lon: float,
-    args: dict,
-    distance_km: float,
-    route_mode: str = "round_trip",
-    destination_name: Optional[str] = None,
-    dest_lat: Optional[float] = None,
-    dest_lon: Optional[float] = None,
-) -> None:
+        location_name: str,
+        lat: float,
+        lon: float,
+        args: dict,
+        distance_km: float,
+        route_mode: str = "round_trip",
+        destination_name: str | None = None,
+        dest_lat: float | None = None,
+        dest_lon: float | None = None,
+):
     st.session_state["last_location_query"] = location_name
     ctx = build_mission_snapshot(
         location_name=location_name,
@@ -364,9 +380,219 @@ def _append_mission_summary(text: str) -> str:
     return f"{text}\n\n[{summarize_mission(ctx)}]"
 
 
-# ---------------------------------------------------------------------------
-# Plan execution (single consolidated entry point)
-# ---------------------------------------------------------------------------
+def _execute_and_store_request(plan_request: dict, history_label: str | None = None) -> None:
+    with st.chat_message("assistant"):
+        assistant_text, had_visual_result = execute_plan_request(plan_request)
+        if not had_visual_result:
+            st.markdown(assistant_text)
+
+    stored_text = history_label if history_label else assistant_text
+    st.session_state["messages"].append(
+        {
+            "role": "assistant",
+            "content": _append_mission_summary(stored_text),
+        }
+    )
+
+def render_chat_tab(llm):
+    section_intro(
+        "AI Ride Planner",
+        "Chat with BikeScout to generate route plans, tactical overlays, logistics, and exports.",
+    )
+
+    if not st.session_state["messages"]:
+        render_empty_state(
+            "Start a mission",
+            "Try something like: 45 km gravel loop near Siena with water stops, weather, mud analysis and GPX.",
+        )
+
+    for message in st.session_state["messages"]:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    pending_plan_request = st.session_state.get("pending_plan_request")
+    manual_input = st.chat_input("Describe your ride mission...")
+
+    if pending_plan_request:
+        st.session_state["pending_plan_request"] = None
+        st.session_state["pending_chat_prompt"] = None
+        st.session_state["pending_chat_hidden"] = False
+
+        st.info("Mission received from Plan a Ride. Running route analysis...")
+        _execute_and_store_request(pending_plan_request)
+        return
+
+    if not manual_input:
+        return
+
+    if llm is None:
+        with st.chat_message("assistant"):
+            st.error("Local model not available. Download a model from the sidebar first.")
+        return
+
+    st.session_state["messages"].append({"role": "user", "content": manual_input})
+    with st.chat_message("user"):
+        st.markdown(manual_input)
+
+    llm_messages = list(st.session_state["messages"])
+
+    with st.chat_message("assistant"):
+        raw_output = generate_tactical_response(
+            llm_messages,
+            llm,
+            mission_context=st.session_state.get("mission_context"),
+        )
+        final_briefing, had_visual_result = process_local_mcp_request(raw_output, manual_input)
+        clean_briefing = re.sub(r"(?i)TOOL:.*", "", final_briefing, flags=re.DOTALL).strip()
+
+        generic_briefings = {
+            "",
+            "Completed",
+            "Mission Briefing",
+            "Analysis complete.",
+            "Mission analysis complete.",
+        }
+
+        should_render_text = not had_visual_result or clean_briefing not in generic_briefings
+
+        if should_render_text:
+            assistant_text = clean_briefing or "Mission analysis complete."
+            st.markdown(assistant_text)
+        else:
+            assistant_text = "Mission generated successfully."
+
+    st.session_state["messages"].append(
+        {
+            "role": "assistant",
+            "content": _append_mission_summary(assistant_text),
+        }
+    )
+
+
+def execute_plan_request(plan_request: dict):
+    if not plan_request:
+        return "No plan request found.", False
+
+    try:
+        rider_profile = st.session_state["rider_profile"]
+
+        route_mode = plan_request.get("route_mode", "loop")
+        start_location = plan_request.get("start_location")
+        destination_location = plan_request.get("destination_location")
+        bike_type = plan_request.get("bike_type", rider_profile["bike_type"])
+        final_bike, is_ebike = normalize_bike_type(bike_type)
+
+        tire_size = normalize_tire_size(
+            plan_request.get("tire_size") or rider_profile["tire_size"],
+            final_bike,
+            )
+
+        complexity_val = clamp_complexity(plan_request.get("complexity", 3))
+        raw_distance = ext_cast(plan_request.get("distance"), float, 25.0)
+
+        direction_bias = normalize_direction_bias(plan_request.get("direction_bias"))
+        avoid_urban = bool(plan_request.get("avoid_urban", False))
+        prefer_rural = bool(plan_request.get("prefer_rural", False))
+        distance_flex_percent = max(
+            0, min(30, ext_cast(plan_request.get("distance_flex_percent"), int, 10))
+        )
+        priority_mode = str(plan_request.get("priority_mode", "balanced")).strip().lower()
+        if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
+            priority_mode = "balanced"
+
+        geo = geocode_location(location_name=start_location)
+        if getattr(geo, "status", None) != "Success":
+            return f"Could not geocode: {start_location}", False
+
+        dest_lat, dest_lon = None, None
+        dest_display = None
+
+        if route_mode == "point_to_point":
+            if not destination_location:
+                return "Please specify both start and destination.", False
+
+            geo_dest = geocode_location(location_name=destination_location)
+            if getattr(geo_dest, "status", None) != "Success":
+                return f"Could not geocode destination: {destination_location}", False
+
+            dest_lat = float(geo_dest.lat)
+            dest_lon = float(geo_dest.lon)
+            dest_display = getattr(geo_dest, "display_name", destination_location)
+
+        update_mission_context(
+            getattr(geo, "display_name", start_location),
+            geo.lat,
+            geo.lon,
+            {
+                "bike_type": final_bike,
+                "tire_size": tire_size,
+                "complexity": complexity_val,
+                "direction_bias": direction_bias,
+                "avoid_urban": avoid_urban,
+                "prefer_rural": prefer_rural,
+                "distance_flex_percent": distance_flex_percent,
+                "priority_mode": priority_mode,
+            },
+            raw_distance if route_mode != "point_to_point" else 0,
+            route_mode=route_mode,
+            destination_name=dest_display if route_mode == "point_to_point" else None,
+            dest_lat=dest_lat,
+            dest_lon=dest_lon,
+        )
+
+        valid_args = {
+            "latitude": float(geo.lat),
+            "longitude": float(geo.lon),
+            "tire_size": tire_size,
+            "include_weather": bool(plan_request.get("include_weather", True)),
+            "include_mud_analysis": bool(plan_request.get("include_mud", final_bike != "road")),
+            "include_nutrition_plan": bool(plan_request.get("include_nutrition", True)),
+            "include_poi": bool(plan_request.get("include_poi", True)),
+            "include_gpx": bool(plan_request.get("include_gpx", True)),
+            "include_map": True,
+            "include_altimetry": bool(plan_request.get("include_altimetry", True)),
+            "weight_kg": ext_cast(rider_profile.get("weight_kg"), float, 75.0),
+            "gender": str(rider_profile.get("gender", "male")),
+            "seed": random.randint(1, 999999),
+            "complexity": complexity_val,
+            "bike_type": final_bike,
+            "profile": resolve_profile(final_bike),
+            "is_ebike": is_ebike,
+            "fitness_level": str(rider_profile.get("fitness_level", "intermediate")),
+            "direction_bias": direction_bias,
+            "avoid_urban": avoid_urban,
+            "prefer_rural": prefer_rural,
+            "distance_flex_percent": distance_flex_percent,
+            "priority_mode": priority_mode,
+        }
+
+        if route_mode == "point_to_point":
+            valid_args["dest_latitude"] = float(dest_lat)
+            valid_args["dest_longitude"] = float(dest_lon)
+        else:
+            valid_args["total_length_km"] = raw_distance
+
+        with st.expander("Engine debug", expanded=False):
+            st.json(valid_args)
+
+        result = trail_scout_simple(**valid_args)
+        res_data = result.model_dump() if hasattr(result, "model_dump") else result
+
+        with st.expander("Engine response", expanded=False):
+            st.json(res_data)
+
+        if not res_data or res_data.get("status") != "Success":
+            return "The system could not generate a route for this configuration.", False
+
+        render_route_results(res_data)
+        return "Mission generated successfully.", True
+
+    except Exception as e:
+        st.error("Something went wrong while planning the route.")
+        with st.expander("Technical details"):
+            st.code(f"{type(e).__name__}: {e}", language="text")
+        return "Unable to complete route planning.", False
+
 
 def render_route_results(res_data: dict) -> None:
     info = res_data.get("info", {}) or {}
@@ -847,315 +1073,267 @@ def render_route_results(res_data: dict) -> None:
                 )
 
 
-def _normalize_plan_args(
-    args: dict,
-    rider_profile: dict,
-    route_mode: str,
-    location_query: str,
-    geo,
-    dest_lat: Optional[float],
-    dest_lon: Optional[float],
-) -> dict:
-    final_bike, is_ebike = normalize_bike_type(args.get("bike_type"))
-    complexity_val = clamp_complexity(args.get("complexity", 3))
-    raw_distance = ext_cast(args.get("distance"), float, 25.0)
-    if raw_distance and raw_distance > 1000:
-        raw_distance = raw_distance / 1000
+def process_local_mcp_request(raw_llm_json: str, user_input: str):
+    res_data = None
+    briefing_text = "Analysis complete."
+    had_visual_result = False
 
-    normalized_tire_size = normalize_tire_size(
-        args.get("tire_size") or rider_profile["tire_size"],
-        final_bike,
-    )
+    with st.status("Executing analysis...", expanded=True) as status_box:
+        try:
+            clean_json_str = raw_llm_json.strip()
+            if clean_json_str.startswith("```json"):
+                clean_json_str = clean_json_str[7:-3].strip()
+            elif clean_json_str.startswith("```"):
+                clean_json_str = clean_json_str[3:-3].strip()
 
-    direction_bias = normalize_direction_bias(
-        args.get("direction_bias")
-        or (st.session_state.get("mission_context") or {}).get("direction_bias")
-    )
-    avoid_urban = bool(
-        args.get(
-            "avoid_urban",
-            (st.session_state.get("mission_context") or {}).get("avoid_urban", False),
-        )
-    )
-    prefer_rural = bool(
-        args.get(
-            "prefer_rural",
-            (st.session_state.get("mission_context") or {}).get("prefer_rural", False),
-        )
-    )
-    distance_flex_percent = max(
-        0,
-        min(
-            30,
-            ext_cast(
+            data = json.loads(clean_json_str)
+            briefing_text = data.get("briefing", "Analysis complete.")
+            can_execute = data.get("can_execute", False)
+            tool_data = data.get("tool") or {}
+
+            if not can_execute or not tool_data:
+                status_box.update(label="Completed", state="complete")
+                return briefing_text, False
+
+            tool_name = tool_data.get("name")
+            args = tool_data.get("args") or {}
+
+            parsed_distance = extract_distance_km_from_text(user_input)
+            parsed_direction_bias = extract_direction_bias_from_text(user_input)
+            parsed_avoid_urban = extract_avoid_urban_from_text(user_input)
+            parsed_prefer_rural = extract_prefer_rural_from_text(user_input)
+            parsed_flex_percent, parsed_priority_mode = extract_distance_flex_from_text(user_input)
+
+            if parsed_distance is not None and not args.get("distance"):
+                args["distance"] = parsed_distance
+
+            if parsed_direction_bias and not args.get("direction_bias"):
+                args["direction_bias"] = parsed_direction_bias
+
+            if parsed_avoid_urban and "avoid_urban" not in args:
+                args["avoid_urban"] = True
+
+            if parsed_prefer_rural and "prefer_rural" not in args:
+                args["prefer_rural"] = True
+
+            if "distance_flex_percent" not in args:
+                args["distance_flex_percent"] = parsed_flex_percent
+
+            if parsed_priority_mode and not args.get("priority_mode"):
+                args["priority_mode"] = parsed_priority_mode
+
+
+            if tool_name != "trail_scout_simple":
+                status_box.update(label="Completed", state="complete")
+                return briefing_text, False
+
+            route_mode = resolve_route_mode(args, user_input)
+            dest_lat, dest_lon = None, None
+            dest_display = None
+
+            location_query = resolve_location_query(args, user_input)
+            if not location_query:
+                status_box.update(label="Geolocation failed", state="error")
+                return "Please specify a starting location.", False
+
+            geo = geocode_location(location_name=location_query)
+            if getattr(geo, "status", None) != "Success":
+                status_box.update(label="Geolocation failed", state="error")
+                return f"Could not geocode: {location_query}", False
+
+            if route_mode == "point_to_point":
+                dest_name = (
+                        args.get("destination_name")
+                        or (st.session_state.get("mission_context") or {}).get("destination_name")
+                )
+                if not dest_name:
+                    ab = extract_point_to_point(user_input)
+                    if ab:
+                        dest_name = ab[1]
+                if not dest_name:
+                    status_box.update(label="Missing destination", state="error")
+                    return "Please specify both start and destination.", False
+
+                geo_dest = geocode_location(location_name=dest_name)
+                if getattr(geo_dest, "status", None) != "Success":
+                    status_box.update(label="Destination geolocation failed", state="error")
+                    return f"Could not geocode destination: {dest_name}", False
+
+                dest_lat = float(geo_dest.lat)
+                dest_lon = float(geo_dest.lon)
+                dest_display = getattr(geo_dest, "display_name", dest_name)
+
+            args["latitude"] = geo.lat
+            args["longitude"] = geo.lon
+            display_name = getattr(geo, "display_name", location_query)
+
+            raw_distance = ext_cast(args.get("distance"), float, 25.0)
+            if raw_distance and raw_distance > 1000:
+                raw_distance = raw_distance / 1000
+
+            final_bike, is_ebike = normalize_bike_type(args.get("bike_type"))
+            complexity_val = clamp_complexity(args.get("complexity", 3))
+            args["complexity"] = complexity_val
+
+            rider_profile = st.session_state["rider_profile"]
+            normalized_tire_size = normalize_tire_size(
+                args.get("tire_size") or rider_profile["tire_size"],
+                final_bike,
+                )
+
+            direction_bias = normalize_direction_bias(
+                args.get("direction_bias")
+                or (st.session_state.get("mission_context") or {}).get("direction_bias")
+            )
+            avoid_urban = bool(
                 args.get(
-                    "distance_flex_percent",
-                    (st.session_state.get("mission_context") or {}).get(
-                        "distance_flex_percent", 10
+                    "avoid_urban",
+                    (st.session_state.get("mission_context") or {}).get("avoid_urban", False),
+                )
+            )
+            prefer_rural = bool(
+                args.get(
+                    "prefer_rural",
+                    (st.session_state.get("mission_context") or {}).get("prefer_rural", False),
+                )
+            )
+            distance_flex_percent = max(
+                0,
+                min(
+                    30,
+                    ext_cast(
+                        args.get(
+                            "distance_flex_percent",
+                            (st.session_state.get("mission_context") or {}).get("distance_flex_percent", 10),
+                        ),
+                        int,
+                        10,
                     ),
                 ),
-                int,
-                10,
-            ),
-        ),
-    )
-    priority_mode = str(
-        args.get(
-            "priority_mode",
-            (st.session_state.get("mission_context") or {}).get(
-                "priority_mode", "balanced"
-            ),
-        )
-    ).strip().lower()
-    if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
-        priority_mode = "balanced"
+            )
+            priority_mode = str(
+                args.get(
+                    "priority_mode",
+                    (st.session_state.get("mission_context") or {}).get("priority_mode", "balanced"),
+                )
+            ).strip().lower()
+            if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
+                priority_mode = "balanced"
 
-    return {
-        "latitude": float(geo.lat),
-        "longitude": float(geo.lon),
-        "tire_size": normalized_tire_size,
-        "include_weather": bool(args.get("include_weather", True)),
-        "include_mud_analysis": bool(args.get("include_mud_analysis", final_bike != "road")),
-        "include_nutrition_plan": bool(args.get("include_nutrition_plan", True)),
-        "include_poi": bool(args.get("include_poi", True)),
-        "include_gpx": bool(args.get("include_gpx", True)),
-        "include_map": True,
-        "include_altimetry": bool(args.get("include_altimetry", True)),
-        "weight_kg": ext_cast(args.get("weight_kg"), float, rider_profile["weight_kg"]),
-        "gender": str(args.get("gender") or rider_profile["gender"]),
-        "seed": random.randint(1, 999999),
-        "complexity": complexity_val,
-        "bike_type": final_bike,
-        "profile": resolve_profile(final_bike),
-        "is_ebike": is_ebike,
-        "fitness_level": str(args.get("fitness_level") or rider_profile["fitness_level"]),
-        "direction_bias": direction_bias,
-        "avoid_urban": avoid_urban,
-        "prefer_rural": prefer_rural,
-        "distance_flex_percent": distance_flex_percent,
-        "priority_mode": priority_mode,
-        "total_length_km": raw_distance if route_mode != "point_to_point" else None,
-        "dest_latitude": dest_lat if route_mode == "point_to_point" else None,
-        "dest_longitude": dest_lon if route_mode == "point_to_point" else None,
-    }
+            update_mission_context(
+                display_name,
+                geo.lat,
+                geo.lon,
+                {
+                    **args,
+                    "bike_type": final_bike,
+                    "tire_size": normalized_tire_size,
+                    "direction_bias": direction_bias,
+                    "avoid_urban": avoid_urban,
+                    "prefer_rural": prefer_rural,
+                    "distance_flex_percent": distance_flex_percent,
+                    "priority_mode": priority_mode,
+                },
+                raw_distance if route_mode != "point_to_point" else 0,
+                route_mode=route_mode,
+                destination_name=dest_display if route_mode == "point_to_point" else None,
+                dest_lat=dest_lat,
+                dest_lon=dest_lon,
+            )
 
-
-def execute_plan(plan_request: dict, chain) -> tuple[str, bool]:
-    """Execute a plan request from either the chat or the guided form.
-
-    Returns (briefing_text, had_visual_result).
-    """
-    if not plan_request:
-        return "No plan request found.", False
-
-    try:
-        rider_profile = st.session_state["rider_profile"]
-        route_mode = resolve_route_mode(
-            plan_request, plan_request.get("_raw_input", "")
-        )
-        start_location = plan_request.get("start_location") or plan_request.get("location_name")
-        destination_location = plan_request.get("destination_location")
-
-        if not start_location:
-            return "Please specify a starting location.", False
-
-        geo = geocode_location(location_name=start_location)
-        if getattr(geo, "status", None) != "Success":
-            return f"Could not geocode: {start_location}", False
-
-        dest_lat, dest_lon = None, None
-        dest_display = None
-        if route_mode == "point_to_point":
-            if not destination_location:
-                return "Please specify both start and destination.", False
-            geo_dest = geocode_location(location_name=destination_location)
-            if getattr(geo_dest, "status", None) != "Success":
-                return f"Could not geocode destination: {destination_location}", False
-            dest_lat = float(geo_dest.lat)
-            dest_lon = float(geo_dest.lon)
-            dest_display = getattr(geo_dest, "display_name", destination_location)
-
-        valid_args = _normalize_plan_args(
-            plan_request,
-            rider_profile,
-            route_mode,
-            start_location,
-            geo,
-            dest_lat,
-            dest_lon,
-        )
-
-        # Drop None values so trail_scout_simple uses its own defaults.
-        valid_args = {k: v for k, v in valid_args.items() if v is not None}
-
-        with st.expander("Engine debug", expanded=False):
-            st.json(valid_args)
-
-        result = trail_scout_simple(**valid_args)
-        res_data = result.model_dump() if hasattr(result, "model_dump") else result
-
-        with st.expander("Engine response", expanded=False):
-            st.json(res_data)
-
-        if not res_data or res_data.get("status") != "Success":
-            return "The system could not generate a route for this configuration.", False
-
-        display_name = getattr(geo, "display_name", start_location)
-        raw_distance = valid_args.get("total_length_km", 0) or 0
-
-        update_mission_context(
-            display_name,
-            geo.lat,
-            geo.lon,
-            {
-                "bike_type": valid_args["bike_type"],
-                "tire_size": valid_args["tire_size"],
-                "complexity": valid_args["complexity"],
-                "direction_bias": valid_args["direction_bias"],
-                "avoid_urban": valid_args["avoid_urban"],
-                "prefer_rural": valid_args["prefer_rural"],
-                "distance_flex_percent": valid_args["distance_flex_percent"],
-                "priority_mode": valid_args["priority_mode"],
-            },
-            raw_distance,
-            route_mode=route_mode,
-            destination_name=dest_display if route_mode == "point_to_point" else None,
-            dest_lat=dest_lat,
-            dest_lon=dest_lon,
-        )
-
-        render_route_results(res_data)
-        return "Mission generated successfully.", True
-
-    except Exception as e:
-        st.error("Something went wrong while planning the route.")
-        with st.expander("Technical details"):
-            st.code(f"{type(e).__name__}: {e}", language="text")
-        return "Unable to complete route planning.", False
-
-
-# ---------------------------------------------------------------------------
-# Chat tab
-# ---------------------------------------------------------------------------
-
-def render_chat_tab(chain) -> None:
-    section_intro(
-        "AI Ride Planner",
-        "Chat with BikeScout to generate route plans, tactical overlays, logistics, and exports.",
-    )
-
-    if not st.session_state["messages"]:
-        render_empty_state(
-            "Start a mission",
-            "Try something like: 45 km gravel loop near Siena with water stops, weather, mud analysis and GPX.",
-        )
-
-    for message in st.session_state["messages"]:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    pending_plan_request = st.session_state.get("pending_plan_request")
-    manual_input = st.chat_input("Describe your ride mission...")
-
-    if pending_plan_request:
-        st.session_state["pending_plan_request"] = None
-        st.session_state["pending_chat_prompt"] = None
-
-        st.info("Mission received from Plan a Ride. Running route analysis...")
-        briefing, had_visual = execute_plan(pending_plan_request, chain)
-        st.session_state["messages"].append(
-            {
-                "role": "assistant",
-                "content": _append_mission_summary(briefing),
+            valid_args = {
+                "latitude": float(args.get("latitude")),
+                "longitude": float(args.get("longitude")),
+                "tire_size": normalized_tire_size,
+                "include_weather": True,
+                "include_mud_analysis": final_bike != "road",
+                "include_nutrition_plan": wants_overlay(
+                    user_input,
+                    args.get("include_nutrition_plan"),
+                    ("nutrition", "fueling", "hydration", "carbs", "electrolytes", "food", "snack"),
+                ),
+                "include_poi": wants_overlay(
+                    user_input,
+                    args.get("include_poi"),
+                    ("poi", "amenities", "water", "bars", "places"),
+                ),
+                "include_gpx": wants_overlay(
+                    user_input,
+                    args.get("include_gpx"),
+                    ("gpx", "track", "download", ".gpx"),
+                ),
+                "include_map": True,
+                "include_altimetry": True,
+                "weight_kg": ext_cast(args.get("weight_kg"), float, rider_profile["weight_kg"]),
+                "gender": str(args.get("gender") or rider_profile["gender"]),
+                "seed": random.randint(1, 999999),
+                "complexity": complexity_val,
+                "bike_type": final_bike,
+                "profile": resolve_profile(final_bike),
+                "is_ebike": is_ebike,
+                "fitness_level": str(args.get("fitness_level") or rider_profile["fitness_level"]),
+                "direction_bias": direction_bias,
+                "avoid_urban": avoid_urban,
+                "prefer_rural": prefer_rural,
+                "distance_flex_percent": distance_flex_percent,
+                "priority_mode": priority_mode,
             }
-        )
-        return
 
-    if not manual_input:
-        return
+            if route_mode == "point_to_point":
+                if dest_lat is None or dest_lon is None:
+                    status_box.update(label="Missing destination coordinates", state="error")
+                    return "Destination coordinates are missing for the A → B route.", False
+                valid_args["dest_latitude"] = float(dest_lat)
+                valid_args["dest_longitude"] = float(dest_lon)
+                valid_args.pop("total_length_km", None)
+            else:
+                valid_args["total_length_km"] = raw_distance
+                valid_args.pop("dest_latitude", None)
+                valid_args.pop("dest_longitude", None)
 
-    if chain is None:
-        with st.chat_message("assistant"):
-            st.error("Local model not available. Download a model from the sidebar first.")
-        return
+            with st.expander("Engine debug", expanded=False):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**Request**")
+                    debug_args = dict(valid_args)
+                    debug_args["route_mode"] = route_mode
+                    debug_args["original_tire_size"] = args.get("tire_size")
+                    debug_args["normalized_tire_size"] = normalized_tire_size
+                    st.json(debug_args)
+                with c2:
+                    st.markdown("**LLM args**")
+                    st.json(args)
 
-    st.session_state["messages"].append({"role": "user", "content": manual_input})
-    with st.chat_message("user"):
-        st.markdown(manual_input)
+            result = trail_scout_simple(**valid_args)
+            res_data = result.model_dump() if hasattr(result, "model_dump") else result
 
-    llm_messages = list(st.session_state["messages"])
-    history = llm_history_from_messages(llm_messages)
+            with st.expander("Engine debug - Response", expanded=False):
+                st.json(res_data)
 
-    with st.chat_message("assistant"):
-        with st.status("Executing analysis...", expanded=True) as status_box:
-            try:
-                llm_output: TacticalResponse = chain.invoke(
-                    {"input": manual_input, "history": history}
-                )
-                briefing_text = llm_output.briefing
-
-                if not llm_output.can_execute or not llm_output.tool:
-                    status_box.update(label="Completed", state="complete")
-                    st.markdown(briefing_text)
-                    st.session_state["messages"].append(
-                        {
-                            "role": "assistant",
-                            "content": _append_mission_summary(briefing_text),
-                        }
-                    )
-                    return
-
-                tool_args = llm_output.tool.model_dump()
-                tool_args["_raw_input"] = manual_input
-
-                # Merge text-extracted preferences when the LLM omitted them.
-                parsed_distance = extract_distance_km_from_text(manual_input)
-                if parsed_distance is not None and not tool_args.get("total_length_km"):
-                    tool_args["total_length_km"] = parsed_distance
-
-                parsed_bias = extract_direction_bias_from_text(manual_input)
-                if parsed_bias and not tool_args.get("direction_bias"):
-                    tool_args["direction_bias"] = parsed_bias
-
-                if extract_avoid_urban_from_text(manual_input):
-                    tool_args["avoid_urban"] = True
-
-                if extract_prefer_rural_from_text(manual_input):
-                    tool_args["prefer_rural"] = True
-
-                parsed_flex, parsed_priority = extract_distance_flex_from_text(manual_input)
-                if "distance_flex_percent" not in tool_args or not tool_args["distance_flex_percent"]:
-                    tool_args["distance_flex_percent"] = parsed_flex
-                if parsed_priority and not tool_args.get("priority_mode"):
-                    tool_args["priority_mode"] = parsed_priority
-
-                briefing_text, had_visual = execute_plan(tool_args, chain)
-
-                if had_visual:
-                    status_box.update(label="Analysis complete", state="complete")
+            if not res_data or res_data.get("status") != "Success":
+                status_box.update(label="Route planning failed", state="error")
+                if route_mode == "point_to_point":
+                    st.error("No valid A → B route matched the current parameters. Try adjusting start/destination or bike setup.")
                 else:
-                    status_box.update(label="Completed", state="complete")
-                    st.markdown(briefing_text)
+                    st.error("No route matched the current parameters. Try changing location, bike type, or distance.")
+                return "The system could not generate a route for this configuration.", False
 
-                st.session_state["messages"].append(
-                    {
-                        "role": "assistant",
-                        "content": _append_mission_summary(briefing_text),
-                    }
-                )
+            status_box.update(label="Analysis complete", state="complete")
 
-            except Exception as e:
-                status_box.update(label="Analysis interrupted", state="error")
-                st.error("Something went wrong while planning the route.")
-                with st.expander("Technical details"):
-                    st.code(f"{type(e).__name__}: {e}", language="text")
+        except Exception as e:
+            status_box.update(label="Analysis interrupted", state="error")
+            st.error("Something went wrong while planning the route.")
+            with st.expander("Technical details"):
+                st.code(f"{type(e).__name__}: {e}", language="text")
+            return "Unable to complete route planning.", False
 
+    if res_data:
+        render_route_results(res_data)
+        had_visual_result = True
 
-# ---------------------------------------------------------------------------
-# Guided plan tab
-# ---------------------------------------------------------------------------
+    return briefing_text, had_visual_result
 
-def render_plan_tab() -> None:
+def render_plan_tab():
     section_intro(
         "Guided ride planning",
         "For users who prefer form-driven planning instead of free-form chat.",
@@ -1174,6 +1352,7 @@ def render_plan_tab() -> None:
 
     with st.form("guided_plan_form"):
         top1, top2 = st.columns(2)
+
         with top1:
             bike_type = st.selectbox(
                 "Bike type",
@@ -1187,6 +1366,7 @@ def render_plan_tab() -> None:
                 value=3,
                 key="guided_complexity",
             )
+
         with top2:
             available_tires = ["32", "29", "27.5", "700c", "650b"]
             rider_tire = rider["tire_size"] if rider["tire_size"] in available_tires else "29"
@@ -1210,11 +1390,14 @@ def render_plan_tab() -> None:
                 key="guided_start_location",
             )
         with loc2:
-            destination_location = (
-                st.text_input("Destination", placeholder="e.g. Bolzano, Italy", key="guided_destination")
-                if route_mode == "A → B"
-                else ""
-            )
+            if route_mode == "A → B":
+                destination_location = st.text_input(
+                    "Destination",
+                    placeholder="e.g. Bolzano, Italy",
+                    key="guided_destination",
+                )
+            else:
+                destination_location = ""
 
         if route_mode == "Circular / Loop":
             distance = st.number_input(
@@ -1229,29 +1412,35 @@ def render_plan_tab() -> None:
             distance = None
 
         st.markdown("#### Route character")
+
         rc1, rc2 = st.columns(2)
         with rc1:
             direction_bias = st.multiselect(
                 "Preferred direction",
                 options=["north", "south", "east", "west"],
                 default=[],
+                help="Bias loop generation toward one or more directions relative to the start area.",
                 key="guided_direction_bias",
             )
             avoid_urban = st.checkbox(
                 "Avoid urban streets",
                 value=False,
+                help="Bias the route away from denser city sections when possible.",
                 key="guided_avoid_urban",
             )
+
         with rc2:
             prefer_rural = st.checkbox(
                 "Prefer countryside / quieter roads",
                 value=False,
+                help="Bias the route toward quieter, lower-density rural roads when possible.",
                 key="guided_prefer_rural",
             )
             priority_mode = st.selectbox(
                 "Priority mode",
                 ["balanced", "distance_first", "ride_character_first"],
                 index=0,
+                help="Choose whether the engine should prioritize exact mileage or the qualitative character of the ride.",
                 key="guided_priority_mode",
             )
 
@@ -1260,6 +1449,7 @@ def render_plan_tab() -> None:
             min_value=0,
             max_value=30,
             value=10,
+            help="Allowed tolerance around target distance when the route character matters more than exact mileage.",
             key="guided_distance_flex_percent",
         )
 
@@ -1294,44 +1484,52 @@ def render_plan_tab() -> None:
         }[goal]
 
         if route_mode == "Circular / Loop":
-            prompt_text = (
+            prompt = (
                 f"Plan a {distance} km {bike_type} circular loop near {start_location} "
                 f"{goal_hint}, tire size {tire_size}, difficulty {complexity}. "
             )
         else:
-            prompt_text = (
+            prompt = (
                 f"Plan a {bike_type} route from {start_location} to {destination_location} "
                 f"{goal_hint}, tire size {tire_size}, difficulty {complexity}. "
             )
 
         if direction_bias:
-            prompt_text += f"Keep it mostly to the {' and '.join(direction_bias)}. "
+            if len(direction_bias) == 1:
+                prompt += f"Keep it mostly to the {direction_bias[0]}. "
+            else:
+                prompt += f"Keep it mostly to the {' and '.join(direction_bias)}. "
+
         if avoid_urban:
-            prompt_text += "Avoid urban streets. "
+            prompt += "Avoid urban streets. "
+
         if prefer_rural:
-            prompt_text += "Prefer countryside or quieter roads. "
+            prompt += "Prefer countryside or quieter roads. "
+
         if priority_mode == "distance_first":
-            prompt_text += "Keep the route as close as possible to the requested distance. "
+            prompt += "Keep the route as close as possible to the requested distance. "
         elif priority_mode == "ride_character_first":
-            prompt_text += "Prioritize the character of the ride over exact mileage. "
+            prompt += "Prioritize the character of the ride over exact mileage. "
         else:
-            prompt_text += "Balance route character and distance. "
+            prompt += "Balance route character and distance. "
+
         if distance_flex_percent == 0:
-            prompt_text += "The distance should be exact if possible. "
+            prompt += "The distance should be exact if possible. "
         else:
-            prompt_text += f"Allow about {distance_flex_percent}% flexibility on the target distance. "
+            prompt += f"Allow about {distance_flex_percent}% flexibility on the target distance. "
+
         if include_poi:
-            prompt_text += "Include POIs and amenities. "
+            prompt += "Include POIs and amenities. "
         if include_weather:
-            prompt_text += "Include weather. "
+            prompt += "Include weather. "
         if include_mud:
-            prompt_text += "Include mud analysis. "
+            prompt += "Include mud analysis. "
         if include_nutrition:
-            prompt_text += "Include nutrition advice. "
+            prompt += "Include nutrition advice. "
         if include_gpx:
-            prompt_text += "Include GPX export. "
+            prompt += "Include GPX export. "
         if include_altimetry:
-            prompt_text += "Include altimetry. "
+            prompt += "Include altimetry. "
 
         plan_request = {
             "route_mode": "point_to_point" if route_mode == "A → B" else "loop",
@@ -1349,23 +1547,19 @@ def render_plan_tab() -> None:
             "priority_mode": priority_mode,
             "include_poi": include_poi,
             "include_weather": include_weather,
-            "include_mud_analysis": include_mud,
-            "include_nutrition_plan": include_nutrition,
+            "include_mud": include_mud,
+            "include_nutrition": include_nutrition,
             "include_gpx": include_gpx,
             "include_altimetry": include_altimetry,
-            "_raw_input": prompt_text,
         }
 
         st.session_state["pending_plan_request"] = plan_request
+        st.session_state["pending_chat_prompt"] = prompt
+        st.session_state["pending_chat_hidden"] = True
         st.session_state["pending_tab_redirect"] = "Chat Planner"
         st.rerun()
 
-
-# ---------------------------------------------------------------------------
-# GPX tab
-# ---------------------------------------------------------------------------
-
-def render_gpx_tab() -> None:
+def render_gpx_tab():
     section_intro(
         "GPX tactical audit",
         "Analyze an existing GPX with rider metrics, weather planning, climbs, and performance simulation.",
@@ -1494,20 +1688,13 @@ def render_gpx_tab() -> None:
                 st.error(f"Error while parsing GPX: {e}")
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def main() -> None:
+def main():
     init_session_state()
     inject_global_styles()
     inject_component_styles()
 
     selected_model_name, n_layers = render_sidebar()
-
-    model_path = get_local_model_path(selected_model_name)
-    llm = load_llm(selected_model_name, n_layers) if os.path.exists(model_path) else None
-    chain = build_chain(llm) if llm is not None else None
+    llm = load_llm(selected_model_name, n_layers) if os.path.exists(get_local_model_path(selected_model_name)) else None
 
     render_rider_profile_panel()
 
@@ -1526,12 +1713,13 @@ def main() -> None:
         key="workspace_tab_selector",
         label_visibility="collapsed",
     )
+
     st.session_state["current_tab"] = current_tab
 
     if current_tab == "Plan a Ride":
         render_plan_tab()
     elif current_tab == "Chat Planner":
-        render_chat_tab(chain)
+        render_chat_tab(llm)
     else:
         render_gpx_tab()
 

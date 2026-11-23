@@ -16,133 +16,20 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
 import requests
 
 from bikescout.tools.battery import calculate_battery_drain
 from bikescout.tools.bike_setup import analyze_compatibility, get_tire_setup
 from bikescout.tools.mud import get_mud_risk_analysis
+from bikescout.tools.terrain import analyze_terrain_profile, segment_distances_m
 
 
 @dataclass(frozen=True)
 class SurfaceAnalyzerConfig:
     ors_timeout_seconds: float = 7.0
-
-
-def _sanitize_elevation_profile(
-        geometry,
-        window_size=11,
-        threshold=3.0,
-        max_step_up_m=30.0,
-        max_step_down_m=30.0,
-):
-    elevations = [float(p[2]) for p in geometry if len(p) > 2 and isinstance(p[2], (int, float))]
-    if len(elevations) < window_size:
-        return 0.0
-
-    cleaned = [elevations[0]]
-    for ele in elevations[1:]:
-        prev = cleaned[-1]
-        delta = ele - prev
-
-        if delta > max_step_up_m:
-            ele = prev + max_step_up_m
-        elif delta < -max_step_down_m:
-            ele = prev - max_step_down_m
-
-        cleaned.append(ele)
-
-    weights = np.ones(window_size) / window_size
-    smoothed = np.convolve(cleaned, weights, mode="valid")
-
-    total_ascent = 0.0
-    last_valley = smoothed[0]
-    last_peak = smoothed[0]
-    is_climbing = True
-
-    for ele in smoothed[1:]:
-        if is_climbing:
-            if ele > last_peak:
-                last_peak = ele
-            elif ele < last_peak - threshold:
-                total_ascent += (last_peak - last_valley)
-                is_climbing = False
-                last_valley = ele
-        else:
-            if ele < last_valley:
-                last_valley = ele
-            elif ele > last_valley + threshold:
-                is_climbing = True
-                last_peak = ele
-
-    if is_climbing and last_peak > last_valley:
-        total_ascent += (last_peak - last_valley)
-
-    return round(total_ascent, 0)
-
-def _cap_implausible_ascent(total_ascent_m: float, total_dist_m: float, bike_type: str) -> float:
-    if total_dist_m <= 0:
-        return 0.0
-
-    bike_type_low = str(bike_type).lower()
-    dist_km = total_dist_m / 1000.0
-    ascent_per_km = total_ascent_m / max(dist_km, 1e-6)
-
-    if "enduro" in bike_type_low:
-        hard_cap_per_km = 180.0
-    elif "mountain" in bike_type_low or "mtb" in bike_type_low:
-        hard_cap_per_km = 140.0
-    else:
-        hard_cap_per_km = 90.0
-
-    hard_cap_total = dist_km * hard_cap_per_km
-    return round(min(total_ascent_m, hard_cap_total), 0)
-
-
-def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
-    bike_type_low = str(bike_type).lower()
-
-    if "enduro" in bike_type_low:
-        climbing_ratio = 0.25
-        effort_multiplier = 1.6
-    elif "mountain" in bike_type_low or "mtb" in bike_type_low:
-        climbing_ratio = 0.30
-        effort_multiplier = 1.4
-    else:
-        climbing_ratio = 0.45
-        effort_multiplier = 1.0
-
-    climbing_dist = total_dist_m * climbing_ratio
-    avg_gradient = (total_ascent / climbing_dist) * 100 if climbing_dist > 0 else 0
-
-    max_display = 25.0 if "enduro" in bike_type_low else 20.0
-    display_gradient = min(avg_gradient, max_display)
-
-    scoring_gradient = min(display_gradient, 18.0)
-    adjusted_score = total_ascent * (scoring_gradient / 10) * effort_multiplier
-
-    if total_ascent < 50:
-        return "Flat / Rolling", display_gradient
-
-    if adjusted_score >= 800 or total_ascent > 1000:
-        category = "Hors Catégorie (HC)"
-    elif adjusted_score >= 500:
-        category = "C1 - Brutal Ascent"
-    elif adjusted_score >= 300:
-        category = "C2 - Hard Climb"
-    elif adjusted_score >= 150:
-        category = "C3 - Challenging"
-    else:
-        category = "C4 - Short Burner"
-
-    if "enduro" in bike_type_low:
-        category = f"Enduro Tech: {category}"
-
-    return category, display_gradient
 
 
 def _extract_dominant_surface(surface_extra, surface_map):
@@ -207,19 +94,13 @@ class SurfaceAnalyzerService:
                 geometry = feature.get("geometry", {}).get("coordinates", [])
                 extras = props.get("extras", {})
 
-                real_dist_m = self._geometry_distance_m(geometry)
-                clean_ascent = _sanitize_elevation_profile(
+                terrain = analyze_terrain_profile(
                     geometry,
-                    window_size=11,
-                    threshold=3.0,
-                    max_step_up_m=25.0,
-                    max_step_down_m=25.0,
-                )
-                clean_ascent = _cap_implausible_ascent(
-                    total_ascent_m=clean_ascent,
-                    total_dist_m=real_dist_m,
                     bike_type=bike.bike_type,
-)
+                    extras=extras,
+                )
+                clean_ascent = terrain["total_ascent_m"]
+                real_dist_m = terrain["profile_length_m"] or self._geometry_distance_m(geometry)
 
                 surface_map = {
                     0: "Unknown",
@@ -245,13 +126,15 @@ class SurfaceAnalyzerService:
                     rider_weight_kg=rider.weight_kg,
                 )
 
-                climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, bike.bike_type)
+                climb_cat = terrain["climb_category"]
+                avg_grad = terrain["avg_climb_gradient"]
                 breakdown, warnings, compatible = self.compatibility_analyzer(
                     bike.bike_type,
                     bike.tire_width_mm,
                     extras,
                     surface_map,
                 )
+                tactical_warnings = list(warnings) + list(terrain["warnings"])
 
                 emtb_analysis = self._emtb_analysis(
                     bike=bike,
@@ -263,7 +146,7 @@ class SurfaceAnalyzerService:
                     mud_score_val=mud_score_val,
                 )
 
-                avg_gradient_total = (clean_ascent / real_dist_m * 100) if real_dist_m > 0 else 0
+                avg_gradient_total = terrain["avg_gradient"]
 
                 return {
                     "status": "Success",
@@ -271,13 +154,19 @@ class SurfaceAnalyzerService:
                     "metadata": {
                         "analyzed_date": mud_analysis.get("metadata", {}).get("target_date"),
                         "api_extras": list(extras.keys()),
+                        "elevation_source": "ORS geometry elevation (offline terrain engine)",
                     },
                     "tactical_briefing": {
                         "distance_km": round(real_dist_m / 1000, 2),
-                        "elevation_gain_m": clean_ascent,
+                        "elevation_gain_m": round(clean_ascent),
                         "climb_category": climb_cat,
                         "avg_gradient": f"{round(avg_gradient_total, 1)}%",
                         "avg_climb_gradient": f"{round(avg_grad, 1)}%",
+                        "terrain_analysis": terrain,
+                        "max_gradient": terrain["max_gradient"],
+                        "climb_list": terrain["climb_list"],
+                        "data_confidence": terrain["data_confidence"],
+                        "technical_difficulty": terrain["technical_difficulty"],
                         "mud_intelligence": {
                             "score": mud_score_val,
                             "label": t_analysis.get("mud_risk_score", "Unknown"),
@@ -290,7 +179,7 @@ class SurfaceAnalyzerService:
                         "compatible": compatible,
                         "setup_details": tire_display,
                         "bike_type": bike.bike_type,
-                        "safety_warnings": warnings,
+                        "safety_warnings": tactical_warnings,
                     },
                     "surface_breakdown": breakdown,
                     "emtb_tactical": emtb_analysis,
@@ -369,20 +258,7 @@ class SurfaceAnalyzerService:
 
     @staticmethod
     def _geometry_distance_m(geometry) -> float:
-        R = 6371000
-        deg_to_rad = math.pi / 180
-        real_dist_m = 0.0
-        step = 1
-
-        for i in range(0, len(geometry) - step, step):
-            p1, p2 = geometry[i], geometry[i + step]
-            lat1, lon1 = p1[1] * deg_to_rad, p1[0] * deg_to_rad
-            lat2, lon2 = p2[1] * deg_to_rad, p2[0] * deg_to_rad
-            x = (lon2 - lon1) * math.cos((lat1 + lat2) / 2)
-            y = lat2 - lat1
-            real_dist_m += math.sqrt(x * x + y * y) * R
-
-        return real_dist_m
+        return sum(segment_distances_m(geometry))
 
     @staticmethod
     def _flat_surface_breakdown(breakdown) -> dict[str, int]:
@@ -430,7 +306,7 @@ class SurfaceAnalyzerService:
 service = SurfaceAnalyzerService()
 
 
-def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
+def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None) -> dict[str, Any]:
     return service.get_surface_analyzer(
         api_key=api_key,
         lat=lat,

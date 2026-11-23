@@ -70,6 +70,7 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ### 📈 Visual Elevation & Gradient Analysis
 * *"Plan a 40km route starting from Bormio. I need the Visual Elevation Profile to see the exact gradients of the Stelvio climb. Highlight sections over 12% so I can manage my pacing."*
+* *"Give me the terrain truth for this route: true ascent, maximum gradient, every significant climb with a FIETS category, and how confident you are in the elevation data."*
 
 ### 🏔️ Local Expertise
 * *"Use the Derby local guide to plan a road cycling route starting from Derby. I need at least 800m of elevation gain. Also, recommend the correct tire pressure for high-altitude descents."*

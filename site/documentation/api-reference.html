@@ -225,8 +225,9 @@
                         <tbody>
                         <tr><td><code>coordinates</code></td><td><code>list[list[float]]</code></td><td><code>...</code></td><td>
                             A list of GPS points in GeoJSON format. Each sub-list represents a coordinate triplet:
-                            <code>[longitude, latitude, elevation]</code>. This sequence is used by the SMA Filter
-                            to sanitize elevation and by the Haversine formula for geodesic accuracy.
+                            <code>[longitude, latitude, elevation]</code>. This sequence is processed by the offline Terrain
+                            Truth Engine to cap implausible steps, smooth elevation, detect climbs and compute geodesic
+                            distances.
                         </td>
                         </tr>
                         </tbody>
@@ -370,6 +371,80 @@
                     </table>
                 </div>
 
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">ClimbDetail</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td><code>start_index</code></td><td><code>int</code></td><td>-</td><td>Zero-based elevation-profile sample index where the climb starts.</td></tr>
+                        <tr><td><code>end_index</code></td><td><code>int</code></td><td>-</td><td>Zero-based elevation-profile sample index where the climb ends.</td></tr>
+                        <tr><td><code>length_m</code></td><td><code>float</code></td><td>-</td><td>Ground length of the climb in meters.</td></tr>
+                        <tr><td><code>gain_m</code></td><td><code>float</code></td><td>-</td><td>Elevation gained on this climb in meters.</td></tr>
+                        <tr><td><code>avg_gradient</code></td><td><code>float</code></td><td>-</td><td>Average gradient of the climb in percent.</td></tr>
+                        <tr><td><code>max_gradient</code></td><td><code>float</code></td><td>-</td><td>Steepest positive pitch inside the climb in percent.</td></tr>
+                        <tr><td><code>summit_elevation_m</code></td><td><code>float</code></td><td>-</td><td>Elevation at the climb summit in meters.</td></tr>
+                        <tr><td><code>fiets_index</code></td><td><code>float</code></td><td>-</td><td>FIETS difficulty index derived from gain, length and summit altitude.</td></tr>
+                        <tr><td><code>category</code></td><td><code>string</code></td><td>-</td><td>FIETS-derived category, for example <code>C3 - Challenging</code> or <code>Hors Catégorie (HC)</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TechnicalDifficulty</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td><code>label</code></td><td><code>string</code></td><td>-</td><td>Estimated or tagged technical grade, for example <code>S2 - Technical</code>.</td></tr>
+                        <tr><td><code>confidence</code></td><td><code>float</code></td><td>-</td><td>Confidence in the grade from 0.0 to 1.0.</td></tr>
+                        <tr><td><code>source</code></td><td><code>string</code></td><td>-</td><td>Grade provenance, for example <code>osm:mtb_scale</code>, <code>inferred:surface+waytype</code> or <code>missing</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TerrainAnalysis</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td><code>total_ascent_m</code></td><td><code>float</code></td><td>-</td><td>Ascent summed from significant elevation-profile segments in meters.</td></tr>
+                        <tr><td><code>max_gradient</code></td><td><code>float</code></td><td>-</td><td>Steepest positive gradient found anywhere on the route in percent.</td></tr>
+                        <tr><td><code>avg_gradient</code></td><td><code>float</code></td><td>-</td><td>Total ascent divided by analyzed profile length in percent.</td></tr>
+                        <tr><td><code>avg_climb_gradient</code></td><td><code>float</code></td><td>-</td><td>Weighted average gradient of the detected significant climbs in percent.</td></tr>
+                        <tr><td><code>profile_length_m</code></td><td><code>float</code></td><td>-</td><td>Ground length of the analyzed elevation profile in meters.</td></tr>
+                        <tr><td><code>climbs</code></td><td><code>list[ClimbDetail]</code></td><td>-</td><td>Geometry-detected significant climbs sorted along the route.</td></tr>
+                        <tr><td><code>climb_list</code></td><td><code>list[ClimbDetail]</code></td><td>-</td><td>Display alias of <code>climbs</code> used by clients that expose a Climb List.</td></tr>
+                        <tr><td><code>climb_category</code></td><td><code>string</code></td><td>-</td><td>Hardest FIETS-derived category on the route, or <code>Flat / Rolling</code>.</td></tr>
+                        <tr><td><code>data_confidence</code></td><td><code>float</code></td><td>-</td><td>Heuristic confidence in the elevation-derived metrics from 0.0 to 1.0.</td></tr>
+                        <tr><td><code>technical_difficulty</code></td><td><code>TechnicalDifficulty</code></td><td>-</td><td>Technical grade and its provenance.</td></tr>
+                        <tr><td><code>profile_points</code></td><td><code>int</code></td><td>-</td><td>Number of usable elevation samples in the route geometry.</td></tr>
+                        <tr><td><code>noise_floor_m</code></td><td><code>float</code></td><td>-</td><td>Adaptive hysteresis threshold used for climb segmentation in meters.</td></tr>
+                        <tr><td><code>micro_spikes</code></td><td><code>boolean</code></td><td>-</td><td>True when a positive pitch of 20% or more was detected.</td></tr>
+                        <tr><td><code>warnings</code></td><td><code>list[string]</code></td><td>-</td><td>Tactical warnings derived from the terrain profile, for example hike-a-bike alerts.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
                 <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TacticalBriefing</h4>
                 <div class="overflow-x-auto mb-6">
                     <table>
@@ -392,31 +467,61 @@
                             <td><code>elevation_gain_m</code></td>
                             <td><code>int</code></td>
                             <td>-</td>
-                            <td>Total positive altitude gain (D+) measured in meters.</td>
+                            <td>Ascent derived from significant elevation-profile segments by the Terrain Truth Engine, rounded to meters.</td>
                         </tr>
                         <tr>
                             <td><code>climb_category</code></td>
                             <td><code>string</code></td>
                             <td>-</td>
-                            <td>UCI standard or HC climb categorization based on total physical effort.</td>
+                            <td>Hardest FIETS-derived climb category detected on the route, or <code>Flat / Rolling</code>.</td>
                         </tr>
                         <tr>
                             <td><code>avg_gradient</code></td>
                             <td><code>string</code></td>
                             <td>-</td>
-                            <td>Average gradient percentage calculated over the entire route distance.</td>
+                            <td>Total ascent divided by analyzed profile length, rendered as a percentage string.</td>
                         </tr>
                         <tr>
                             <td><code>avg_climb_gradient</code></td>
                             <td><code>string</code></td>
                             <td>-</td>
-                            <td>Average gradient considering exclusively the uphill/ascending sectors.</td>
+                            <td>Weighted gradient of the detected significant climbs, rendered as a percentage string.</td>
                         </tr>
                         <tr>
                             <td><code>mud_intelligence</code></td>
                             <td><code>MudIntelligence</code></td>
                             <td>-</td>
                             <td>Ground saturation analytics, soil condition, and TAEL™ index prediction.</td>
+                        </tr>
+                        <tr>
+                            <td><code>terrain_analysis</code></td>
+                            <td><code>TerrainAnalysis | null</code></td>
+                            <td><code>null</code></td>
+                            <td>Full geometry-derived terrain intelligence: true ascent, max gradient, FIETS climb list, technical grade and data confidence.</td>
+                        </tr>
+                        <tr>
+                            <td><code>max_gradient</code></td>
+                            <td><code>float | null</code></td>
+                            <td><code>null</code></td>
+                            <td>Steepest positive gradient found anywhere on the route in percent.</td>
+                        </tr>
+                        <tr>
+                            <td><code>climb_list</code></td>
+                            <td><code>list[ClimbDetail] | null</code></td>
+                            <td><code>null</code></td>
+                            <td>Geometry-detected significant climbs sorted along the route.</td>
+                        </tr>
+                        <tr>
+                            <td><code>data_confidence</code></td>
+                            <td><code>float | null</code></td>
+                            <td><code>null</code></td>
+                            <td>Heuristic confidence in the elevation-derived terrain metrics from 0.0 to 1.0.</td>
+                        </tr>
+                        <tr>
+                            <td><code>technical_difficulty</code></td>
+                            <td><code>TechnicalDifficulty | null</code></td>
+                            <td><code>null</code></td>
+                            <td>Technical grade inferred from OSM tags and gradient, including its confidence and source.</td>
                         </tr>
                         </tbody>
                     </table>
@@ -638,7 +743,7 @@
                             <td><code>metadata</code></td>
                             <td><code>object</code></td>
                             <td>-</td>
-                            <td>Technical metadata containing timestamps, engine versions, and API flags.</td>
+                            <td>Technical metadata containing timestamps, engine versions, API flags and <code>elevation_source</code> for the terrain engine.</td>
                         </tr>
                         <tr>
                             <td><code>tactical_briefing</code></td>
@@ -864,9 +969,12 @@
                         <tbody>
                             <tr><td><code>route_type</code></td><td><code>string</code></td><td>-</td><td>The specific cycling activity profile (e.g., 'cycling-road', 'cycling-mountain').</td></tr>
                             <tr><td><code>distance_km</code></td><td><code>float</code></td><td>-</td><td>The total length of the route measured in kilometers.</td></tr>
-                            <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>The total vertical elevation gain in meters.</td></tr>
+                            <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>Total vertical elevation gain in meters, derived from the Terrain Truth Engine when surface analysis succeeds.</td></tr>
                             <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>The overall challenge rating based on gradient, surface, and distance.</td></tr>
-                            <tr><td><code>surface_analysis</code></td><td><code>RouteSurface</code></td><td>-</td><td>A detailed breakdown of surface compositions and traction indices.</td></tr>
+                            <tr><td><code>surface_analysis</code></td><td><code>RouteSurface</code></td><td>-</td><td>A detailed breakdown of surface compositions, terrain intelligence and traction indices.</td></tr>
+                            <tr><td><code>max_gradient</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Steepest positive gradient found anywhere on the route in percent.</td></tr>
+                            <tr><td><code>climb_list</code></td><td><code>list[ClimbDetail] | null</code></td><td><code>null</code></td><td>Geometry-detected significant climbs sorted along the route.</td></tr>
+                            <tr><td><code>data_confidence</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Confidence in the elevation-derived terrain metrics from 0.0 to 1.0.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1804,7 +1912,7 @@
                     <div class="overflow-x-auto">
                         <table>
                             <thead>
-                            <th>Name</th><th>Description</th></tr>
+                            <tr><th>Name</th><th>Description</th></tr>
                             </thead>
                             <tbody class="divide-y divide-slate-800 text-slate-400 font-mono text-xs">
                             <!-- Moab, USA -->

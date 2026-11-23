@@ -6,10 +6,7 @@ import bikescout.tools.surface as surface_module
 from bikescout.tools.surface import (
     SurfaceAnalyzerConfig,
     SurfaceAnalyzerService,
-    _categorize_climb,
     _extract_dominant_surface,
-    _sanitize_elevation_profile,
-    _cap_implausible_ascent,
     get_surface_analyzer,
 )
 
@@ -71,51 +68,6 @@ def mission():
         surface_preference=None,
         assist_mode="Trail",
     )
-
-
-def test_sanitize_elevation_profile_short_geometry_returns_zero():
-    geometry = [[10, 45, 100], [10.001, 45.001, 101]]
-    assert _sanitize_elevation_profile(geometry, window_size=11, threshold=2.0) == 0.0
-
-
-def test_sanitize_elevation_profile_accumulates_ascent():
-    geometry = []
-    elevations = [100, 101, 103, 106, 108, 110, 111, 109, 107, 105, 104, 106, 108, 110, 112]
-    for idx, ele in enumerate(elevations):
-        geometry.append([10 + idx * 0.001, 45 + idx * 0.001, ele])
-
-    result = _sanitize_elevation_profile(geometry, window_size=3, threshold=1.0)
-    assert result >= 0.0
-
-
-def test_categorize_climb_flat():
-    category, gradient = _categorize_climb(20, 10000, "road")
-    assert category == "Flat / Rolling"
-    assert gradient >= 0
-
-
-def test_categorize_climb_hc():
-    category, gradient = _categorize_climb(1200, 20000, "road")
-    assert category == "Hors Catégorie (HC)"
-    assert gradient <= 20.0
-
-
-def test_categorize_climb_enduro_prefix():
-    category, gradient = _categorize_climb(400, 5000, "enduro")
-    assert category.startswith("Enduro Tech:")
-    assert gradient <= 25.0
-
-
-def test_categorize_climb_mtb_branch():
-    category, gradient = _categorize_climb(250, 4000, "mtb")
-    assert category in {
-        "C1 - Brutal Ascent",
-        "C2 - Hard Climb",
-        "C3 - Challenging",
-        "C4 - Short Burner",
-        "Hors Catégorie (HC)",
-    }
-    assert gradient <= 20.0
 
 
 def test_extract_dominant_surface_missing_returns_unknown():
@@ -299,8 +251,15 @@ def test_get_surface_analyzer_success(service, rider, bike, mission):
     assert result["status"] == "Success"
     assert result["profile_used"] == "cycling-regular"
     assert result["metadata"]["api_extras"] == ["surface", "waytype"]
+    assert result["metadata"]["elevation_source"].startswith("ORS geometry")
     assert result["mechanical_setup"]["compatible"] is True
     assert result["emtb_tactical"] is None
+
+    terrain = result["tactical_briefing"]["terrain_analysis"]
+    assert terrain["profile_points"] == 8
+    assert terrain["total_ascent_m"] > 0
+    assert terrain["max_gradient"] > 0
+    assert result["tactical_briefing"]["elevation_gain_m"] == round(terrain["total_ascent_m"])
 
 
 def test_get_surface_analyzer_success_with_emtb(service, rider, mission):
@@ -417,38 +376,3 @@ def test_module_level_wrapper(monkeypatch, rider, bike, mission):
 
     assert result == {"status": "Success"}
     assert len(fake_service.calls) == 1
-
-def test_sanitize_elevation_profile_limits_spiky_ascent():
-    geometry = [
-        [10.0, 45.0, 100],
-        [10.001, 45.001, 500],
-        [10.002, 45.002, 105],
-        [10.003, 45.003, 520],
-        [10.004, 45.004, 110],
-        [10.005, 45.005, 530],
-        [10.006, 45.006, 115],
-        [10.007, 45.007, 540],
-        [10.008, 45.008, 120],
-        [10.009, 45.009, 125],
-        [10.010, 45.010, 130],
-        [10.011, 45.011, 132],
-    ]
-
-    result = _sanitize_elevation_profile(
-        geometry,
-        window_size=5,
-        threshold=3.0,
-        max_step_up_m=25.0,
-        max_step_down_m=25.0,
-    )
-
-    assert result < 300
-
-def test_cap_implausible_ascent_for_mtb_route():
-    capped = _cap_implausible_ascent(
-        total_ascent_m=7284,
-        total_dist_m=44950,
-        bike_type="mtb",
-    )
-
-    assert capped == round((44.95 * 140.0), 0)

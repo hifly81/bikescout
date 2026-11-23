@@ -1,5 +1,7 @@
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import requests
 
@@ -165,26 +167,31 @@ def test_generate_tactical_gpx_with_feature_dict(tmp_path, monkeypatch):
 
 
 def test_generate_tactical_gpx_cleanup_old_files(tmp_path, monkeypatch):
-    monkeypatch.setattr(scouting_module.Path, "home", lambda: tmp_path)
-    monkeypatch.setattr(scouting_module.time, "time", lambda: 2000000)
-
     gpx_dir = tmp_path / ".bikescout" / "gpx"
     gpx_dir.mkdir(parents=True, exist_ok=True)
     old_file = gpx_dir / "old.gpx"
     old_file.write_text("old", encoding="utf-8")
 
-    original_stat = Path.stat
+    with monkeypatch.context() as patch:
+        patch.setattr(scouting_module.Path, "home", lambda: tmp_path)
+        patch.setattr(scouting_module.time, "time", lambda: 2000000)
+        original_stat = scouting_module.Path.stat
 
-    def fake_stat(self):
-        result = original_stat(self)
-        class Stat:
-            st_mtime = 1
-        return Stat()
+        def fake_stat(self, follow_symlinks=True):
+            real_stat = original_stat(self, follow_symlinks=follow_symlinks)
 
-    monkeypatch.setattr(Path, "stat", fake_stat)
+            class Stat:
+                st_mtime = 1
+                st_mode = real_stat.st_mode
 
-    result = generate_tactical_gpx("cleanme", [[10.0, 45.0, 100], [10.001, 45.001, 101]], [])
+            return Stat()
+
+        patch.setattr(scouting_module.Path, "stat", fake_stat)
+
+        result = generate_tactical_gpx("cleanme", [[10.0, 45.0, 100], [10.001, 45.001, 101]], [])
+
     assert result["status"] == "Success"
+    assert "follow_symlinks" in inspect.signature(Path.stat).parameters
 
 
 def test_generate_tactical_gpx_error():
@@ -560,15 +567,21 @@ def make_service(session):
         weather_windowing=lambda weather_report, start, end: weather_report,
         surface_analyzer=lambda api_key, latitude, longitude, rider, bike, mission, target_date=None: {
             "status": "Success",
-            "tactical_briefing": {"distance_km": 42.0, "elevation_gain_m": 600.0},
-            "info": {"surface_analysis": {"surface_breakdown": [{"type": "Gravel", "percentage": "70%"}]}},
+            "tactical_briefing": {
+                "distance_km": 42.0,
+                "elevation_gain_m": 600.0,
+                "max_gradient": 12.5,
+                "climb_list": [{"category": "C3 - Challenging", "gain_m": 120.0}],
+                "data_confidence": 0.82,
+            },
+            "surface_breakdown": [{"type": "Gravel", "percentage": "70%"}],
         },
         poi_scout=lambda api_key, latitude, longitude, total_length_km: {
             "status": "Success",
             "amenities": [{"name": "Water", "location": {"lat": 45.1, "lon": 10.1}}],
         },
         mud_analyzer=lambda latitude, longitude, dominant_surface, target_date=None: {
-            "status": "Success",
+            "status": "Success" if dominant_surface == "Gravel" else "Error",
             "mud_risk": "medium",
         },
         altimetry_getter=lambda geometry, uuid_input, style: {
@@ -621,8 +634,13 @@ def test_get_complete_trail_scout_success_all_features():
         include_nutrition_plan=True,
     )
 
+    info = cast(dict[str, Any], result["info"])
+
     assert result["status"] == "Success"
-    assert result["info"]["surface_analysis"]["status"] == "Success"
+    assert info["surface_analysis"]["status"] == "Success"
+    assert info["max_gradient"] == 12.5
+    assert info["climb_list"][0]["category"] == "C3 - Challenging"
+    assert info["data_confidence"] == 0.82
     assert result["conditions"]["weather"] is not None
     assert result["conditions"]["mud_risk"]["status"] == "Success"
     assert result["logistics"]["nutrition_plan"]["status"] == "Success"

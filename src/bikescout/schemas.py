@@ -276,6 +276,47 @@ class MudRiskAnalysis(BaseModel):
     )
 
 
+class ClimbDetail(BaseModel):
+    """A single geometry-detected significant climb."""
+
+    start_index: int = Field(..., description="First profile sample of the climb")
+    end_index: int = Field(..., description="Last profile sample of the climb")
+    length_m: float = Field(..., description="Ground length of the climb in meters")
+    gain_m: float = Field(..., description="Elevation gained on this climb in meters")
+    avg_gradient: float = Field(..., description="Average gradient in percent")
+    max_gradient: float = Field(..., description="Steepest pitch inside the climb in percent")
+    summit_elevation_m: float = Field(..., description="Elevation at the climb summit")
+    fiets_index: float = Field(..., description="FIETS difficulty index of the climb")
+    category: str = Field(..., description="FIETS-derived pro-cycling category")
+
+
+class TechnicalDifficulty(BaseModel):
+    """Technical grade with an explicit confidence score."""
+
+    label: str = Field(..., description="Estimated or tagged technical grade")
+    confidence: float = Field(..., description="Confidence from 0.0 to 1.0")
+    source: str = Field(..., description="Origin of the grade (OSM tag or inference)")
+
+
+class TerrainAnalysis(BaseModel):
+    """Geometry-derived terrain intelligence produced by the offline engine."""
+
+    total_ascent_m: float = Field(..., description="Ascent summed from significant profile segments")
+    max_gradient: float = Field(..., description="Steepest positive gradient in percent")
+    avg_gradient: float = Field(..., description="Ascent over total route distance in percent")
+    avg_climb_gradient: float = Field(..., description="Weighted gradient of detected climbs in percent")
+    profile_length_m: float = Field(..., description="Ground length of the analyzed profile in meters")
+    climbs: list[ClimbDetail] = Field(..., description="Detected climbs sorted along the route")
+    climb_list: list[ClimbDetail] = Field(..., description="Alias of climbs for display clients")
+    climb_category: str = Field(..., description="Hardest detected climb category")
+    data_confidence: float = Field(..., description="Confidence in the elevation data from 0.0 to 1.0")
+    technical_difficulty: TechnicalDifficulty = Field(..., description="Technical grade and its provenance")
+    profile_points: int = Field(..., description="Number of usable elevation samples")
+    noise_floor_m: float = Field(..., description="Adaptive hysteresis threshold in meters")
+    micro_spikes: bool = Field(..., description="True when a pitch of 20% or more was detected")
+    warnings: list[str] = Field(..., description="Terrain-specific tactical warnings")
+
+
 class TacticalBriefing(BaseModel):
     distance_km: float = Field(..., description="Total route distance in kilometers")
     elevation_gain_m: int = Field(
@@ -290,6 +331,21 @@ class TacticalBriefing(BaseModel):
     )
     mud_intelligence: MudIntelligence = Field(
         ..., description="Ground saturation and soil condition analytics"
+    )
+    terrain_analysis: TerrainAnalysis | None = Field(
+        None, description="Geometry-derived ascent, climb list and data confidence"
+    )
+    max_gradient: float | None = Field(
+        None, description="Steepest positive gradient in percent from the terrain engine"
+    )
+    climb_list: list[ClimbDetail] | None = Field(
+        None, description="Geometry-detected significant climbs sorted along the route"
+    )
+    data_confidence: float | None = Field(
+        None, description="Confidence in the elevation-derived terrain metrics"
+    )
+    technical_difficulty: TechnicalDifficulty | None = Field(
+        None, description="Technical grade inferred from OSM tags and gradient"
     )
 
 
@@ -649,6 +705,15 @@ class RouteInfo(BaseModel):
     surface_analysis: RouteSurface | None = Field(
         None,
         description="A detailed breakdown of surface compositions and traction indices.",
+    )
+    max_gradient: float | None = Field(
+        None, description="Steepest positive gradient in percent from the terrain engine"
+    )
+    climb_list: list[ClimbDetail] | None = Field(
+        None, description="Geometry-detected significant climbs sorted along the route"
+    )
+    data_confidence: float | None = Field(
+        None, description="Confidence in the elevation-derived terrain metrics"
     )
 
 

@@ -264,6 +264,7 @@ class TrailScoutService:
                 dest_longitude=dest_longitude,
             )
 
+            surface_report: dict[str, Any]
             try:
                 surface_report = self.surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
             except Exception as e:
@@ -273,9 +274,9 @@ class TrailScoutService:
                 t_brief = surface_report.get("tactical_briefing", {})
                 dist_km = t_brief.get("distance_km")
                 ascent_m = t_brief.get("elevation_gain_m")
+                terrain = t_brief.get("terrain_analysis") or {}
 
-                surface_analysis = surface_report.get("info", {}).get("surface_analysis", {})
-                breakdown = surface_analysis.get("surface_breakdown", [])
+                breakdown = surface_report.get("surface_breakdown", [])
 
                 dominant_surface = self._dominant_surface_from_breakdown(breakdown)
 
@@ -283,6 +284,15 @@ class TrailScoutService:
                 response_payload["info"]["ascent_m"] = ascent_m
                 response_payload["info"]["difficulty"] = calculate_detailed_difficulty(dist_km, ascent_m)
                 response_payload["info"]["surface_analysis"] = surface_report
+                response_payload["info"]["max_gradient"] = t_brief.get(
+                    "max_gradient", terrain.get("max_gradient")
+                )
+                response_payload["info"]["climb_list"] = t_brief.get(
+                    "climb_list", terrain.get("climb_list")
+                )
+                response_payload["info"]["data_confidence"] = t_brief.get(
+                    "data_confidence", terrain.get("data_confidence")
+                )
 
                 perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
                 estimated_hours = perf["estimated_hours"]

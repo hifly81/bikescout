@@ -598,6 +598,57 @@ def execute_plan_request(plan_request: dict):
         return "Unable to complete route planning.", False
 
 
+def _is_number(value) -> bool:
+    """Return True for real numbers, excluding booleans."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _format_terrain_value(value, digits: int = 1, suffix: str = "") -> str:
+    """Format an optional terrain number for display."""
+    if not _is_number(value):
+        return "N/A"
+    return f"{float(value):.{digits}f}{suffix}"
+
+
+def _format_terrain_percent(value) -> str:
+    """Format a 0.0-1.0 confidence score as a percentage."""
+    if not _is_number(value):
+        return "N/A"
+    return f"{float(value) * 100:.0f}%"
+
+
+def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list[dict[str, str]]:
+    """Format geometry-detected climbs for the Streamlit climb list table."""
+    climbs = (
+        tactical_briefing.get("climb_list")
+        or terrain_analysis.get("climb_list")
+        or terrain_analysis.get("climbs")
+        or []
+    )
+
+    rows: list[dict[str, str]] = []
+    for number, climb in enumerate(climbs, start=1):
+        if not isinstance(climb, dict):
+            continue
+
+        length_m = climb.get("length_m")
+        length_km = None
+        if isinstance(length_m, (int, float)) and not isinstance(length_m, bool):
+            length_km = length_m / 1000.0
+        rows.append({
+            "#": str(number),
+            "Category": str(climb.get("category", "N/A")),
+            "Gain (m)": _format_terrain_value(climb.get("gain_m")),
+            "Length (km)": _format_terrain_value(length_km, 2),
+            "Avg grade": _format_terrain_value(climb.get("avg_gradient"), 1, "%"),
+            "Max grade": _format_terrain_value(climb.get("max_gradient"), 1, "%"),
+            "Summit (m)": _format_terrain_value(climb.get("summit_elevation_m")),
+            "FIETS": _format_terrain_value(climb.get("fiets_index"), 2),
+            "Profile samples": f"{climb.get('start_index', '?')}–{climb.get('end_index', '?')}",
+        })
+    return rows
+
+
 def render_route_results(res_data: dict) -> None:
     info = res_data.get("info", {}) or {}
     logistics = res_data.get("logistics", {}) or {}
@@ -697,7 +748,25 @@ def render_route_results(res_data: dict) -> None:
         section_intro("Terrain intelligence", "Surface mix, gradient profile, and tactical setup signals.")
 
         tactical = surface_analysis.get("tactical_briefing", {}) or {}
-        r1, r2, r3 = st.columns(3)
+        terrain = tactical.get("terrain_analysis", {}) or {}
+        metadata = surface_analysis.get("metadata", {}) or {}
+        elevation_source = metadata.get("elevation_source")
+
+        max_gradient = tactical.get("max_gradient", terrain.get("max_gradient"))
+        confidence = tactical.get("data_confidence", terrain.get("data_confidence"))
+        technical = tactical.get("technical_difficulty") or terrain.get("technical_difficulty") or {}
+        if not isinstance(technical, dict):
+            technical = {}
+
+        noise_floor = terrain.get("noise_floor_m")
+        profile_points = terrain.get("profile_points")
+        profile_length_m = terrain.get("profile_length_m")
+        profile_length_km = None
+        if isinstance(profile_length_m, (int, float)) and not isinstance(profile_length_m, bool):
+            profile_length_km = profile_length_m / 1000.0
+        terrain_warnings = [str(warning) for warning in (terrain.get("warnings", []) or [])]
+
+        r1, r2, r3, r4 = st.columns(4)
 
         with r1:
             metric_card(
@@ -723,6 +792,76 @@ def render_route_results(res_data: dict) -> None:
                 "#f87171",
                 "Climbing intensity",
             )
+        with r4:
+            metric_card(
+                "Max gradient",
+                f"{max_gradient}%" if max_gradient is not None else "N/A",
+                "⚡",
+                "#facc15",
+                "Steepest measured pitch",
+            )
+
+        q1, q2, q3, q4 = st.columns(4)
+
+        with q1:
+            confidence_sub = (
+                f"Noise floor {noise_floor} m"
+                if noise_floor is not None
+                else "Elevation trust score"
+            )
+            metric_card(
+                "Data confidence",
+                _format_terrain_percent(confidence),
+                "🧪",
+                "#22d3ee",
+                confidence_sub,
+            )
+        with q2:
+            tech_confidence = technical.get("confidence")
+            tech_source = str(technical.get("source", ""))
+            tech_sub = "Terrain grade confidence"
+            if _is_number(tech_confidence):
+                tech_sub = f"{_format_terrain_percent(tech_confidence)} confidence"
+                if tech_source:
+                    tech_sub += f" · {tech_source}"
+            metric_card(
+                "Technical grade",
+                str(technical.get("label", "N/A")),
+                "🥷",
+                "#c084fc",
+                tech_sub,
+            )
+        with q3:
+            metric_card(
+                "Profile length",
+                _format_terrain_value(profile_length_km, 2, " km"),
+                "🛰️",
+                "#60a5fa",
+                "Analyzed route geometry",
+            )
+        with q4:
+            metric_card(
+                "Profile points",
+                str(profile_points) if profile_points is not None else "N/A",
+                "🔬",
+                "#fbbf24",
+                "Usable elevation samples",
+            )
+
+        if elevation_source:
+            st.caption(f"Elevation source: {elevation_source}")
+
+        with st.expander("Climb list", expanded=True):
+            climb_rows = _terrain_climb_rows(tactical, terrain)
+            if climb_rows:
+                st.dataframe(climb_rows, hide_index=True)
+            else:
+                st.info("No significant climbs detected or climb data unavailable.")
+
+        if terrain_warnings:
+            with st.expander("Terrain warnings", expanded=True):
+                for warning in terrain_warnings:
+                    st.warning(warning)
 
         surfaces = surface_analysis.get("surface_breakdown", []) or []
         if surfaces:
@@ -786,7 +925,11 @@ def render_route_results(res_data: dict) -> None:
                 if not mechanical.get("compatible", True):
                     st.error("This bike/setup may not be fully compatible with the current route profile.")
 
-                warnings = mechanical.get("safety_warnings", []) or []
+                warnings = [
+                    warning
+                    for warning in (mechanical.get("safety_warnings", []) or [])
+                    if warning not in terrain_warnings
+                ]
                 for warning in warnings:
                     st.warning(warning)
 

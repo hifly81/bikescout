@@ -19,37 +19,6 @@ class TestInjectGlobalStyles:
         assert 'https://fonts.googleapis.com/css2?family=Inter' in args[0]
         assert kwargs["unsafe_allow_html"] is True
 
-
-class TestRenderSummaryCard:
-    def test_renders_summary_card(self, monkeypatch):
-        mock_markdown = MagicMock()
-        monkeypatch.setattr(ui_helpers.st, "markdown", mock_markdown)
-
-        ui_helpers.render_summary_card("Distance", "42 km")
-
-        mock_markdown.assert_called_once()
-        args, kwargs = mock_markdown.call_args
-        html = args[0]
-
-        assert '<div class="bs-card">' in html
-        assert '<div class="bs-card-title">Distance</div>' in html
-        assert '<div class="bs-card-value">42 km</div>' in html
-        assert kwargs["unsafe_allow_html"] is True
-
-
-class TestRenderSectionHeader:
-    def test_renders_section_header(self, monkeypatch):
-        mock_markdown = MagicMock()
-        monkeypatch.setattr(ui_helpers.st, "markdown", mock_markdown)
-
-        ui_helpers.render_section_header("Mission Overview")
-
-        mock_markdown.assert_called_once_with(
-            '<div class="bs-section-title">Mission Overview</div>',
-            unsafe_allow_html=True,
-        )
-
-
 class TestRenderEmptyState:
     def test_renders_empty_state(self, monkeypatch):
         mock_markdown = MagicMock()

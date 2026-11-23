@@ -14,17 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import streamlit as st
 import json
 import os
 import random
 import re
 from datetime import date
-
-import streamlit as st
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
-
-from bikescout.domain_logic import (
+from bikescout.app_helpers import (
     build_mission_snapshot,
     clamp_complexity,
     ext_cast,
@@ -36,9 +34,32 @@ from bikescout.domain_logic import (
     resolve_route_mode,
     summarize_mission,
     wants_overlay,
+    resolve_location_query,
+    compute_readiness_score,
+    compute_mission_intensity,
+    extract_direction_bias_from_text,
+    extract_distance_km_from_text,
+    extract_distance_flex_from_text,
+    extract_prefer_rural_from_text,
+    extract_avoid_urban_from_text,
+    normalize_direction_bias
 )
-from bikescout.ui_helpers import inject_global_styles, render_empty_state
-
+from bikescout.app_ui_helpers import (
+    inject_global_styles,
+    inject_component_styles,
+    render_empty_state, get_poi_style,
+    get_surface_icon,
+    metric_card,
+    section_intro,
+    mini_kpi,
+    render_score_card,
+    render_mission_hud,
+    render_mission_intensity_badge,
+    render_warning_ribbon,
+    build_warning_ribbon,
+    render_weather_tiles_native,
+    render_rider_profile_panel
+)
 try:
     from bikescout.mcp_server import (
         analyze_gpx_track,
@@ -52,15 +73,20 @@ except ImportError:
     server_loaded = False
 
 AVAILABLE_MODELS = {
-    "Llama-3-8B": {
-        "repo": "MaziyarPanahi/Llama-3-8B-Instruct-v0.1-GGUF",
-        "file": "Llama-3-8B-Instruct-v0.1.Q4_K_M.gguf",
-        "description": "",
+    "Qwen3.5-9B": {
+        "repo": "unsloth/Qwen3.5-9B-GGUF",
+        "file": "Qwen3.5-9B-Q4_K_M.gguf",
+        "description": "Size: ~5.7 GB",
     },
-    "Llama-3.1-8B-Instruct": {
-        "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
-        "file": "Meta-Llama-3.1-8B-Instruct-Q6_K.gguf",
-        "description": "",
+    "Ministral-3-8B-Instruct": {
+        "repo": "unsloth/Ministral-3-8B-Instruct-2512-GGUF",
+        "file": "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
+        "description": "Size: ~5.2 GB",
+    },
+    "Qwen2.5-7B-Instruct": {
+        "repo": "bartowski/Qwen2.5-7B-Instruct-GGUF",
+        "file": "Qwen2.5-7B-Instruct-Q6_K.gguf",
+        "description": "Size: ~6.3 GB",
     },
 }
 
@@ -72,6 +98,63 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+def render_sidebar() -> tuple[str, int]:
+    with st.sidebar:
+        st.markdown(
+            """
+            <div class="bs-sidebar-brand">
+                <span class="bs-sidebar-bike">Bike</span><span class="bs-sidebar-scout">Scout</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.caption("AI for tactical cycling intelligence")
+
+        st.subheader("Routing & API")
+        ors_key = st.text_input(
+            "OpenRouteService key",
+            value=st.session_state.get("ors_api_key", ""),
+            type="password",
+            help="Required for routing, geocoding, and trail analysis.",
+        )
+        if ors_key:
+            st.session_state["ors_api_key"] = ors_key
+            os.environ["ORS_API_KEY"] = ors_key
+
+        st.subheader("Local model")
+        selected_model_name = st.selectbox("Model", list(AVAILABLE_MODELS.keys()))
+        st.caption(AVAILABLE_MODELS[selected_model_name]["description"])
+
+        gpu_enabled = st.toggle("GPU acceleration", value=True)
+        n_layers = -1 if gpu_enabled else 0
+
+        model_path = get_local_model_path(selected_model_name)
+        if not os.path.exists(model_path):
+            if st.button(f"Download {selected_model_name}", use_container_width=True):
+                with st.status("Downloading local model...", expanded=True):
+                    os.makedirs(LOCAL_MODELS_DIR, exist_ok=True)
+                    hf_hub_download(
+                        repo_id=AVAILABLE_MODELS[selected_model_name]["repo"],
+                        filename=AVAILABLE_MODELS[selected_model_name]["file"],
+                        local_dir=LOCAL_MODELS_DIR,
+                        local_dir_use_symlinks=False,
+                    )
+                    st.success("Model downloaded. Reloading...")
+                    st.rerun()
+            st.warning("A local model is required to use the chat planner.")
+
+
+        if st.button("Clear chat & mission", use_container_width=True):
+            st.session_state["messages"] = []
+            st.session_state["mission_context"] = {}
+            st.session_state["mission_history"] = []
+            st.session_state["last_location_query"] = None
+            st.session_state["last_raw_distance"] = 25.0
+            st.rerun()
+
+        return selected_model_name, n_layers
 
 def init_session_state() -> None:
     defaults = {
@@ -99,511 +182,6 @@ def init_session_state() -> None:
         if key not in st.session_state:
             st.session_state[key] = value
 
-def inject_premium_component_styles() -> None:
-    st.markdown(
-        """
-        <style>
-        
-        .bs-sidebar-brand {
-            display: flex;
-            align-items: baseline;
-            gap: 0.18rem;
-            margin-bottom: 0.35rem;
-            line-height: 1;
-        }
-    
-        .bs-sidebar-bike {
-            font-size: 1.35rem;
-            font-weight: 900;
-            font-style: italic;
-            text-transform: uppercase;
-            letter-spacing: -0.06em;
-            color: #ffffff;
-        }
-        
-        .bs-sidebar-scout {
-            font-size: 1.35rem;
-            font-weight: 900;
-            font-style: italic;
-            text-transform: uppercase;
-            letter-spacing: -0.04em;
-            color: #4ade80;
-            text-shadow:
-                0 0 6px rgba(74, 222, 128, 0.75),
-                0 0 12px rgba(34, 197, 94, 0.60),
-                0 0 20px rgba(22, 163, 74, 0.50);
-        }
-        
-        .bs-grid-gap { margin-top: 0.35rem; }
-
-        .bs-panel {
-            background: rgba(20, 27, 52, 0.78);
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            border-radius: 20px;
-            padding: 18px;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.24);
-            margin-bottom: 14px;
-        }
-
-        .bs-panel-title {
-            font-size: 0.82rem;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: #a5b4fc;
-            font-weight: 800;
-            margin-bottom: 8px;
-        }
-
-        .bs-section {
-            margin-top: 16px;
-            margin-bottom: 10px;
-        }
-
-        .bs-section h3 {
-            margin: 0 0 8px 0 !important;
-            font-size: 1.12rem !important;
-            font-weight: 800 !important;
-        }
-
-        .bs-section p {
-            color: #aeb8d0 !important;
-            margin: 0 !important;
-        }
-
-        .bs-metric-card {
-            position: relative;
-            overflow: hidden;
-            border-radius: 18px;
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            background: linear-gradient(180deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.9));
-            padding: 16px;
-            min-height: 110px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.22);
-        }
-
-        .bs-metric-card::after {
-            content: "";
-            position: absolute;
-            inset: 0 auto auto 0;
-            width: 100%;
-            height: 4px;
-            background: var(--accent, #7c3aed);
-            opacity: 0.95;
-        }
-
-        .bs-metric-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-        }
-
-        .bs-metric-label {
-            font-size: 0.74rem;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: #9fb0d1;
-            font-weight: 800;
-        }
-
-        .bs-metric-icon {
-            font-size: 1.1rem;
-            opacity: 0.95;
-        }
-
-        .bs-metric-value {
-            margin-top: 12px;
-            font-size: 1.7rem;
-            font-weight: 900;
-            line-height: 1.05;
-            color: #f8fbff;
-        }
-
-        .bs-metric-sub {
-            margin-top: 8px;
-            font-size: 0.86rem;
-            color: #aeb8d0;
-        }
-
-        .bs-score-card {
-            border-radius: 22px;
-            padding: 20px;
-            background:
-                radial-gradient(circle at top left, rgba(124,58,237,0.25), transparent 35%),
-                linear-gradient(135deg, rgba(30,41,59,0.92), rgba(15,23,42,0.98));
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.26);
-        }
-
-        .bs-score-label {
-            font-size: 0.82rem;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-            color: #c4b5fd;
-            font-weight: 800;
-        }
-
-        .bs-score-value {
-            font-size: 3rem;
-            font-weight: 900;
-            margin-top: 8px;
-            line-height: 1;
-        }
-
-        .bs-score-sub {
-            margin-top: 8px;
-            font-size: 0.95rem;
-            color: #cbd5e1;
-        }
-
-        .bs-badge-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .bs-badge {
-            border-radius: 999px;
-            padding: 6px 10px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            background: rgba(255,255,255,0.06);
-        }
-
-        .bs-badge.safe { color: #86efac; }
-        .bs-badge.warn { color: #fde68a; }
-        .bs-badge.risk { color: #fca5a5; }
-        .bs-badge.info { color: #93c5fd; }
-
-        .bs-mini-kpi {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            border-radius: 16px;
-            padding: 12px 14px;
-            min-height: 84px;
-        }
-
-        .bs-mini-kpi .k-label {
-            font-size: 0.72rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #9fb0d1;
-            font-weight: 800;
-        }
-
-        .bs-mini-kpi .k-value {
-            margin-top: 8px;
-            font-size: 1.15rem;
-            font-weight: 800;
-            color: #f8fbff;
-        }
-
-        .bs-poi-card {
-            background: linear-gradient(180deg, rgba(30,41,59,0.78), rgba(15,23,42,0.9));
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            border-left: 4px solid var(--poi-accent, #38bdf8);
-            border-radius: 16px;
-            padding: 14px 14px 12px 14px;
-            min-height: 140px;
-            box-shadow: 0 8px 28px rgba(0,0,0,0.18);
-        }
-
-        .bs-poi-head {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .bs-poi-title {
-            font-size: 0.98rem;
-            font-weight: 800;
-            line-height: 1.25;
-        }
-
-        .bs-poi-type {
-            margin-top: 4px;
-            color: #9fb0d1;
-            font-size: 0.82rem;
-        }
-
-        .bs-poi-distance {
-            margin-top: 10px;
-            font-size: 0.86rem;
-            font-weight: 800;
-            color: var(--poi-accent, #38bdf8);
-        }
-
-        .bs-poi-actions {
-            margin-top: 12px;
-            font-size: 0.84rem;
-        }
-
-        .bs-risk-box {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            border-radius: 16px;
-            padding: 14px;
-            min-height: 120px;
-        }
-
-        .bs-risk-title {
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #9fb0d1;
-            font-weight: 800;
-            margin-bottom: 8px;
-        }
-
-        .bs-risk-value {
-            font-size: 1.1rem;
-            font-weight: 800;
-            margin-bottom: 6px;
-        }
-
-        .bs-risk-copy {
-            color: #cbd5e1;
-            font-size: 0.9rem;
-            line-height: 1.45;
-        }
-
-        .bs-weather-strip {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-        }
-
-        .bs-weather-tile {
-            min-width: 128px;
-            border-radius: 16px;
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            background: rgba(255,255,255,0.04);
-            padding: 12px;
-        }
-
-        .bs-weather-time {
-            font-size: 0.78rem;
-            color: #9fb0d1;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        .bs-weather-temp {
-            margin-top: 10px;
-            font-size: 1.3rem;
-            font-weight: 900;
-        }
-
-        .bs-weather-meta {
-            margin-top: 6px;
-            font-size: 0.84rem;
-            color: #cbd5e1;
-            line-height: 1.45;
-        }
-
-        .bs-surface-row {
-            margin-bottom: 12px;
-        }
-
-        .bs-callout {
-            border-radius: 18px;
-            padding: 16px;
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(56,189,248,0.06));
-        }
-
-        .bs-callout strong {
-            display: block;
-            margin-bottom: 6px;
-        }
-        
-        .bs-hud {
-            margin: 0.4rem 0 1rem 0;
-            padding: 0.9rem 1rem;
-            border-radius: 18px;
-            background:
-                linear-gradient(135deg, rgba(17, 24, 39, 0.92), rgba(15, 23, 42, 0.88)),
-                radial-gradient(circle at top right, rgba(34, 197, 94, 0.10), transparent 35%);
-            border: 1px solid rgba(148, 163, 184, 0.14);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-        }
-        
-        .bs-hud-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.7rem;
-        }
-        
-        .bs-hud-kicker {
-            font-size: 0.68rem;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-            color: #86efac;
-            font-weight: 800;
-            margin-bottom: 0.18rem;
-        }
-        
-        .bs-hud-title {
-            font-size: 1.15rem;
-            font-weight: 900;
-            font-style: italic;
-            letter-spacing: -0.03em;
-            color: #ffffff;
-        }
-        
-        .bs-hud-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-            gap: 0.55rem;
-        }
-        
-        .bs-hud-chip {
-            padding: 0.55rem 0.7rem;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.035);
-            border: 1px solid rgba(148, 163, 184, 0.10);
-        }
-        
-        .bs-hud-chip span {
-            display: block;
-            font-size: 0.64rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--muted);
-            margin-bottom: 0.15rem;
-        }
-        
-        .bs-hud-chip strong {
-            display: block;
-            font-size: 0.92rem;
-            font-weight: 800;
-            color: #f8fafc;
-        }
-        
-        .bs-hud {
-            margin: 0.1rem 0 1rem 0;
-            padding: 0.9rem 1rem;
-            border-radius: 18px;
-            background:
-                linear-gradient(135deg, rgba(17, 24, 39, 0.92), rgba(15, 23, 42, 0.88)),
-                radial-gradient(circle at top right, rgba(34, 197, 94, 0.10), transparent 35%);
-            border: 1px solid rgba(148, 163, 184, 0.14);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-        }
-        
-        .bs-hud-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.7rem;
-        }
-        
-        .bs-hud-kicker {
-            font-size: 0.68rem;
-            text-transform: uppercase;
-            letter-spacing: 0.14em;
-            color: #86efac;
-            font-weight: 800;
-            margin-bottom: 0.18rem;
-        }
-        
-        .bs-hud-title {
-            font-size: 1.15rem;
-            font-weight: 900;
-            font-style: italic;
-            letter-spacing: -0.03em;
-            color: #ffffff;
-        }
-        
-        .bs-hud-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-            gap: 0.55rem;
-        }
-        
-        .bs-hud-chip {
-            padding: 0.55rem 0.7rem;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.035);
-            border: 1px solid rgba(148, 163, 184, 0.10);
-        }
-        
-        .bs-hud-chip span {
-            display: block;
-            font-size: 0.64rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--muted);
-            margin-bottom: 0.15rem;
-        }
-        
-        .bs-hud-chip strong {
-            display: block;
-            font-size: 0.92rem;
-            font-weight: 800;
-            color: #f8fafc;
-        }
-        
-        .bs-intensity-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.55rem 0.9rem;
-            border-radius: 999px;
-            background: color-mix(in srgb, var(--badge-color) 16%, rgba(15, 23, 42, 0.92));
-            border: 1px solid color-mix(in srgb, var(--badge-color) 45%, rgba(255, 255, 255, 0.10));
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
-            margin-bottom: 0.75rem;
-        }
-        
-        .bs-intensity-dot {
-            width: 0.6rem;
-            height: 0.6rem;
-            border-radius: 999px;
-            background: var(--badge-color);
-            box-shadow: 0 0 12px var(--badge-color);
-            display: inline-block;
-        }
-        
-        .bs-intensity-label {
-            font-size: 0.78rem;
-            font-weight: 900;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            color: #f8fafc;
-        }
-        
-        .bs-warning-ribbon {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.45rem;
-            margin-bottom: 1rem;
-        }
-        
-        .bs-warning-chip {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.45rem 0.7rem;
-            border-radius: 999px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #f8fafc;
-            background: color-mix(in srgb, var(--chip-color) 14%, rgba(15, 23, 42, 0.92));
-            border: 1px solid color-mix(in srgb, var(--chip-color) 38%, rgba(255, 255, 255, 0.10));
-            line-height: 1;
-        }
-        
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 def get_local_model_path(model_name: str) -> str:
     return os.path.join(LOCAL_MODELS_DIR, AVAILABLE_MODELS[model_name]["file"])
@@ -615,12 +193,18 @@ def load_llm(model_name: str, n_gpu_layers: int):
     if not os.path.exists(path):
         return None
 
+    kwargs = {}
+    if "Qwen3.5" in model_name:
+        kwargs["chat_template_kwargs"] = {"enable_thinking": False}
+
     return Llama(
         model_path=path,
         n_ctx=8192,
         n_gpu_layers=n_gpu_layers,
         verbose=False,
+        **kwargs,
     )
+
 
 def generate_tactical_response(messages_history: list, llm_instance: Llama, mission_context: dict | None = None) -> str:
     json_schema = {
@@ -769,16 +353,7 @@ Examples:
     return response["choices"][0]["message"]["content"].strip()
 
 
-def resolve_location_query(args: dict, user_input: str) -> str | None:
-    return (
-            args.get("location_name")
-            or st.session_state.get("last_location_query")
-            or extract_location_hint(user_input)
-            or (st.session_state.get("mission_context") or {}).get("location_name")
-    )
-
-
-def update_mission_context(
+def _update_mission_context(
         location_name: str,
         lat: float,
         lon: float,
@@ -808,242 +383,32 @@ def update_mission_context(
     st.session_state["mission_history"] = history
 
 
-def metric_card(label: str, value: str, icon: str, accent: str, sub: str = "") -> None:
-    st.markdown(
-        f"""
-        <div class="bs-metric-card" style="--accent:{accent};">
-            <div class="bs-metric-top">
-                <div class="bs-metric-label">{label}</div>
-                <div class="bs-metric-icon">{icon}</div>
-            </div>
-            <div class="bs-metric-value">{value}</div>
-            <div class="bs-metric-sub">{sub}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+def _append_mission_summary(text: str) -> str:
+    ctx = st.session_state.get("mission_context") or {}
+    if not ctx:
+        return text
+    return f"{text}\n\n[{summarize_mission(ctx)}]"
+
+
+def _execute_and_store_request(plan_request: dict, history_label: str | None = None) -> None:
+    with st.chat_message("assistant"):
+        assistant_text, had_visual_result = execute_plan_request(plan_request)
+        if not had_visual_result:
+            st.markdown(assistant_text)
+
+    stored_text = history_label if history_label else assistant_text
+    st.session_state["messages"].append(
+        {
+            "role": "assistant",
+            "content": _append_mission_summary(stored_text),
+        }
     )
-
-
-def section_intro(title: str, subtitle: str = "") -> None:
-    st.markdown(
-        f"""
-        <div class="bs-section">
-            <h3>{title}</h3>
-            <p>{subtitle}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def mini_kpi(label: str, value: str) -> None:
-    st.markdown(
-        f"""
-        <div class="bs-mini-kpi">
-            <div class="k-label">{label}</div>
-            <div class="k-value">{value}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-def render_sidebar() -> tuple[str, int]:
-    with st.sidebar:
-        st.markdown(
-            """
-            <div class="bs-sidebar-brand">
-                <span class="bs-sidebar-bike">Bike</span><span class="bs-sidebar-scout">Scout</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.caption("AI for tactical cycling intelligence")
-
-        st.subheader("Routing & API")
-        ors_key = st.text_input(
-            "OpenRouteService key",
-            value=st.session_state.get("ors_api_key", ""),
-            type="password",
-            help="Required for routing, geocoding, and trail analysis.",
-        )
-        if ors_key:
-            st.session_state["ors_api_key"] = ors_key
-            os.environ["ORS_API_KEY"] = ors_key
-
-        st.subheader("Local model")
-        selected_model_name = st.selectbox("Model", list(AVAILABLE_MODELS.keys()))
-        st.caption(AVAILABLE_MODELS[selected_model_name]["description"])
-
-        gpu_enabled = st.toggle("GPU acceleration", value=True)
-        n_layers = -1 if gpu_enabled else 0
-
-        model_path = get_local_model_path(selected_model_name)
-        if not os.path.exists(model_path):
-            if st.button(f"Download {selected_model_name}", use_container_width=True):
-                with st.status("Downloading local model...", expanded=True):
-                    os.makedirs(LOCAL_MODELS_DIR, exist_ok=True)
-                    hf_hub_download(
-                        repo_id=AVAILABLE_MODELS[selected_model_name]["repo"],
-                        filename=AVAILABLE_MODELS[selected_model_name]["file"],
-                        local_dir=LOCAL_MODELS_DIR,
-                        local_dir_use_symlinks=False,
-                    )
-                    st.success("Model downloaded. Reloading...")
-                    st.rerun()
-            st.warning("A local model is required to use the chat planner.")
-
-
-        if st.button("Clear chat & mission", use_container_width=True):
-            st.session_state["messages"] = []
-            st.session_state["mission_context"] = {}
-            st.session_state["mission_history"] = []
-            st.session_state["last_location_query"] = None
-            st.session_state["last_raw_distance"] = 25.0
-            st.rerun()
-
-        return selected_model_name, n_layers
-
-def render_quick_presets():
-    st.markdown("#### Quick presets")
-    c1, c2, c3 = st.columns(3)
-
-    selected_request = None
-
-    with c1:
-        if st.button("Quick gravel", use_container_width=True):
-            selected_request = {
-                "route_mode": "loop",
-                "start_location": "Trento, Italy",
-                "destination_location": None,
-                "distance": 35.0,
-                "bike_type": "gravel",
-                "tire_size": "700c",
-                "complexity": 3,
-                "goal": "scenic",
-                "include_poi": True,
-                "include_weather": True,
-                "include_mud": True,
-                "include_nutrition": False,
-                "include_gpx": False,
-                "include_altimetry": True,
-                "ui_label": "Gravel Loop near Trento",
-            }
-
-    with c2:
-        if st.button("Quick road", use_container_width=True):
-            selected_request = {
-                "route_mode": "loop",
-                "start_location": "Verona, Italy",
-                "destination_location": None,
-                "distance": 50.0,
-                "bike_type": "road",
-                "tire_size": "700c",
-                "complexity": 3,
-                "goal": "training",
-                "include_poi": True,
-                "include_weather": True,
-                "include_mud": False,
-                "include_nutrition": True,
-                "include_gpx": False,
-                "include_altimetry": True,
-                "ui_label": "Road Training Loop near Verona",
-            }
-
-    with c3:
-        if st.button("Quick MTB", use_container_width=True):
-            selected_request = {
-                "route_mode": "loop",
-                "start_location": "Bergamo, Italy",
-                "destination_location": None,
-                "distance": 28.0,
-                "bike_type": "mtb",
-                "tire_size": "29",
-                "complexity": 4,
-                "goal": "technical",
-                "include_poi": False,
-                "include_weather": True,
-                "include_mud": True,
-                "include_nutrition": False,
-                "include_gpx": False,
-                "include_altimetry": True,
-                "ui_label": "MTB Technical Loop near Bergamo",
-            }
-
-    return selected_request
-
-def render_mission_hud(
-        title: str,
-        bike_type: str,
-        route_mode: str,
-        distance_km: float | None = None,
-        elevation_m: float | None = None,
-        eta_text: str | None = None,
-        weather_text: str | None = None,
-        surface_text: str | None = None,
-) -> None:
-    chips = []
-
-    if distance_km is not None:
-        chips.append(f'<div class="bs-hud-chip"><span>Distance</span><strong>{distance_km:.1f} km</strong></div>')
-    if elevation_m is not None:
-        chips.append(f'<div class="bs-hud-chip"><span>Elevation</span><strong>{int(elevation_m)} m</strong></div>')
-    if eta_text:
-        chips.append(f'<div class="bs-hud-chip"><span>ETA</span><strong>{eta_text}</strong></div>')
-    if weather_text:
-        chips.append(f'<div class="bs-hud-chip"><span>Weather</span><strong>{weather_text}</strong></div>')
-    if surface_text:
-        chips.append(f'<div class="bs-hud-chip"><span>Surface</span><strong>{surface_text}</strong></div>')
-
-    st.markdown(
-        f"""
-        <div class="bs-hud">
-            <div class="bs-hud-top">
-                <div class="bs-hud-title-wrap">
-                    <div class="bs-hud-kicker">{bike_type.upper()} · {route_mode.upper()}</div>
-                    <div class="bs-hud-title">{title}</div>
-                </div>
-            </div>
-            <div class="bs-hud-grid">
-                {''.join(chips)}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-def render_mission_intensity_badge(label: str, color: str) -> None:
-    html = f"""
-    <div class="bs-intensity-badge" style="--badge-color:{color};">
-        <span class="bs-intensity-dot"></span>
-        <span class="bs-intensity-label">{label}</span>
-    </div>
-    """
-    st.markdown(html, unsafe_allow_html=True)
-
-
-def render_warning_ribbon(warnings: list[tuple[str, str]]) -> None:
-    if not warnings:
-        return
-
-    chips_html = "".join(
-        f'<div class="bs-warning-chip" style="--chip-color:{color};">{text}</div>'
-        for text, color in warnings
-    )
-
-    html = f"""
-    <div class="bs-warning-ribbon">
-        {chips_html}
-    </div>
-    """
-    st.markdown(html, unsafe_allow_html=True)
 
 def render_chat_tab(llm):
     section_intro(
         "AI Ride Planner",
         "Chat with BikeScout to generate route plans, tactical overlays, logistics, and exports.",
     )
-
-    preset_request = render_quick_presets()
 
     if not st.session_state["messages"]:
         render_empty_state(
@@ -1058,43 +423,16 @@ def render_chat_tab(llm):
     pending_plan_request = st.session_state.get("pending_plan_request")
     manual_input = st.chat_input("Describe your ride mission...")
 
-    if preset_request:
-        st.info("Quick preset selected. Running route analysis...")
-        with st.chat_message("assistant"):
-            assistant_text, had_visual_result = execute_plan_request(preset_request)
-            if not had_visual_result:
-                st.markdown(assistant_text)
-
-        ctx = st.session_state.get("mission_context") or {}
-        location_note = f"\n\n[{summarize_mission(ctx)}]" if ctx else ""
-        summary_text = preset_request.get("ui_label") or assistant_text
-
-        st.session_state["messages"].append(
-            {"role": "assistant", "content": summary_text + location_note}
-        )
-        return
-
     if pending_plan_request:
         st.session_state["pending_plan_request"] = None
         st.session_state["pending_chat_prompt"] = None
         st.session_state["pending_chat_hidden"] = False
 
         st.info("Mission received from Plan a Ride. Running route analysis...")
-
-        with st.chat_message("assistant"):
-            assistant_text, had_visual_result = execute_plan_request(pending_plan_request)
-            if not had_visual_result:
-                st.markdown(assistant_text)
-
-        ctx = st.session_state.get("mission_context") or {}
-        location_note = f"\n\n[{summarize_mission(ctx)}]" if ctx else ""
-        st.session_state["messages"].append(
-            {"role": "assistant", "content": assistant_text + location_note}
-        )
+        _execute_and_store_request(pending_plan_request)
         return
 
-    user_input = manual_input
-    if not user_input:
+    if not manual_input:
         return
 
     if llm is None:
@@ -1102,9 +440,9 @@ def render_chat_tab(llm):
             st.error("Local model not available. Download a model from the sidebar first.")
         return
 
-    st.session_state["messages"].append({"role": "user", "content": user_input})
+    st.session_state["messages"].append({"role": "user", "content": manual_input})
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(manual_input)
 
     llm_messages = list(st.session_state["messages"])
 
@@ -1114,7 +452,7 @@ def render_chat_tab(llm):
             llm,
             mission_context=st.session_state.get("mission_context"),
         )
-        final_briefing, had_visual_result = process_local_mcp_request(raw_output, user_input)
+        final_briefing, had_visual_result = process_local_mcp_request(raw_output, manual_input)
         clean_briefing = re.sub(r"(?i)TOOL:.*", "", final_briefing, flags=re.DOTALL).strip()
 
         generic_briefings = {
@@ -1133,31 +471,13 @@ def render_chat_tab(llm):
         else:
             assistant_text = "Mission generated successfully."
 
-    ctx = st.session_state.get("mission_context") or {}
-    location_note = f"\n\n[{summarize_mission(ctx)}]" if ctx else ""
-
     st.session_state["messages"].append(
         {
             "role": "assistant",
-            "content": assistant_text + location_note,
+            "content": _append_mission_summary(assistant_text),
         }
     )
 
-def _normalize_direction_bias(value) -> list[str]:
-    if not value:
-        return []
-    if isinstance(value, str):
-        value = [value]
-
-    allowed = {"north", "south", "east", "west"}
-    normalized = []
-
-    for item in value:
-        item_str = str(item).strip().lower()
-        if item_str in allowed and item_str not in normalized:
-            normalized.append(item_str)
-
-    return normalized
 
 def execute_plan_request(plan_request: dict):
     if not plan_request:
@@ -1180,7 +500,7 @@ def execute_plan_request(plan_request: dict):
         complexity_val = clamp_complexity(plan_request.get("complexity", 3))
         raw_distance = ext_cast(plan_request.get("distance"), float, 25.0)
 
-        direction_bias = _normalize_direction_bias(plan_request.get("direction_bias"))
+        direction_bias = normalize_direction_bias(plan_request.get("direction_bias"))
         avoid_urban = bool(plan_request.get("avoid_urban", False))
         prefer_rural = bool(plan_request.get("prefer_rural", False))
         distance_flex_percent = max(
@@ -1209,7 +529,7 @@ def execute_plan_request(plan_request: dict):
             dest_lon = float(geo_dest.lon)
             dest_display = getattr(geo_dest, "display_name", destination_location)
 
-        update_mission_context(
+        _update_mission_context(
             getattr(geo, "display_name", start_location),
             geo.lat,
             geo.lon,
@@ -1282,214 +602,6 @@ def execute_plan_request(plan_request: dict):
         with st.expander("Technical details"):
             st.code(f"{type(e).__name__}: {e}", language="text")
         return "Unable to complete route planning.", False
-
-def compute_readiness_score(info: dict, conditions: dict, logistics: dict) -> tuple[int, str, list[str]]:
-    score = 82
-    badges: list[str] = []
-
-    difficulty = str(info.get("difficulty", "")).lower()
-    if "hard" in difficulty or "expert" in difficulty:
-        score -= 12
-        badges.append("Hard route")
-    elif "moderate" in difficulty:
-        score -= 5
-        badges.append("Moderate load")
-
-    mud = ((conditions or {}).get("mud_risk") or {}).get("tactical_analysis", {})
-    mud_score = str(mud.get("mud_risk_score", "")).lower()
-    if "high" in mud_score:
-        score -= 18
-        badges.append("High mud risk")
-    elif "moderate" in mud_score:
-        score -= 9
-        badges.append("Moderate mud")
-
-    safety = (conditions or {}).get("safety_advice") or {}
-    wind_risk = ext_cast(safety.get("wind_risk_score"), int, 0)
-    if wind_risk >= 8:
-        score -= 15
-        badges.append("Strong wind")
-    elif wind_risk >= 5:
-        score -= 7
-        badges.append("Wind caution")
-
-    pois = (logistics or {}).get("nearby_amenities") or []
-    if pois:
-        score += 4
-        badges.append("Support points nearby")
-
-    score = max(0, min(100, score))
-    if score >= 80:
-        status = "Go"
-    elif score >= 60:
-        status = "Caution"
-    else:
-        status = "Risk"
-
-    return score, status, badges
-
-def compute_mission_intensity(info: dict, conditions: dict, logistics: dict) -> tuple[str, str]:
-    difficulty = ext_cast(info.get("difficulty"), float, 0)
-    ascent = ext_cast(info.get("ascent_m"), float, 0)
-    distance = ext_cast(info.get("distance_km"), float, 0)
-    route_type = str(info.get("route_type", "")).lower()
-
-    surface_analysis = info.get("surface_analysis", {}) or {}
-    tactical = surface_analysis.get("tactical_briefing", {}) or {}
-    climb_category = str(tactical.get("climb_category", "")).lower()
-
-    mud_data = conditions.get("mud_risk", {}) or {}
-    tactical_mud = mud_data.get("tactical_analysis", {}) or {}
-    mud_score_raw = str(tactical_mud.get("mud_risk_score", "0")).strip().lower()
-
-    if "high" in mud_score_raw:
-        mud_score = 3
-    elif "medium" in mud_score_raw:
-        mud_score = 2
-    elif "low" in mud_score_raw:
-        mud_score = 1
-    else:
-        mud_score = ext_cast(mud_score_raw, float, 0)
-
-    intensity_score = 0
-    intensity_score += difficulty * 1.5
-    intensity_score += 2 if distance >= 80 else 1 if distance >= 45 else 0
-    intensity_score += 2 if ascent >= 1800 else 1 if ascent >= 800 else 0
-    intensity_score += 1 if "point" in route_type else 0
-    intensity_score += 1 if "cat" in climb_category or "steep" in climb_category else 0
-    intensity_score += 1 if mud_score >= 2 else 0
-
-    if intensity_score <= 2:
-        return "RECOVERY", "#38bdf8"
-    if intensity_score <= 4:
-        return "ENDURANCE", "#22c55e"
-    if intensity_score <= 6:
-        return "ADVENTURE", "#f59e0b"
-    if intensity_score <= 8:
-        return "TECHNICAL", "#ef4444"
-    return "EXPEDITION", "#a855f7"
-
-
-def build_warning_ribbon(info: dict, conditions: dict, logistics: dict) -> list[tuple[str, str]]:
-    warnings = []
-
-    safety = conditions.get("safety_advice", {}) or {}
-    wind_risk = ext_cast(safety.get("wind_risk_score"), float, 0)
-    if wind_risk >= 7:
-        warnings.append(("High wind exposure", "#f59e0b"))
-    elif wind_risk >= 4:
-        warnings.append(("Moderate wind exposure", "#fbbf24"))
-
-    mud_data = conditions.get("mud_risk", {}) or {}
-    tactical_mud = mud_data.get("tactical_analysis", {}) or {}
-    mud_level = str(tactical_mud.get("mud_risk_score", "")).lower()
-    if "high" in mud_level:
-        warnings.append(("High mud risk", "#8b5cf6"))
-    elif "medium" in mud_level:
-        warnings.append(("Moderate mud risk", "#a78bfa"))
-
-    ascent = ext_cast(info.get("ascent_m"), float, 0)
-    if ascent >= 1800:
-        warnings.append(("Major climbing load", "#fb7185"))
-    elif ascent >= 900:
-        warnings.append(("Sustained climbing", "#f97316"))
-
-    pois = logistics.get("nearby_amenities", {}) or []
-    if isinstance(pois, list) and len(pois) <= 2:
-        warnings.append(("Limited support coverage", "#38bdf8"))
-
-    nutrition = logistics.get("nutrition_plan", {}) or {}
-    if nutrition:
-        briefing_nut = nutrition.get("mission_nutrition_briefing", {}) or {}
-        fluids = briefing_nut.get("fluids", {}) or {}
-        total_liters = ext_cast(fluids.get("total_liters"), float, 0)
-        if total_liters >= 2.5:
-            warnings.append(("High hydration demand", "#06b6d4"))
-
-    surface_analysis = info.get("surface_analysis", {}) or {}
-    mechanical = surface_analysis.get("mechanical_setup", {}) or {}
-    if mechanical and not mechanical.get("compatible", True):
-        warnings.append(("Bike setup mismatch", "#ef4444"))
-
-    return warnings[:5]
-
-
-def render_weather_tiles_native(weather_data) -> None:
-    if not weather_data:
-        return
-
-    rows = [weather_data[i:i + 5] for i in range(0, len(weather_data), 5)]
-
-    for row in rows:
-        cols = st.columns(len(row))
-        for idx, w in enumerate(row):
-            with cols[idx]:
-                time_label = str(w.get("time", "Time"))
-                temp_raw = str(w.get("temp", "N/A"))
-                app_raw = str(w.get("app_temp", "N/A"))
-                rain_raw = str(w.get("rain_prob", "N/A"))
-                wind_raw = str(w.get("wind", w.get("wind_speed", "N/A")))
-
-                st.markdown(
-                    f"""
-                    <div class="bs-risk-box">
-                        <div class="bs-risk-title">{time_label}</div>
-                        <div class="bs-risk-value">{temp_raw}</div>
-                        <div class="bs-risk-copy">
-                            Apparent: {app_raw}<br/>
-                            Rain: {rain_raw}<br/>
-                            Wind: {wind_raw}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-def render_score_card(score: int, status: str, badges: list[str]) -> None:
-    color = "#22c55e" if status == "Go" else "#f59e0b" if status == "Caution" else "#ef4444"
-    st.markdown(
-        f"""
-        <div class="bs-score-card">
-            <div class="bs-score-label">Ride readiness score</div>
-            <div class="bs-score-value" style="color:{color};">{score}/100</div>
-            <div class="bs-score-sub">Decision: <strong>{status}</strong></div>
-            <div class="bs-badge-row">
-                {''.join([f'<div class="bs-badge {"safe" if status=="Go" else "warn" if status=="Caution" else "risk"}">{b}</div>' for b in badges[:5]])}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def get_surface_icon(surface_type: str) -> str:
-    s = surface_type.lower()
-    if "asphalt" in s or "tarmac" in s or "paved" in s:
-        return "🛣️"
-    if "gravel" in s or "sterrato" in s:
-        return "🪨"
-    if "dirt" in s or "trail" in s or "singletrack" in s:
-        return "🌲"
-    if "mud" in s:
-        return "🟤"
-    if "sand" in s:
-        return "🏖️"
-    return "🗺️"
-
-
-def get_poi_style(poi_type: str) -> tuple[str, str]:
-    t = poi_type.lower()
-    if "water" in t or "fontan" in t or "drink" in t:
-        return "💧", "#38bdf8"
-    if "shop" in t or "repair" in t or "bike" in t or "meccan" in t:
-        return "🔧", "#f59e0b"
-    if "food" in t or "restaur" in t or "bar" in t or "caf" in t:
-        return "☕", "#22c55e"
-    if "shelter" in t or "hotel" in t or "camp" in t:
-        return "🏠", "#a78bfa"
-    if "hospital" in t or "first aid" in t or "med" in t:
-        return "🚨", "#ef4444"
-    return "📍", "#94a3b8"
 
 
 def render_route_results(res_data: dict) -> None:
@@ -1638,7 +750,7 @@ def render_route_results(res_data: dict) -> None:
 
         mechanical = surface_analysis.get("mechanical_setup", {}) or {}
         if mechanical:
-            with st.expander("Mechanical setup", expanded=False):
+            with st.expander("Mechanical setup", expanded=True):
                 m1, m2, m3 = st.columns(3)
 
                 setup_details_list = mechanical.get("setup_details", []) or []
@@ -1911,7 +1023,7 @@ def render_route_results(res_data: dict) -> None:
     if nutrition:
         briefing_nut = nutrition.get("mission_nutrition_briefing", {}) or {}
         section_intro("Nutrition & hydration", "Fueling strategy aligned with distance, intensity, and environmental load.")
-        with st.expander("Fueling details", expanded=False):
+        with st.expander("Fueling details", expanded=True):
             fluids = briefing_nut.get("fluids", {}) or {}
             carbs = briefing_nut.get("carbohydrates", {}) or {}
             sodium = briefing_nut.get("electrolytes", {}) or {}
@@ -1970,93 +1082,6 @@ def render_route_results(res_data: dict) -> None:
                     use_container_width=True,
                 )
 
-def _extract_direction_bias_from_text(user_input: str) -> list[str]:
-    text = (user_input or "").lower()
-    bias = []
-
-    if "south" in text:
-        bias.append("south")
-    if "north" in text:
-        bias.append("north")
-    if "east" in text:
-        bias.append("east")
-    if "west" in text:
-        bias.append("west")
-
-    return list(dict.fromkeys(bias))
-
-
-def _extract_avoid_urban_from_text(user_input: str) -> bool:
-    text = (user_input or "").lower()
-    patterns = [
-        "avoid urban",
-        "avoid the city",
-        "avoid city",
-        "avoid urban streets",
-        "stay out of the city",
-        "less urban",
-        "non-urban",
-    ]
-    return any(p in text for p in patterns)
-
-
-def _extract_prefer_rural_from_text(user_input: str) -> bool:
-    text = (user_input or "").lower()
-    patterns = [
-        "prefer countryside",
-        "countryside roads",
-        "prefer rural",
-        "rural roads",
-        "open countryside",
-        "quieter roads",
-        "quiet roads",
-        "country roads",
-        "scenic roads",
-    ]
-    return any(p in text for p in patterns)
-
-
-def _extract_distance_flex_from_text(user_input: str) -> tuple[int, str | None]:
-    text = (user_input or "").lower()
-
-    if any(p in text for p in [
-        "exactly",
-        "as close as possible",
-        "precisely",
-        "exact distance",
-    ]):
-        return 0, "distance_first"
-
-    if any(p in text for p in [
-        "doesn't have to be exact",
-        "does not have to be exact",
-        "roughly",
-        "around",
-        "about",
-        "approximately",
-    ]):
-        return 10, "balanced"
-
-    if any(p in text for p in [
-        "ride character matters more",
-        "vibe matters more",
-        "more about the ride quality",
-        "prefer the character of the ride",
-    ]):
-        return 15, "ride_character_first"
-
-    return 10, None
-
-
-def _extract_distance_km_from_text(user_input: str):
-    text = user_input or ""
-    match = re.search(r"\b(\d+(?:\.\d+)?)\s*km\b", text.lower())
-    if not match:
-        return None
-    try:
-        return float(match.group(1))
-    except ValueError:
-        return None
 
 def process_local_mcp_request(raw_llm_json: str, user_input: str):
     res_data = None
@@ -2083,11 +1108,11 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             tool_name = tool_data.get("name")
             args = tool_data.get("args") or {}
 
-            parsed_distance = _extract_distance_km_from_text(user_input)
-            parsed_direction_bias = _extract_direction_bias_from_text(user_input)
-            parsed_avoid_urban = _extract_avoid_urban_from_text(user_input)
-            parsed_prefer_rural = _extract_prefer_rural_from_text(user_input)
-            parsed_flex_percent, parsed_priority_mode = _extract_distance_flex_from_text(user_input)
+            parsed_distance = extract_distance_km_from_text(user_input)
+            parsed_direction_bias = extract_direction_bias_from_text(user_input)
+            parsed_avoid_urban = extract_avoid_urban_from_text(user_input)
+            parsed_prefer_rural = extract_prefer_rural_from_text(user_input)
+            parsed_flex_percent, parsed_priority_mode = extract_distance_flex_from_text(user_input)
 
             if parsed_distance is not None and not args.get("distance"):
                 args["distance"] = parsed_distance
@@ -2166,7 +1191,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 final_bike,
                 )
 
-            direction_bias = _normalize_direction_bias(
+            direction_bias = normalize_direction_bias(
                 args.get("direction_bias")
                 or (st.session_state.get("mission_context") or {}).get("direction_bias")
             )
@@ -2205,7 +1230,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
                 priority_mode = "balanced"
 
-            update_mission_context(
+            _update_mission_context(
                 display_name,
                 geo.lat,
                 geo.lon,
@@ -2231,7 +1256,14 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 "longitude": float(args.get("longitude")),
                 "tire_size": normalized_tire_size,
                 "include_weather": True,
-                "include_mud_analysis": final_bike != "road",
+                "include_mud_analysis": (
+                        wants_overlay(
+                            user_input,
+                            args.get("include_mud_analysis"),
+                            ("mud", "muddy", "wet trail", "trail condition", "trail conditions"),
+                        )
+                        or (final_bike != "road" and args.get("include_mud_analysis") is not False)
+                ),
                 "include_nutrition_plan": wants_overlay(
                     user_input,
                     args.get("include_nutrition_plan"),
@@ -2292,7 +1324,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             result = trail_scout_simple(**valid_args)
             res_data = result.model_dump() if hasattr(result, "model_dump") else result
 
-            with st.expander("Raw engine response (res_data)", expanded=False):
+            with st.expander("Engine debug - Response", expanded=False):
                 st.json(res_data)
 
             if not res_data or res_data.get("status") != "Success":
@@ -2672,67 +1704,11 @@ def render_gpx_tab():
             except Exception as e:
                 st.error(f"Error while parsing GPX: {e}")
 
-def render_rider_profile_panel() -> None:
-    profile = st.session_state["rider_profile"]
-
-    section_intro(
-        "Rider profile",
-        "Personal defaults used across planning, fueling, and route recommendations.",
-    )
-
-    with st.expander("Open rider settings", expanded=False):
-        c1, c2, c3 = st.columns(3)
-
-        with c1:
-            profile["bike_type"] = st.selectbox(
-                "Default bike",
-                ["mtb", "road", "gravel", "e-mtb", "enduro"],
-                index=["mtb", "road", "gravel", "e-mtb", "enduro"].index(profile["bike_type"]),
-                key="rider_profile_bike_type",
-            )
-
-            available_tires = ["32", "29", "27.5", "700c", "650b"]
-            current_tire = profile["tire_size"] if profile["tire_size"] in available_tires else "29"
-            profile["tire_size"] = st.selectbox(
-                "Default tire size",
-                available_tires,
-                index=available_tires.index(current_tire),
-                key="rider_profile_tire_size",
-            )
-
-        with c2:
-            profile["fitness_level"] = st.selectbox(
-                "Fitness level",
-                ["beginner", "intermediate", "pro"],
-                index=["beginner", "intermediate", "pro"].index(profile["fitness_level"]),
-                key="rider_profile_fitness_level",
-            )
-
-            profile["weight_kg"] = st.number_input(
-                "Weight (kg)",
-                min_value=40.0,
-                max_value=150.0,
-                value=float(profile["weight_kg"]),
-                key="rider_profile_weight",
-            )
-
-        with c3:
-            profile["gender"] = st.selectbox(
-                "Gender",
-                ["male", "female"],
-                index=["male", "female"].index(profile["gender"]),
-                key="rider_profile_gender",
-            )
-
-            metric_card("Bike", profile["bike_type"], "🚲", "#7c3aed", "Default ride setup")
-            metric_card("Tire", profile["tire_size"], "🛞", "#38bdf8", "Tool-safe normalized value")
-
-        st.session_state["rider_profile"] = profile
 
 def main():
     init_session_state()
     inject_global_styles()
-    inject_premium_component_styles()
+    inject_component_styles()
 
     selected_model_name, n_layers = render_sidebar()
     llm = load_llm(selected_model_name, n_layers) if os.path.exists(get_local_model_path(selected_model_name)) else None

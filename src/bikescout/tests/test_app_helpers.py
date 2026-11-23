@@ -1,6 +1,6 @@
 import pytest
 
-from bikescout.domain_logic import (
+from bikescout.app_helpers import (
     build_mission_snapshot,
     clamp_complexity,
     ext_cast,

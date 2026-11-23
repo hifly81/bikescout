@@ -63,6 +63,11 @@ test = [
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.0",
 ]
+dev = [
+    "lefthook>=1.11.0",
+    "ruff>=0.9.0",
+    "pyright>=1.1.390",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,0 +1,16 @@
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: python
+      glob: src/**/*.py
+      group:
+        piped: true
+        jobs:
+          #- run: uv run ruff check --fix {staged_files}
+            #stage_fixed: true
+          #- run: uv run ruff format {staged_files}
+            #stage_fixed: true
+          #- run: uv run pyright
+          - run: uv run pytest --cov=src/bikescout --cov-fail-under=80

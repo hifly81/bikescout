@@ -1,9 +1,15 @@
-from unittest.mock import patch, MagicMock
-from bikescout.mcp_server import geocode_location, trail_scout, trail_scout_simple, hydration_scout, analyze_gpx_track
+from unittest.mock import patch
+
+from bikescout.mcp_server import (
+    analyze_gpx_track,
+    geocode_location,
+    hydration_scout,
+    trail_scout,
+    trail_scout_simple,
+)
 
 
 class TestMcpServer:
-
     @patch("bikescout.mcp_server.get_coordinates")
     def test_geocode_location(self, m_geo):
         m_geo.return_value = {
@@ -13,14 +19,13 @@ class TestMcpServer:
             "display_name": "Passo Gardena",
             "importance": 0.8,
             "place_class": "peak",
-            "place_type": "mountain"
+            "place_type": "mountain",
         }
 
         response = geocode_location("Passo Gardena")
 
         assert response.status == "Success"
         assert response.lat == 46.54
-
 
     @patch("bikescout.mcp_server.get_complete_trail_scout")
     @patch("bikescout.mcp_server.ORS_API_KEY", "mocked_valid_api_key")
@@ -54,26 +59,26 @@ class TestMcpServer:
                             "traction_risk": "Low",
                             "trail_damage_risk": "None",
                             "dry_time_eta": "0h",
-                            "safety_advice": "Perfect grip"
-                        }
+                            "safety_advice": "Perfect grip",
+                        },
                     },
                     "mechanical_setup": {
                         "tire_pressure_psi": 25.0,
                         "compatible": True,
                         "setup_details": ["Check brakes", "Lube chain"],
                         "bike_type": "mtb",
-                        "safety_warnings": []
+                        "safety_warnings": [],
                     },
                     "surface_breakdown": [
                         {"type": "dirt", "percentage": "80%"},
-                        {"type": "gravel", "percentage": "20%"}
-                    ]
-                }
+                        {"type": "gravel", "percentage": "20%"},
+                    ],
+                },
             },
             "conditions": {
                 "reference_conditions": {"temp": 20.0, "wind_speed": 10.0},
                 "tactical_forecast": [],
-                "max_temp_detected": "20.0°C"
+                "max_temp_detected": "20.0°C",
             },
             "logistics": {
                 "nutrition_plan": {
@@ -82,10 +87,10 @@ class TestMcpServer:
                         "fluids": {"ml_per_hour": 500},
                         "carbohydrates": {"grams_per_hour": 60},
                         "electrolytes": {"tablets_per_hour": 1},
-                        "tactical_advice": ["Drink often"]
-                    }
+                        "tactical_advice": ["Drink often"],
+                    },
                 },
-                "water_points": []
+                "water_points": [],
             },
             "gpx_stats": {"points": 150, "healed_segments": 0},
             "map_path": "map.png",
@@ -93,16 +98,11 @@ class TestMcpServer:
             "elevation_profile_path": "profile.png",
             "mcp_resource_uri_map": "bikescout://maps/map.png",
             "mcp_resource_uri_gpx": "bikescout://gpx/route.gpx",
-            "mcp_resource_uri_elevation_profile": "bikescout://altimetry/profile.png"
+            "mcp_resource_uri_elevation_profile": "bikescout://altimetry/profile.png",
         }
 
-
         response = trail_scout(
-            latitude=45.0,
-            longitude=9.0,
-            rider=None,
-            bike=None,
-            mission=None
+            latitude=45.0, longitude=9.0, rider=None, bike=None, mission=None
         )
 
         assert response.status == "Success"
@@ -113,11 +113,7 @@ class TestMcpServer:
     def test_trail_scout_missing_api_key_error(self, m_scout):
 
         response = trail_scout(
-            latitude=45.0,
-            longitude=9.0,
-            rider=None,
-            bike=None,
-            mission=None
+            latitude=45.0, longitude=9.0, rider=None, bike=None, mission=None
         )
 
         m_scout.assert_not_called()
@@ -128,29 +124,20 @@ class TestMcpServer:
     def test_hydration_scout_flow(self, m_nut, m_weather):
         m_weather.return_value = {
             "tactical_forecast": [{"temp": "28.0°C"}],
-            "metadata": {"date_analyzed": "2026-06-15"}
+            "metadata": {"date_analyzed": "2026-06-15"},
         }
 
         m_nut.return_value = {
             "status": "Success",
             "mission_nutrition_briefing": {
-                "fluids": {
-                    "total_ml": 1600,
-                    "ml_per_hour": 800
-                },
-                "carbohydrates": {
-                    "total_grams": 180,
-                    "grams_per_hour": 90
-                },
-                "electrolytes": {
-                    "salts_mg": 1200,
-                    "tablets_per_hour": 1
-                },
+                "fluids": {"total_ml": 1600, "ml_per_hour": 800},
+                "carbohydrates": {"total_grams": 180, "grams_per_hour": 90},
+                "electrolytes": {"salts_mg": 1200, "tablets_per_hour": 1},
                 "tactical_advice": [
                     "Drink early and often due to 28°C heat.",
-                    "Pre-hydrate with 500ml of electrolytes 1 hour before start."
-                ]
-            }
+                    "Pre-hydrate with 500ml of electrolytes 1 hour before start.",
+                ],
+            },
         }
 
         response = hydration_scout(lat=45.0, lon=9.0, duration_hours=2.0)
@@ -164,21 +151,18 @@ class TestMcpServer:
             "status": "Success",
             "mode": "ROAD",
             "target_date": "2026-05-08",
-            "track_metrics": {
-                "distance_km": 50.5,
-                "total_ascent": 800
-            },
+            "track_metrics": {"distance_km": 50.5, "total_ascent": 800},
             "climb_analysis": [],
             "performance_simulation": [],
             "tactical_alerts": [],
             "planning_tools": {
                 "weather": {"temp": "20°C"},
                 "nutrition": "Standard Plan",
-                "mud_risk": "None"
+                "mud_risk": "None",
             },
             "pre_climb_positioning": [],
             "tactical_action_zones": [],
-            "report_path": "/tmp/race_report.pdf"
+            "report_path": "/tmp/race_report.pdf",
         }
 
         response = analyze_gpx_track(gpx_url="https://tour.com/stage1.gpx", report=True)
@@ -199,10 +183,13 @@ class TestMcpServer:
             target_date=None,
             start_hour=None,
             end_hour=None,
-            report=True
+            report=True,
         )
 
     def test_trail_scout_simple_error_handling(self):
-        with patch("bikescout.mcp_server.RiderProfile", side_effect=Exception("Validation Error")):
+        with patch(
+            "bikescout.mcp_server.RiderProfile",
+            side_effect=ValueError("Validation Error"),
+        ):
             response = trail_scout_simple(latitude=45.0, longitude=9.0)
             assert response.status == "Error"

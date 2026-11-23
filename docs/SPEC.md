@@ -26,7 +26,7 @@ Standard consumer navigation platforms optimize for shortest path or generic roa
 ## 3. Functional Capabilities & Domain Modules
 
 ### 3.1 Geospatial Routing & Geocoding Engine
-- **Capabilities:** Forward/reverse geocoding, round-trip loop synthesis, and A-to-B routing powered by OpenRouteService (`ORS_API_KEY`).
+- **Capabilities:** Forward/reverse geocoding, round-trip loop synthesis, and A-to-B routing powered by OpenRouteService.
 - **Tactical Routing Controls:**
   - Directional corridor biasing (`north`, `south`, `east`, `west`).
   - Environment filtering (`avoid_urban`, `prefer_rural`).

@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-import bikescout.ui_helpers as ui_helpers
+import bikescout.app_ui_helpers as ui_helpers
 
 
 class TestInjectGlobalStyles:
@@ -16,8 +16,9 @@ class TestInjectGlobalStyles:
         assert "<style>" in args[0]
         assert "--bg:" in args[0]
         assert ".bs-hero" in args[0]
-        assert 'https://fonts.googleapis.com/css2?family=Inter' in args[0]
+        assert "https://fonts.googleapis.com/css2?family=Inter" in args[0]
         assert kwargs["unsafe_allow_html"] is True
+
 
 class TestRenderEmptyState:
     def test_renders_empty_state(self, monkeypatch):

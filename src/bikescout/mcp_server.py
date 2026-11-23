@@ -16,18 +16,31 @@
 
 import os
 import sys
+from pathlib import Path
+from typing import Literal
+
 from dotenv import load_dotenv
 from fastmcp import FastMCP
-from pathlib import Path
-from typing import Literal, Optional
-from bikescout.schemas import RiderProfile, BikeSetup, MissionConstraints, RouteSurfaceResponse, GpxRaceAuditResponse, WeatherContext, HydrationScoutResponse, StrategicPlannerResponse, TacticalForecastResponse, FullMissionBriefingResponse, GeocodingResponse
-from bikescout.tools.scouting import get_complete_trail_scout
-from bikescout.tools.weather import get_weather_forecast
+from pydantic import ValidationError
+
+from bikescout.schemas import (
+    BikeSetup,
+    FullMissionBriefingResponse,
+    GeocodingResponse,
+    GpxRaceAuditResponse,
+    HydrationScoutResponse,
+    MissionConstraints,
+    RiderProfile,
+    StrategicPlannerResponse,
+    TacticalForecastResponse,
+    WeatherContext,
+)
 from bikescout.tools.geocoding import get_coordinates
 from bikescout.tools.gonogo import calculate_ride_windows
-from bikescout.tools.altimetry import get_elevation_profile_image
 from bikescout.tools.nutrition import get_nutrition_plan
 from bikescout.tools.race.analysis import analyze_track
+from bikescout.tools.scouting import get_complete_trail_scout
+from bikescout.tools.weather import get_weather_forecast
 
 mcp = FastMCP("BikeScout")
 
@@ -35,6 +48,7 @@ load_dotenv()
 
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 ORS_API_KEY = os.getenv("ORS_API_KEY")
+
 
 @mcp.tool()
 def geocode_location(location_name: str, language: str = "en") -> GeocodingResponse:
@@ -55,24 +69,25 @@ def geocode_location(location_name: str, language: str = "en") -> GeocodingRespo
     data = get_coordinates(location_name, language)
     return GeocodingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
 
+
 @mcp.tool()
 def trail_scout(
-        latitude: float,
-        longitude: float,
-        rider: RiderProfile,
-        bike: BikeSetup,
-        mission: MissionConstraints,
-        dest_latitude: Optional[float] = None,
-        dest_longitude: Optional[float] = None,
-        style: Literal["sparkline", "filled", "bars"] = "filled",
-        target_date: Optional[str] = None,
-        include_gpx: bool = True,
-        include_map: bool = False,
-        include_poi: bool = False,
-        include_altimetry: bool = False,
-        include_weather: bool = False,
-        include_mud_analysis: bool = False,
-        include_nutrition_plan: bool = False
+    latitude: float,
+    longitude: float,
+    rider: RiderProfile,
+    bike: BikeSetup,
+    mission: MissionConstraints,
+    dest_latitude: float | None = None,
+    dest_longitude: float | None = None,
+    style: Literal["sparkline", "filled", "bars"] = "filled",
+    target_date: str | None = None,
+    include_gpx: bool = True,
+    include_map: bool = False,
+    include_poi: bool = False,
+    include_altimetry: bool = False,
+    include_weather: bool = False,
+    include_mud_analysis: bool = False,
+    include_nutrition_plan: bool = False,
 ) -> FullMissionBriefingResponse:
     """
     Advanced trail discovery.
@@ -123,51 +138,78 @@ def trail_scout(
 
     if not ORS_API_KEY:
         print("Error: ORS_API_KEY is not set.", file=sys.stderr)
-        print("Please set the ORS_API_KEY environment variable or add it to your .env file.", file=sys.stderr)
-        print("You can get a free key at https://openrouteservice.org/", file=sys.stderr)
+        print(
+            "Please set the ORS_API_KEY environment variable or add it to your .env file.",
+            file=sys.stderr,
+        )
+        print(
+            "You can get a free key at https://openrouteservice.org/", file=sys.stderr
+        )
         return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION,
-            status="Error"
+            payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
         )
 
     data = get_complete_trail_scout(
-        ORS_API_KEY, latitude, longitude, rider, bike, mission, dest_latitude, dest_longitude,
-        style, target_date, include_gpx, include_map, include_poi, include_altimetry, include_weather, include_mud_analysis, include_nutrition_plan)
-    return FullMissionBriefingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+        ORS_API_KEY,
+        latitude,
+        longitude,
+        rider,
+        bike,
+        mission,
+        dest_latitude,
+        dest_longitude,
+        style,
+        target_date,
+        include_gpx,
+        include_map,
+        include_poi,
+        include_altimetry,
+        include_weather,
+        include_mud_analysis,
+        include_nutrition_plan,
+    )
+    return FullMissionBriefingResponse(
+        payload_version=BIKESCOUT_PROTOCOL_VERSION, **data
+    )
+
 
 @mcp.tool()
 def trail_scout_simple(
-        latitude: float,
-        longitude: float,
-        weight_kg: float = 75.0,
-        gender: Literal['male', 'female'] = "male",
-        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-        fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
-        bike_type: Literal['mtb', 'road', 'gravel', 'e-mtb', 'enduro'] = "mtb",
-        tire_size: Literal["32", "29", "27.5", "700c", "650b"] = "29",
-        is_ebike: bool = False,
-        battery_wh: int = 625,
-        total_length_km: int = 30,
-        profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = "cycling-mountain",
-        surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
-        complexity: int = 3,
-        seed: int = 42,
-        assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
-        direction_bias: Optional[list[str]] = None,
-        avoid_urban: bool = False,
-        prefer_rural: bool = False,
-        distance_flex_percent: int = 10,
-        priority_mode: Literal["balanced", "distance_first", "ride_character_first"] = "balanced",
-        dest_latitude: Optional[float] = None,
-        dest_longitude: Optional[float] = None,
-        style: Literal["sparkline", "filled", "bars"] = "filled",
-        include_gpx: bool = True,
-        include_map: bool = False,
-        include_poi: bool = False,
-        include_altimetry: bool = False,
-        include_weather: bool = False,
-        include_mud_analysis: bool = False,
-        include_nutrition_plan: bool = False
+    latitude: float,
+    longitude: float,
+    weight_kg: float = 75.0,
+    gender: Literal["male", "female"] = "male",
+    sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+    fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
+    bike_type: Literal["mtb", "road", "gravel", "e-mtb", "enduro"] = "mtb",
+    tire_size: Literal["32", "29", "27.5", "700c", "650b"] = "29",
+    is_ebike: bool = False,
+    battery_wh: int = 625,
+    total_length_km: int = 30,
+    profile: Literal[
+        "cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"
+    ] = "cycling-mountain",
+    surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = "neutral",
+    complexity: int = 3,
+    seed: int = 42,
+    assist_mode: Literal["Eco", "Trail", "Boost"] = "Eco",
+    direction_bias: list[str] | None = None,
+    avoid_urban: bool = False,
+    prefer_rural: bool = False,
+    distance_flex_percent: int = 10,
+    priority_mode: Literal[
+        "balanced", "distance_first", "ride_character_first"
+    ] = "balanced",
+    dest_latitude: float | None = None,
+    dest_longitude: float | None = None,
+    style: Literal["sparkline", "filled", "bars"] = "filled",
+    include_gpx: bool = True,
+    include_map: bool = False,
+    include_poi: bool = False,
+    include_altimetry: bool = False,
+    include_weather: bool = False,
+    include_mud_analysis: bool = False,
+    include_nutrition_plan: bool = False,
 ) -> FullMissionBriefingResponse:
     """
     Simplified tactical scout for cycling routes.
@@ -239,14 +281,14 @@ def trail_scout_simple(
             weight_kg=weight_kg,
             gender=gender,
             fitness_level=fitness_level,
-            sweat_profile=sweat_profile
+            sweat_profile=sweat_profile,
         )
 
         bike = BikeSetup(
             bike_type=bike_type,
             tire_size=tire_size,
             is_ebike=is_ebike,
-            battery_wh=battery_wh
+            battery_wh=battery_wh,
         )
 
         mission = MissionConstraints(
@@ -278,17 +320,19 @@ def trail_scout_simple(
             include_altimetry=include_altimetry,
             include_weather=include_weather,
             include_mud_analysis=include_mud_analysis,
-            include_nutrition_plan=include_nutrition_plan
+            include_nutrition_plan=include_nutrition_plan,
         )
 
-    except Exception:
+    except (ValueError, KeyError, RuntimeError, ValidationError):
         return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION,
-            status="Error"
+            payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
         )
+
 
 @mcp.tool()
-def check_trail_weather(lat: float, lon: float, target_date: Optional[str] = None) -> TacticalForecastResponse:
+def check_trail_weather(
+    lat: float, lon: float, target_date: str | None = None
+) -> TacticalForecastResponse:
     """
     Advanced cycling-specific weather assistant for real-time and future planning.
     Provides temperature, rain risk, and wind speed analysis.
@@ -313,13 +357,14 @@ def check_trail_weather(lat: float, lon: float, target_date: Optional[str] = Non
     data = get_weather_forecast(lat, lon, target_date)
     return TacticalForecastResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
 
+
 @mcp.tool()
 def ride_window_planner(
-        lat: float,
-        lon: float,
-        ride_duration_hours: float = 2.0,
-        surface_type: Literal["dirt", "gravel", "asphalt", "sand", "clay"] = "dirt",
-        target_date: Optional[str] = None
+    lat: float,
+    lon: float,
+    ride_duration_hours: float = 2.0,
+    surface_type: Literal["dirt", "gravel", "asphalt", "sand", "clay"] = "dirt",
+    target_date: str | None = None,
 ) -> StrategicPlannerResponse:
     """
     Tactical Go/No-Go Planner.
@@ -342,19 +387,22 @@ def ride_window_planner(
         - mud_risk_impact: The percentage of mission success affected by soil saturation.
     """
 
-    data = calculate_ride_windows(lat, lon, ride_duration_hours, surface_type, target_date)
+    data = calculate_ride_windows(
+        lat, lon, ride_duration_hours, surface_type, target_date
+    )
     return StrategicPlannerResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+
 
 @mcp.tool()
 def hydration_scout(
-        lat: float,
-        lon: float,
-        duration_hours: float = 2,
-        intensity_score: int = 3,
-        weight_kg: float = 70.0,
-        gender: str = "male",
-        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-        target_date: Optional[str] = None
+    lat: float,
+    lon: float,
+    duration_hours: float = 2,
+    intensity_score: int = 3,
+    weight_kg: float = 70.0,
+    gender: str = "male",
+    sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+    target_date: str | None = None,
 ) -> HydrationScoutResponse:
     """
     Physiological Intelligence Engine.
@@ -405,34 +453,39 @@ def hydration_scout(
 
     # 3. Execute the Nutrition Logic
     # The engine calculates carbs/hour and ml/hour based on heat and intensity
-    data = get_nutrition_plan(duration_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile)
+    data = get_nutrition_plan(
+        duration_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile
+    )
 
     context = WeatherContext(
-        date_referenced=weather_data.get("metadata", {}).get("date_analyzed", target_date),
+        date_referenced=weather_data.get("metadata", {}).get(
+            "date_analyzed", target_date
+        ),
         max_temp_detected=f"{max_temp}°C",
-        is_future_event=weather_data.get("metadata", {}).get("is_future_planning", False)
+        is_future_event=weather_data.get("metadata", {}).get(
+            "is_future_planning", False
+        ),
     )
 
     return HydrationScoutResponse(
-        payload_version=BIKESCOUT_PROTOCOL_VERSION,
-        weather_context=context,
-        **data
+        payload_version=BIKESCOUT_PROTOCOL_VERSION, weather_context=context, **data
     )
+
 
 @mcp.tool()
 def analyze_gpx_track(
-        gpx_url: str,
-        rider_weight_kg: float = 75,
-        rider_gender: Literal["male", "female"] = "male",
-        rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
-        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-        bike_weight_kg: float = 8.5,
-        pro_intensity: float = 1.3,
-        activity_type: Literal["road", "mtb"] = "road",
-        target_date: Optional[str] = None,
-        start_hour: Optional[int] = None,
-        end_hour: Optional[int] = None,
-        report: bool = False
+    gpx_url: str,
+    rider_weight_kg: float = 75,
+    rider_gender: Literal["male", "female"] = "male",
+    rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
+    sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+    bike_weight_kg: float = 8.5,
+    pro_intensity: float = 1.3,
+    activity_type: Literal["road", "mtb"] = "road",
+    target_date: str | None = None,
+    start_hour: int | None = None,
+    end_hour: int | None = None,
+    report: bool = False,
 ) -> GpxRaceAuditResponse:
     """
     Performs a high-fidelity professional audit of a GPX race track.
@@ -467,21 +520,21 @@ def analyze_gpx_track(
     """
 
     data = analyze_track(
-            gpx_url=gpx_url,
-            rider_weight_kg=rider_weight_kg,
-            rider_gender=rider_gender,
-            rider_fitness_level=rider_fitness_level,
-            sweat_profile=sweat_profile,
-            bike_weight_kg=bike_weight_kg,
-            pro_intensity=pro_intensity,
-            activity_type=activity_type,
-            target_date=target_date,
-            start_hour=start_hour,
-            end_hour=end_hour,
-            report=report
+        gpx_url=gpx_url,
+        rider_weight_kg=rider_weight_kg,
+        rider_gender=rider_gender,
+        rider_fitness_level=rider_fitness_level,
+        sweat_profile=sweat_profile,
+        bike_weight_kg=bike_weight_kg,
+        pro_intensity=pro_intensity,
+        activity_type=activity_type,
+        target_date=target_date,
+        start_hour=start_hour,
+        end_hour=end_hour,
+        report=report,
     )
 
-    return GpxRaceAuditResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION,**data)
+    return GpxRaceAuditResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
 
 
 @mcp.resource("bikescout://altimetry/{filename}")
@@ -491,12 +544,14 @@ def serve_altimetry_image(filename: str) -> bytes:
         raise FileNotFoundError("Altimetry not found.")
     return file_path.read_bytes()
 
+
 @mcp.resource("bikescout://maps/{filename}")
 def serve_map_image(filename: str) -> bytes:
     file_path = Path.home() / ".bikescout" / "maps" / filename
     if not file_path.exists():
         raise FileNotFoundError("Map not found.")
     return file_path.read_bytes()
+
 
 @mcp.resource("bikescout://gpx/{filename}")
 def serve_gpx(filename: str) -> bytes:
@@ -518,13 +573,14 @@ def main():
     if transport_mode == "sse":
         # Remote mode: Requires a host and port (defaulting to 0.0.0.0 for Docker/Cloud)
         host = os.getenv("BIKESCOUT_HOST", "0.0.0.0")
-        port = int(os.getenv("BIKESCOUT_PORT", 8000))
+        port = int(os.getenv("BIKESCOUT_PORT", "8000"))
 
         print(f"Starting BikeScout Server in SSE mode on {host}:{port}")
-        mcp.run(transport='sse', host=host, port=port)
+        mcp.run(transport="sse", host=host, port=port)
     else:
         # Local mode: Standard I/O transport
-        mcp.run(transport='stdio')
+        mcp.run(transport="stdio")
+
 
 if __name__ == "__main__":
     main()

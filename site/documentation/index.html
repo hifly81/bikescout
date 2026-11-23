@@ -525,21 +525,33 @@
                     <p class="text-slate-400 mb-6 font-medium">To integrate BikeScout with your preferred MCP client (e.g. Claude Desktop, Cursor, Google Antigravity), add the following configuration to your settings file:</p>
 
                     <ol class="list-decimal list-outside ml-6 text-slate-300 text-sm mb-4 space-y-4">
-                        <li>
+                        <li style="margin-bottom: 1.5rem;">
                             Clone the repository:
-                            <div class="code-block">git clone git@github.com:hifly81/bikescout.git</div>
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-clone">git clone git@github.com:hifly81/bikescout.git</code></pre>
+                                <button onclick="copyToClipboard('mcp-clone', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
-                        <li>
+                        <li style="margin-bottom: 1.5rem;">
                             Create a Python virtual environment:
-                            <div class="code-block">python3 -m venv venv</div>
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-venv">python3 -m venv venv</code></pre>
+                                <button onclick="copyToClipboard('mcp-venv', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
-                        <li>
+                        <li style="margin-bottom: 1.5rem;">
                             Activate the Python virtual environment:
-                            <div class="code-block">source venv/bin/activate</div>
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-venv-act">source venv/bin/activate/code</code></pre>
+                                <button onclick="copyToClipboard('mcp-venv-act', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
-                        <li>
+                        <li style="margin-bottom: 1.5rem;">
                             Install the BikeScout package:
-                            <div class="code-block">pip install bikescout</div>
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-pip">pip install bikescout</code></pre>
+                                <button onclick="copyToClipboard('mcp-pip', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
                     </ol>
 
@@ -567,7 +579,11 @@
 
 
                     <div class="code-block">
-<pre>
+
+
+
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-conf"><pre>
 {
   "mcpServers": {
     "bikescout": {
@@ -580,7 +596,13 @@
     }
   }
 }
-</pre>
+</pre></code></pre>
+                                <button onclick="copyToClipboard('mcp-conf', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+
+
+
+
                     </div>
                 </div>
             </div>
@@ -602,9 +624,13 @@
                     <p class="text-slate-400 mb-6 font-medium">To integrate BikeScout Skills with your preferred MCP client (e.g. Claude Desktop, Cursor, Google Antigravity), follow these steps:</p>
 
                     <ol class="list-decimal list-outside ml-6 text-slate-300 text-sm mb-4 space-y-4">
-                        <li>
+
+                        <li style="margin-bottom: 1.5rem;">
                             Clone the repository:
-                            <div class="code-block">git clone git@github.com:hifly81/bikescout.git</div>
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-skill-clone">git clone git@github.com:hifly81/bikescout.git<</code></pre>
+                                <button onclick="copyToClipboard('mcp-skill-clone', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
                     </ol>
 
@@ -639,13 +665,34 @@
 
                     <ol class="list-decimal list-inside text-slate-300 text-sm mb-4 space-y-4">
                         <li>Download the repository as a ZIP and extract it.</li>
-                        <li>Rename <code>.env.example</code> to <code>.env</code> and paste keys:
-                            <div class="code-block">ORS_API_KEY=your_ors_key_here<br>OPENAI_API_KEY=your_llm_key_here</div>
+                        <li style="margin-bottom: 1.5rem;">
+                            Rename <code>.env.example</code> to <code>.env</code> and paste keys:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-openclaw">ORS_API_KEY=your_ors_key_here<br>OPENAI_API_KEY=your_llm_key_here</code></pre>
+                                <button onclick="copyToClipboard('mcp-openclaw', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
-                        <li>Run:
-                            <div class="code-block">docker-compose up -d</div></li>
-                        <li>Access: <div class="code-block">http://localhost:3000</div></li>
-                        <li>To stop the environment, Run: <div class="code-block">docker-compose down</div></li>
+                        <li style="margin-bottom: 1.5rem;">
+                            Run:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-openclaw-run">docker-compose up -d</code></pre>
+                                <button onclick="copyToClipboard('mcp-openclaw-run', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+                        </li>
+                        <li style="margin-bottom: 1.5rem;">
+                            Access:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-openclaw-access">http://localhost:3000/</code></pre>
+                                <button onclick="copyToClipboard('mcp-openclaw-access', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+                        </li>
+                        <li style="margin-bottom: 1.5rem;">
+                            To stop the environment, Run:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-openclaw-stop">docker compose down</code></pre>
+                                <button onclick="copyToClipboard('mcp-openclaw-stop', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+                        </li>
                     </ol>
                 </div>
 
@@ -662,19 +709,42 @@
                     </div>
                     <ol class="list-decimal list-inside text-slate-300 text-sm mb-4 space-y-4">
                         <li>Download the repository as a ZIP and extract it.</li>
-                        <li>Rename <code>.env.example</code> to <code>.env</code> and paste keys:
-                            <div class="code-block">ORS_API_KEY=your_ors_key_here</div>
+                        <li style="margin-bottom: 1.5rem;">
+                            Rename <code>.env.example</code> to <code>.env</code> and paste keys:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-ollama">ORS_API_KEY=your_ors_key_here</code></pre>
+                                <button onclick="copyToClipboard('mcp-ollama', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
-                        <li>Run:
-                            <div class="code-block">docker compose -f docker-compose-ollama.yml up -d</div>
+                        <li style="margin-bottom: 1.5rem;">
+                            Run:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-ollama-run">docker compose -f docker-compose-ollama.yml up -d</code></pre>
+                                <button onclick="copyToClipboard('mcp-ollama-run', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
-                        <li>Download a LLM model for Ollama, example llama3.1:8b:
-                            <div class="code-block">docker exec -it ollama ollama pull llama3.1:8b</div>
+                        <li style="margin-bottom: 1.5rem;">
+                            Download a LLM model for Ollama, example llama3.1:8b:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-ollama-pull">docker exec -it ollama ollama pull llama3.1:8b</code></pre>
+                                <button onclick="copyToClipboard('mcp-ollama-pull', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
                         </li>
-                        <li>Launch Open WebUI:
-                            <div class="code-block">http://localhost:3000</div> and follow the instructions to create a first user.
+                        <li style="margin-bottom: 1.5rem;">
+                            Launch Open WebUI:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-ollama-access">http://localhost:3000</code></pre>
+                                <button onclick="copyToClipboard('mcp-ollama-access', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+                            and follow the instructions to create a first user
                         </li>
-                        <li>To stop the environment, Run: <div class="code-block">docker-compose -f docker-compose-ollama.yml down</div></li>
+                        <li style="margin-bottom: 1.5rem;">
+                            To stop the environment, Run:
+                            <div style="position: relative; background-color: #0f172a; padding: 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; border: 1px solid #1e293b;">
+                                <pre style="margin: 0; color: #60a5fa; font-family: 'Fira Code', monospace; font-size: 0.9rem;"><code id="mcp-ollama-stop">docker-compose -f docker-compose-ollama.yml down</code></pre>
+                                <button onclick="copyToClipboard('mcp-ollama-stop', this)" style="position: absolute; right: 8px; top: 8px; background: #1e293b; border: 1px solid #334155; color: #94a3b8; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s;">Copy</button>
+                            </div>
+                        </li>
                     </ol>
 
                     <p class="text-slate-400 mb-6">To integrate the MCP tools within the Open WebUI interface, follow these steps:</p>

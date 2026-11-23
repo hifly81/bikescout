@@ -80,6 +80,22 @@ def extract_point_to_point(user_input: str) -> tuple[str, str] | None:
     return None
 
 
+def extract_direction_bias_from_text(user_input: str) -> list[str]:
+    text = (user_input or "").lower()
+    bias = []
+
+    if "south" in text:
+        bias.append("south")
+    if "north" in text:
+        bias.append("north")
+    if "east" in text:
+        bias.append("east")
+    if "west" in text:
+        bias.append("west")
+
+    return list(dict.fromkeys(bias))
+
+
 def resolve_route_mode(args: dict, user_input: str) -> str:
     mode = (args.get("route_mode") or "").lower()
     if mode in ("point_to_point", "a_to_b", "a-b"):
@@ -102,6 +118,7 @@ def normalize_bike_type(raw_bike: str | None) -> tuple[str, bool]:
     if "enduro" in raw or "downhill" in raw:
         return "enduro", False
     return "mtb", False
+
 
 def normalize_tire_size(raw_tire_size: str | None, bike_type: str) -> str:
     allowed = {"32", "29", "27.5", "700c", "650b"}
@@ -147,7 +164,6 @@ def normalize_tire_size(raw_tire_size: str | None, bike_type: str) -> str:
         return "29"
 
     return "29"
-
 
 
 def resolve_profile(final_bike: str) -> str:
@@ -227,3 +243,190 @@ def summarize_mission(ctx: dict) -> str:
         f"{ctx.get('distance_km', '?')} km · "
         f"{ctx.get('bike_type', 'mtb')}"
     )
+
+
+def resolve_location_query(args: dict, user_input: str) -> str | None:
+    return (
+            args.get("location_name")
+            or st.session_state.get("last_location_query")
+            or extract_location_hint(user_input)
+            or (st.session_state.get("mission_context") or {}).get("location_name")
+    )
+
+
+def compute_readiness_score(info: dict, conditions: dict, logistics: dict) -> tuple[int, str, list[str]]:
+    score = 82
+    badges: list[str] = []
+
+    difficulty = str(info.get("difficulty", "")).lower()
+    if "hard" in difficulty or "expert" in difficulty:
+        score -= 12
+        badges.append("Hard route")
+    elif "moderate" in difficulty:
+        score -= 5
+        badges.append("Moderate load")
+
+    mud = ((conditions or {}).get("mud_risk") or {}).get("tactical_analysis", {})
+    mud_score = str(mud.get("mud_risk_score", "")).lower()
+    if "high" in mud_score:
+        score -= 18
+        badges.append("High mud risk")
+    elif "moderate" in mud_score:
+        score -= 9
+        badges.append("Moderate mud")
+
+    safety = (conditions or {}).get("safety_advice") or {}
+    wind_risk = ext_cast(safety.get("wind_risk_score"), int, 0)
+    if wind_risk >= 8:
+        score -= 15
+        badges.append("Strong wind")
+    elif wind_risk >= 5:
+        score -= 7
+        badges.append("Wind caution")
+
+    pois = (logistics or {}).get("nearby_amenities") or []
+    if pois:
+        score += 4
+        badges.append("Support points nearby")
+
+    score = max(0, min(100, score))
+    if score >= 80:
+        status = "Go"
+    elif score >= 60:
+        status = "Caution"
+    else:
+        status = "Risk"
+
+    return score, status, badges
+
+
+def compute_mission_intensity(info: dict, conditions: dict, logistics: dict) -> tuple[str, str]:
+    difficulty = ext_cast(info.get("difficulty"), float, 0)
+    ascent = ext_cast(info.get("ascent_m"), float, 0)
+    distance = ext_cast(info.get("distance_km"), float, 0)
+    route_type = str(info.get("route_type", "")).lower()
+
+    surface_analysis = info.get("surface_analysis", {}) or {}
+    tactical = surface_analysis.get("tactical_briefing", {}) or {}
+    climb_category = str(tactical.get("climb_category", "")).lower()
+
+    mud_data = conditions.get("mud_risk", {}) or {}
+    tactical_mud = mud_data.get("tactical_analysis", {}) or {}
+    mud_score_raw = str(tactical_mud.get("mud_risk_score", "0")).strip().lower()
+
+    if "high" in mud_score_raw:
+        mud_score = 3
+    elif "medium" in mud_score_raw:
+        mud_score = 2
+    elif "low" in mud_score_raw:
+        mud_score = 1
+    else:
+        mud_score = ext_cast(mud_score_raw, float, 0)
+
+    intensity_score = 0
+    intensity_score += difficulty * 1.5
+    intensity_score += 2 if distance >= 80 else 1 if distance >= 45 else 0
+    intensity_score += 2 if ascent >= 1800 else 1 if ascent >= 800 else 0
+    intensity_score += 1 if "point" in route_type else 0
+    intensity_score += 1 if "cat" in climb_category or "steep" in climb_category else 0
+    intensity_score += 1 if mud_score >= 2 else 0
+
+    if intensity_score <= 2:
+        return "RECOVERY", "#38bdf8"
+    if intensity_score <= 4:
+        return "ENDURANCE", "#22c55e"
+    if intensity_score <= 6:
+        return "ADVENTURE", "#f59e0b"
+    if intensity_score <= 8:
+        return "TECHNICAL", "#ef4444"
+    return "EXPEDITION", "#a855f7"
+
+
+def extract_avoid_urban_from_text(user_input: str) -> bool:
+    text = (user_input or "").lower()
+    patterns = [
+        "avoid urban",
+        "avoid the city",
+        "avoid city",
+        "avoid urban streets",
+        "stay out of the city",
+        "less urban",
+        "non-urban",
+    ]
+    return any(p in text for p in patterns)
+
+
+def extract_prefer_rural_from_text(user_input: str) -> bool:
+    text = (user_input or "").lower()
+    patterns = [
+        "prefer countryside",
+        "countryside roads",
+        "prefer rural",
+        "rural roads",
+        "open countryside",
+        "quieter roads",
+        "quiet roads",
+        "country roads",
+        "scenic roads",
+    ]
+    return any(p in text for p in patterns)
+
+
+def extract_distance_flex_from_text(user_input: str) -> tuple[int, str | None]:
+    text = (user_input or "").lower()
+
+    if any(p in text for p in [
+        "exactly",
+        "as close as possible",
+        "precisely",
+        "exact distance",
+    ]):
+        return 0, "distance_first"
+
+    if any(p in text for p in [
+        "doesn't have to be exact",
+        "does not have to be exact",
+        "roughly",
+        "around",
+        "about",
+        "approximately",
+    ]):
+        return 10, "balanced"
+
+    if any(p in text for p in [
+        "ride character matters more",
+        "vibe matters more",
+        "more about the ride quality",
+        "prefer the character of the ride",
+    ]):
+        return 15, "ride_character_first"
+
+    return 10, None
+
+
+def extract_distance_km_from_text(user_input: str):
+    text = user_input or ""
+    match = re.search(r"\b(\d+(?:\.\d+)?)\s*km\b", text.lower())
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def normalize_direction_bias(value) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        value = [value]
+
+    allowed = {"north", "south", "east", "west"}
+    normalized = []
+
+    for item in value:
+        item_str = str(item).strip().lower()
+        if item_str in allowed and item_str not in normalized:
+            normalized.append(item_str)
+
+    return normalized

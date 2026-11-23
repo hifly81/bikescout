@@ -1037,6 +1037,27 @@ def render_warning_ribbon(warnings: list[tuple[str, str]]) -> None:
     """
     st.markdown(html, unsafe_allow_html=True)
 
+def _append_mission_summary(text: str) -> str:
+    ctx = st.session_state.get("mission_context") or {}
+    if not ctx:
+        return text
+    return f"{text}\n\n[{summarize_mission(ctx)}]"
+
+
+def _execute_and_store_request(plan_request: dict, history_label: str | None = None) -> None:
+    with st.chat_message("assistant"):
+        assistant_text, had_visual_result = execute_plan_request(plan_request)
+        if not had_visual_result:
+            st.markdown(assistant_text)
+
+    stored_text = history_label if history_label else assistant_text
+    st.session_state["messages"].append(
+        {
+            "role": "assistant",
+            "content": _append_mission_summary(stored_text),
+        }
+    )
+
 def render_chat_tab(llm):
     section_intro(
         "AI Ride Planner",
@@ -1060,17 +1081,9 @@ def render_chat_tab(llm):
 
     if preset_request:
         st.info("Quick preset selected. Running route analysis...")
-        with st.chat_message("assistant"):
-            assistant_text, had_visual_result = execute_plan_request(preset_request)
-            if not had_visual_result:
-                st.markdown(assistant_text)
-
-        ctx = st.session_state.get("mission_context") or {}
-        location_note = f"\n\n[{summarize_mission(ctx)}]" if ctx else ""
-        summary_text = preset_request.get("ui_label") or assistant_text
-
-        st.session_state["messages"].append(
-            {"role": "assistant", "content": summary_text + location_note}
+        _execute_and_store_request(
+            preset_request,
+            history_label=preset_request.get("ui_label"),
         )
         return
 
@@ -1080,21 +1093,10 @@ def render_chat_tab(llm):
         st.session_state["pending_chat_hidden"] = False
 
         st.info("Mission received from Plan a Ride. Running route analysis...")
-
-        with st.chat_message("assistant"):
-            assistant_text, had_visual_result = execute_plan_request(pending_plan_request)
-            if not had_visual_result:
-                st.markdown(assistant_text)
-
-        ctx = st.session_state.get("mission_context") or {}
-        location_note = f"\n\n[{summarize_mission(ctx)}]" if ctx else ""
-        st.session_state["messages"].append(
-            {"role": "assistant", "content": assistant_text + location_note}
-        )
+        _execute_and_store_request(pending_plan_request)
         return
 
-    user_input = manual_input
-    if not user_input:
+    if not manual_input:
         return
 
     if llm is None:
@@ -1102,9 +1104,9 @@ def render_chat_tab(llm):
             st.error("Local model not available. Download a model from the sidebar first.")
         return
 
-    st.session_state["messages"].append({"role": "user", "content": user_input})
+    st.session_state["messages"].append({"role": "user", "content": manual_input})
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(manual_input)
 
     llm_messages = list(st.session_state["messages"])
 
@@ -1114,7 +1116,7 @@ def render_chat_tab(llm):
             llm,
             mission_context=st.session_state.get("mission_context"),
         )
-        final_briefing, had_visual_result = process_local_mcp_request(raw_output, user_input)
+        final_briefing, had_visual_result = process_local_mcp_request(raw_output, manual_input)
         clean_briefing = re.sub(r"(?i)TOOL:.*", "", final_briefing, flags=re.DOTALL).strip()
 
         generic_briefings = {
@@ -1133,13 +1135,10 @@ def render_chat_tab(llm):
         else:
             assistant_text = "Mission generated successfully."
 
-    ctx = st.session_state.get("mission_context") or {}
-    location_note = f"\n\n[{summarize_mission(ctx)}]" if ctx else ""
-
     st.session_state["messages"].append(
         {
             "role": "assistant",
-            "content": assistant_text + location_note,
+            "content": _append_mission_summary(assistant_text),
         }
     )
 
@@ -1638,7 +1637,7 @@ def render_route_results(res_data: dict) -> None:
 
         mechanical = surface_analysis.get("mechanical_setup", {}) or {}
         if mechanical:
-            with st.expander("Mechanical setup", expanded=False):
+            with st.expander("Mechanical setup", expanded=True):
                 m1, m2, m3 = st.columns(3)
 
                 setup_details_list = mechanical.get("setup_details", []) or []
@@ -1911,7 +1910,7 @@ def render_route_results(res_data: dict) -> None:
     if nutrition:
         briefing_nut = nutrition.get("mission_nutrition_briefing", {}) or {}
         section_intro("Nutrition & hydration", "Fueling strategy aligned with distance, intensity, and environmental load.")
-        with st.expander("Fueling details", expanded=False):
+        with st.expander("Fueling details", expanded=True):
             fluids = briefing_nut.get("fluids", {}) or {}
             carbs = briefing_nut.get("carbohydrates", {}) or {}
             sodium = briefing_nut.get("electrolytes", {}) or {}
@@ -2292,7 +2291,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             result = trail_scout_simple(**valid_args)
             res_data = result.model_dump() if hasattr(result, "model_dump") else result
 
-            with st.expander("Raw engine response (res_data)", expanded=False):
+            with st.expander("Engine debug - Response", expanded=False):
                 st.json(res_data)
 
             if not res_data or res_data.get("status") != "Success":

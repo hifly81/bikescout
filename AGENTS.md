@@ -1,131 +1,47 @@
 # AGENTS.md
 
-This file provides operational instructions for AI agents and developers working on the **BikeScout** repository.
+Operational guide for AI coding agents working on **BikeScout** (AGPL-3.0-only, Python >= 3.10).
 
-## Project
+## Boundaries
 
-BikeScout is an open-source AI engine for MTB, gravel, road and e-bike route planning. It turns raw map data into "Tactical Intelligence": terrain condition prediction, risk analysis, bike setup advice, and GPX generation.
+- **Always:** Keep `PYTHONPATH=src` in mind when running tests/scripts; follow `docs/CODE_STANDARDS.md`; run relevant `pytest` tests after code changes.
+- **Ask first:** Adding or upgrading dependencies in `pyproject.toml`, changing public tool schemas in `src/bikescout/schemas.py`, or altering Streamlit session/mission state contracts.
+- **Never:** Commit secrets or `.env`; modify generated/ignored directories (`models/`, `dist/`, `venv/`, `demo/`); force `chat_format` in `Llama(...)` unless explicitly required by a model's chat template.
 
-- License: AGPL-3.0-only
-- Language: Python >= 3.10
-- Source package: `src/bikescout`
-- MCP server (FastMCP): `src/bikescout/mcp_server.py`
-- GUI: Streamlit (`src/bikescout/app.py`)
-- Tests: `pytest` in `src/bikescout/tests`
-- Coding standards: `docs/CODE_STANDARDS.md`
+## Key entry points & layout
 
-## Tech stack (from pyproject.toml)
+- `src/bikescout/mcp_server.py` — FastMCP server and `@mcp.tool()` registrations.
+- `src/bikescout/app.py`, `app_helpers.py`, `app_ui_helpers.py` — Streamlit GUI, local GGUF downloader/loader, and chat planner.
+- `src/bikescout/schemas.py` — Pydantic v2 models.
+- `src/bikescout/tools/` — Domain tools (`surface.py`, `weather.py`, `geocoding.py`, `mud.py`, `race/`, etc.).
+- `src/bikescout/tests/` — `pytest` suite (`asyncio_mode = auto`, `pythonpath = ["src"]`).
 
-Main dependencies: `fastmcp`, `requests`, `pydantic`, `streamlit`, `matplotlib`, `numpy`, `gpxpy`, `geopy`, `staticmap`, `pillow`, `fpdf`, `astral`, `timezonefinder`, `polyline`, `watchdog`, `huggingface_hub`, `llama-cpp-python`.
-
-## Repository structure
-
-```
-bikescout/
-├── AGENTS.md                 # this file (instructions for AI agents)
-├── README.md                 # user guide and contributing
-├── docs/CODE_STANDARDS.md    # detailed coding standards
-├── pyproject.toml            # metadata, dependencies, pytest/coverage config
-├── Dockerfile / docker-compose.yml
-├── src/
-│   └── bikescout/
-│       ├── __init__.py
-│       ├── app.py              # Streamlit GUI
-│       ├── app_helpers.py
-│       ├── app_ui_helpers.py
-│       ├── config.toml         # Streamlit theme
-│       ├── mcp_server.py       # MCP server + tool registration
-│       ├── schemas.py          # Pydantic request/response models
-│       └── tools/
-│           ├── __init__.py
-│           ├── surface.py      # example: surface/route analysis
-│           ├── weather.py, geocoding.py, mud.py, ...  # domain tools
-│           └── race/           # race analysis
-│       └── tests/
-│           ├── conftest.py     # shared pytest fixtures
-│           ├── test_*.py       # tests for each tool
-│           └── race/
-├── scripts/                  # release, changelog, maintenance scripts
-├── demo/                     # demos (ignored by git)
-├── dist/                     # builds (ignored by git)
-├── models/                   # ML models (ignored by git)
-└── venv/                     # environment (ignored by git)
-```
-
-## Environment variables
-
-Create a `.env` file (not versioned) from `.env.example`. The key variable is:
-
-- `ORS_API_KEY` — OpenRouteService API key required for routing and surface analysis.
-
-## How to start the project
+## Setup, run & test
 
 ```bash
-# 1. Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# 2. Install dependencies (editable mode)
+python -m venv venv && source venv/bin/activate
 pip install -e .
+cp .env.example .env   # set ORS_API_KEY
 
-# 3. Configure environment variables
-cp .env.example .env
-# edit .env and insert ORS_API_KEY
-
-# 4. Start the MCP server
-bikescout   # entry point declared in pyproject.toml
-
-# 5. Or start the Streamlit GUI
-streamlit run src/bikescout/app.py
+bikescout                           # start MCP server
+streamlit run src/bikescout/app.py  # start Streamlit GUI
+pytest                              # run test suite
 ```
 
-Note: `src/` is not a standalone package; `pyproject.toml` declares `packages = ["src/bikescout"]` and tests use `pythonpath = ["src"]`.
+## Adding a new MCP tool
 
-## How to run tests
+1. Create `src/bikescout/tools/<tool_name>.py` with AGPLv3 header, `from __future__ import annotations`, Google-style docstrings, and `try/except` returning structured error dicts/models (no `print`).
+2. Follow the repo service pattern: `<Name>Service` class with injectable dependencies, module-level `service = <Name>Service()`, and a public wrapper function delegating to `service`.
+3. Add Pydantic v2 schemas in `src/bikescout/schemas.py` if needed, and register the tool in `src/bikescout/mcp_server.py`.
+4. Add unit/async tests under `src/bikescout/tests/` and update `README.md` example queries if user-facing.
 
-```bash
-pytest
-# or explicitly setting the pythonpath:
-PYTHONPATH=src pytest src/bikescout/tests
-```
+## Domain & LLM gotchas
 
-Tests live in `src/bikescout/tests/`, with one file per tool module (e.g. `test_surface.py`) and shared fixtures in `conftest.py`. `asyncio_mode = auto`.
+- **GGUF + `llama-cpp-python`:** Newer model families require a compatible `llama-cpp-python` build; rely on GGUF metadata chat templates rather than hardcoding `chat_format`.
+- **Structured JSON outputs (`response_format=json_schema`):** Disable thinking mode on reasoning models (such as `Qwen3.5` via `chat_template_kwargs={"enable_thinking": False}`) so `<think>` blocks do not consume `max_tokens` or pollute JSON fields.
+- **Planner flags & overlays:** Keep option keys consistent across `generate_tactical_response`, `process_local_mcp_request` (`wants_overlay`), and `execute_plan_request` so explicit user requests are not silently overridden by bike-type defaults.
+- **Streamlit model caching:** `@st.cache_resource` caches loaded `Llama` instances; account for VRAM/reloads when switching models.
 
-## How to add a new MCP tool
+## Git conventions
 
-1. Create `src/bikescout/tools/<tool_name>.py` following `docs/CODE_STANDARDS.md`.
-2. Define input/output schemas in `src/bikescout/schemas.py` (Pydantic v2) if they do not exist yet.
-3. Implement the logic in the tool module using the pattern already present in the repo:
-   - service class (e.g. `SurfaceAnalyzerService`) with injectable dependencies in the constructor;
-   - module-level global instance (e.g. `service = SurfaceAnalyzerService()`);
-   - public wrapper function (e.g. `get_surface_analyzer(...)`) that delegates to the instance.
-4. Register the tool in `src/bikescout/mcp_server.py` with the `@mcp.tool()` decorator.
-5. Add tests in `src/bikescout/tests/tools/test_<tool_name>.py`.
-6. Document an example query in `README.md` (Example Queries section) if relevant to users.
-7. Open a PR with a conventional commit, e.g. `feat(tools): add <tool_name>`.
-
-## Coding conventions
-
-See `docs/CODE_STANDARDS.md`. Summary:
-
-- Comments and docstrings in **English** (international collaboration).
-- Every Python file starts with the AGPLv3 license header (see `src/bikescout/mcp_server.py`).
-- `from __future__ import annotations` at the top of modules.
-- Type hints on all public functions; modern generic syntax (`list[...]`, `dict[...]`).
-- `snake_case` for functions/variables, `PascalCase` for classes, `UPPER_CASE` for constants, `_` prefix for privates.
-- Google-style docstrings (`Args:`, `Returns:`).
-- Error handling with `try/except` and returning dictionaries like `{"status": "Error", "message": ...}`; avoid `print`.
-- Tests are mandatory for every new tool with `pytest`.
-
-## Commits
-
-Use [Conventional Commits](https://www.conventionalcommits.org/) with scope, as in the repo history:
-
-- `feat(tools): ...`
-- `fix(analysis): ...`
-- `refactor(chat): ...`
-- `race: ...`
-
-## License and contributions
-
-AGPL-3.0-only. By contributing you agree that your code is released under this license. See `README.md` → Contributing and `LICENSE`.
+Use Conventional Commits with scope (e.g., `feat(tools): ...`, `fix(planner): ...`, `refactor(chat): ...`, `chore(release): ...`).

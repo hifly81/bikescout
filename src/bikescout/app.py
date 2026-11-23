@@ -73,15 +73,20 @@ except ImportError:
     server_loaded = False
 
 AVAILABLE_MODELS = {
-    "Llama-3-8B": {
-        "repo": "MaziyarPanahi/Llama-3-8B-Instruct-v0.1-GGUF",
-        "file": "Llama-3-8B-Instruct-v0.1.Q4_K_M.gguf",
-        "description": "",
+    "Qwen3.5-9B": {
+        "repo": "unsloth/Qwen3.5-9B-GGUF",
+        "file": "Qwen3.5-9B-Q4_K_M.gguf",
+        "description": "~5.7 GB",
     },
-    "Llama-3.1-8B-Instruct": {
-        "repo": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF",
-        "file": "Meta-Llama-3.1-8B-Instruct-Q6_K.gguf",
-        "description": "",
+    "Ministral-3-8B-Instruct": {
+        "repo": "unsloth/Ministral-3-8B-Instruct-2512-GGUF",
+        "file": "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
+        "description": "~5.2 GB",
+    },
+    "Qwen2.5-7B-Instruct": {
+        "repo": "bartowski/Qwen2.5-7B-Instruct-GGUF",
+        "file": "Qwen2.5-7B-Instruct-Q6_K.gguf",
+        "description": "~6.3 GB",
     },
 }
 
@@ -188,11 +193,16 @@ def load_llm(model_name: str, n_gpu_layers: int):
     if not os.path.exists(path):
         return None
 
+    kwargs = {}
+    if "Qwen3.5" in model_name:
+        kwargs["chat_template_kwargs"] = {"enable_thinking": False}
+
     return Llama(
         model_path=path,
         n_ctx=8192,
         n_gpu_layers=n_gpu_layers,
         verbose=False,
+        **kwargs,
     )
 
 
@@ -1246,7 +1256,14 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 "longitude": float(args.get("longitude")),
                 "tire_size": normalized_tire_size,
                 "include_weather": True,
-                "include_mud_analysis": final_bike != "road",
+                "include_mud_analysis": (
+                        wants_overlay(
+                            user_input,
+                            args.get("include_mud_analysis"),
+                            ("mud", "muddy", "wet trail", "trail condition", "trail conditions"),
+                        )
+                        or (final_bike != "road" and args.get("include_mud_analysis") is not False)
+                ),
                 "include_nutrition_plan": wants_overlay(
                     user_input,
                     args.get("include_nutrition_plan"),

@@ -76,17 +76,17 @@ AVAILABLE_MODELS = {
     "Qwen3.5-9B": {
         "repo": "unsloth/Qwen3.5-9B-GGUF",
         "file": "Qwen3.5-9B-Q4_K_M.gguf",
-        "description": "~5.7 GB",
+        "description": "Size: ~5.7 GB",
     },
     "Ministral-3-8B-Instruct": {
         "repo": "unsloth/Ministral-3-8B-Instruct-2512-GGUF",
         "file": "Ministral-3-8B-Instruct-2512-Q4_K_M.gguf",
-        "description": "~5.2 GB",
+        "description": "Size: ~5.2 GB",
     },
     "Qwen2.5-7B-Instruct": {
         "repo": "bartowski/Qwen2.5-7B-Instruct-GGUF",
         "file": "Qwen2.5-7B-Instruct-Q6_K.gguf",
-        "description": "~6.3 GB",
+        "description": "Size: ~6.3 GB",
     },
 }
 
@@ -353,7 +353,7 @@ Examples:
     return response["choices"][0]["message"]["content"].strip()
 
 
-def update_mission_context(
+def _update_mission_context(
         location_name: str,
         lat: float,
         lon: float,
@@ -529,7 +529,7 @@ def execute_plan_request(plan_request: dict):
             dest_lon = float(geo_dest.lon)
             dest_display = getattr(geo_dest, "display_name", destination_location)
 
-        update_mission_context(
+        _update_mission_context(
             getattr(geo, "display_name", start_location),
             geo.lat,
             geo.lon,
@@ -1230,7 +1230,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
                 priority_mode = "balanced"
 
-            update_mission_context(
+            _update_mission_context(
                 display_name,
                 geo.lat,
                 geo.lon,

@@ -1,5 +1,15 @@
 # Changelog - BikeScout
 
+## [1.6.2]
+* chore(release): bump version to 1.6.2 ([8923ced](https://github.com/hifly81/bikescout/commit/8923ced5a6645e9ca24a377658f9952782c69e9c))
+* fix(planner): respect explicit mud analysis requests regardless of bike type ([ed3f2da](https://github.com/hifly81/bikescout/commit/ed3f2da008fba36470ed1c79cdf54cf78e0db003))
+* refatcoring ([45e492d](https://github.com/hifly81/bikescout/commit/45e492d545b0351148eb783ffd6adde88fdb1dae))
+* refactor(app): rewrite Streamlit UI with LangChain ([56ab8ab](https://github.com/hifly81/bikescout/commit/56ab8abe72c00c66f311fa93c1c24e7e67ec1a70))
+* docs: add AGENTS.md and CODE_STANDARDS.md ([85b58a7](https://github.com/hifly81/bikescout/commit/85b58a7ef4f06900162ea05142f9559e7f9892e0))
+* refactor(ui): removed quick preset section ([1b93f55](https://github.com/hifly81/bikescout/commit/1b93f550e6670ebb8f44bce30b6d48ca8b91cf50))
+* refactor(chat): extract shared plan execution and mission summary helpers ([5ec711b](https://github.com/hifly81/bikescout/commit/5ec711b64a874a3085acc4db0b676c643e0b6484))
+* changelog ([e5535e1](https://github.com/hifly81/bikescout/commit/e5535e18a4e4e66c6ff7f4d125d3e4cc1893f069))
+
 ## [1.6.1]
 * race: added wc elite men 2026 montreal ([aa74a49](https://github.com/hifly81/bikescout/commit/aa74a49bc9dc864a1ba304c33f585dcb1ca5a0a1))
 * fix(analysis): add fallbacks for route-based GPX parsing and metrics calculation ([04a5c9c](https://github.com/hifly81/bikescout/commit/04a5c9ce59578b37eed290d9a8baf7aa10e8da71))

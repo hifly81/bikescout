@@ -2,6 +2,27 @@
 
 Operational guide for AI coding agents working on **BikeScout** (AGPL-3.0-only, Python >= 3.10).
 
+## Start here
+
+IMPORTANT: before you plan, build or change anything in the product, or answer questions about it, read each of these files in full:
+
+1. `docs/SPEC.md`: what the business needs.
+2. `docs/TECH_STACK.md`: the tech choices.
+3. `docs/CODE_STANDARDS.md`: how to write the code.
+4. `docs/PROCESS.md`: how to plan, build and check the work.
+
+## Folders 
+
+- `docs/`: the main documentation for the BikeScout build.
+- `src/`: the source code for BikeScout.
+- `.agents/`: collection of BikeScout agent skills.
+- `.claude/settings.json`: Claude Code settings and permissions.
+- `.codeium/windsurf/mcp_config.json`: Windsurf MCP server configuration.
+- `.codex/config.toml`: Codex CLI configuration.
+- `.cursor/mcp.json`: Cursor MCP server configuration.
+- `.gemini/antigravity/mcp_config.json`: Gemini Antigravity MCP server configuration.
+
+
 ## Boundaries
 
 - **Always:** Keep `PYTHONPATH=src` in mind when running tests/scripts; follow `docs/CODE_STANDARDS.md`; run relevant `pytest` tests after code changes.

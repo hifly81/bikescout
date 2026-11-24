@@ -57,38 +57,80 @@ class SurfaceAnalyzerService:
         self.tire_setup_getter = tire_setup_getter or get_tire_setup
         self.battery_drain_calculator = battery_drain_calculator or calculate_battery_drain
 
-    def get_surface_analyzer(self, api_key, lat, lon, rider, bike, mission, target_date: str = None):
+    def get_surface_analyzer(
+            self,
+            api_key,
+            lat,
+            lon,
+            rider,
+            bike,
+            mission,
+            target_date: str | None = None,
+            route_feature: dict[str, Any] | None = None,
+    ):
+        """
+        Analyze surface, terrain and mechanical setup for a cycling route.
+
+        When ``route_feature`` is supplied (as the orchestrator does with the
+        route it already selected), its geometry and extra info are analyzed
+        directly. No second ORS request is made, so the reported distance,
+        ascent and climb metrics always describe the very same geometry that is
+        exported to GPX, map and altimetry. Without a provided feature the
+        service keeps its standalone behavior and requests a route from ORS.
+
+        Args:
+            api_key: OpenRouteService API key.
+            lat: Starting latitude, used for mud intelligence on the standalone path.
+            lon: Starting longitude, used for mud intelligence on the standalone path.
+            rider: Rider profile.
+            bike: Bike setup.
+            mission: Mission constraints.
+            target_date: Optional target date for mud analysis.
+            route_feature: Optional ORS route feature to analyze instead of
+                requesting a new route from ORS.
+        Returns:
+            A structured surface analysis report with status "Success" or "Error".
+        """
         safe_complexity = self._safe_complexity(getattr(mission, "complexity", 10))
         safe_length = self._safe_length_m(getattr(mission, "total_length_km", 0))
-        attempts = self._attempts_for_profile(getattr(mission, "profile", "cycling-regular"))
+        if route_feature is not None:
+            attempts = [(str(getattr(mission, "profile", "cycling-regular")), [])]
+        else:
+            attempts = self._attempts_for_profile(getattr(mission, "profile", "cycling-regular"))
 
         last_error = ""
         for current_profile, requested_extras in attempts:
             try:
-                url = f"https://api.openrouteservice.org/v2/directions/{current_profile}/geojson"
-                headers = {"Authorization": api_key, "Content-Type": "application/json"}
+                if route_feature is not None:
+                    data = {"features": [route_feature]}
+                else:
+                    url = f"https://api.openrouteservice.org/v2/directions/{current_profile}/geojson"
+                    headers = {"Authorization": api_key, "Content-Type": "application/json"}
 
-                body = self._request_body(
-                    lat=lat,
-                    lon=lon,
-                    mission=mission,
-                    safe_length=safe_length,
-                    safe_complexity=safe_complexity,
-                    requested_extras=requested_extras,
-                )
+                    body = self._request_body(
+                        lat=lat,
+                        lon=lon,
+                        mission=mission,
+                        safe_length=safe_length,
+                        safe_complexity=safe_complexity,
+                        requested_extras=requested_extras,
+                    )
 
-                res = self.http_session.post(url, json=body, headers=headers, timeout=self.config.ors_timeout_seconds)
+                    res = self.http_session.post(
+                        url, json=body, headers=headers, timeout=self.config.ors_timeout_seconds
+                    )
 
-                if res.status_code != 200:
-                    try:
-                        detail = res.json().get("error", {}).get("message", res.text)
-                    except Exception:
-                        detail = res.text
+                    if res.status_code != 200:
+                        try:
+                            detail = res.json().get("error", {}).get("message", res.text)
+                        except Exception:
+                            detail = res.text
 
-                    last_error = f"ORS {res.status_code}: {detail}"
-                    continue
+                        last_error = f"ORS {res.status_code}: {detail}"
+                        continue
 
-                data = res.json()
+                    data = res.json()
+
                 feature = data["features"][0]
                 props = feature.get("properties", {})
                 geometry = feature.get("geometry", {}).get("coordinates", [])
@@ -186,7 +228,7 @@ class SurfaceAnalyzerService:
                 }
 
             except Exception as e:
-                last_error = f"Local processing error: {str(e)}"
+                last_error = f"Local processing error: {e!s}"
                 continue
 
         return {"status": "Error", "message": f"Global failure: {last_error}"}
@@ -306,7 +348,16 @@ class SurfaceAnalyzerService:
 service = SurfaceAnalyzerService()
 
 
-def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None) -> dict[str, Any]:
+def get_surface_analyzer(
+        api_key,
+        lat,
+        lon,
+        rider,
+        bike,
+        mission,
+        target_date: str | None = None,
+        route_feature: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return service.get_surface_analyzer(
         api_key=api_key,
         lat=lat,
@@ -315,4 +366,5 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
         bike=bike,
         mission=mission,
         target_date=target_date,
+        route_feature=route_feature,
     )

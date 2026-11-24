@@ -565,7 +565,7 @@ def make_service(session):
             "safety_advice": {"status": "? [GO]"},
         },
         weather_windowing=lambda weather_report, start, end: weather_report,
-        surface_analyzer=lambda api_key, latitude, longitude, rider, bike, mission, target_date=None: {
+        surface_analyzer=lambda api_key, latitude, longitude, rider, bike, mission, target_date=None, route_feature=None: {
             "status": "Success",
             "tactical_briefing": {
                 "distance_km": 42.0,
@@ -648,6 +648,160 @@ def test_get_complete_trail_scout_success_all_features():
     assert result["map_path"] == "/tmp/fixedid.html"
     assert result["gpx_export_path"] == "/tmp/fixedid.gpx"
     assert result["elevation_profile_path"] == "/tmp/fixedid.png"
+
+
+def test_get_complete_trail_scout_uses_selected_route_for_surface_and_exports():
+    """Surface metrics, GPX and altimetry must describe one and the same route."""
+    route_coords = [
+        [10.0, 45.0, 100],
+        [10.001, 45.001, 102],
+        [10.002, 45.002, 105],
+        [10.003, 45.003, 103],
+        [10.004, 45.004, 108],
+    ]
+    payload = {
+        "features": [
+            {
+                "properties": {
+                    "summary": {"distance": 40000},
+                    "ascent": 500,
+                    "extras": {"surface": {"summary": [{"value": 5, "distance": 2000}]}},
+                },
+                "geometry": {"coordinates": route_coords},
+            }
+        ]
+    }
+    service = make_service(FakeSession(response=FakeResponse(payload=payload)))
+    seen: dict[str, Any] = {}
+
+    def recording_surface(
+            api_key, latitude, longitude, rider, bike, mission,
+            target_date=None, route_feature=None,
+    ):
+        seen["route_feature"] = route_feature
+        return {
+            "status": "Success",
+            "tactical_briefing": {
+                "distance_km": 4.2,
+                "elevation_gain_m": 120.0,
+                "max_gradient": 8.0,
+                "climb_list": [],
+                "data_confidence": 0.9,
+            },
+            "surface_breakdown": [{"type": "Gravel", "percentage": "80%"}],
+        }
+
+    def recording_gpx(filename_part, geojson_data, amenities=None):
+        seen["gpx_coords"] = geojson_data.coordinates
+        return {
+            "status": "Success",
+            "file_location": f"/tmp/{filename_part}.gpx",
+            "mcp_resource_uri": f"bikescout://gpx/{filename_part}",
+        }
+
+    def recording_altimetry(geometry, uuid_input, style):
+        seen["altimetry_coords"] = geometry.coordinates
+        return {
+            "status": "Success",
+            "file_location": f"/tmp/{uuid_input}.png",
+            "mcp_resource_uri": f"bikescout://altimetry/{uuid_input}",
+        }
+
+    service.surface_analyzer = recording_surface
+    service.gpx_generator = recording_gpx
+    service.altimetry_getter = recording_altimetry
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=make_rider(),
+        bike=make_bike(),
+        mission=make_mission(),
+        include_gpx=True,
+        include_altimetry=True,
+    )
+
+    assert result["status"] == "Success"
+    assert seen["route_feature"] == payload["features"][0]
+    assert seen["gpx_coords"] == route_coords
+    assert seen["altimetry_coords"] == route_coords
+    assert seen["route_feature"]["geometry"]["coordinates"] == seen["gpx_coords"]
+
+
+def test_get_complete_trail_scout_does_not_fetch_second_route_for_surface():
+    """The real surface service must analyze the supplied route, not re-query ORS."""
+    from bikescout.tools.surface import SurfaceAnalyzerConfig, SurfaceAnalyzerService
+
+    route_coords = [
+        [10.0, 45.0, 100],
+        [10.001, 45.001, 102],
+        [10.002, 45.002, 105],
+        [10.003, 45.003, 103],
+        [10.004, 45.004, 108],
+        [10.005, 45.005, 110],
+        [10.006, 45.006, 115],
+        [10.007, 45.007, 111],
+    ]
+    payload = {
+        "features": [
+            {
+                "properties": {
+                    "summary": {"distance": 8000},
+                    "ascent": 300,
+                    "extras": {"surface": {"summary": [{"value": 5, "distance": 5000}]}},
+                },
+                "geometry": {"coordinates": route_coords},
+            }
+        ]
+    }
+    routing_session = FakeSession(response=FakeResponse(payload=payload))
+
+    class NoCallSession:
+        def __init__(self):
+            self.calls: list[Any] = []
+
+        def post(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+            raise AssertionError("Surface analysis issued a second ORS request")
+
+    surface_session = NoCallSession()
+    real_surface = SurfaceAnalyzerService(
+        config=SurfaceAnalyzerConfig(),
+        http_session=surface_session,
+        mud_analyzer=lambda lat, lon, surface, target_date=None: {
+            "metadata": {},
+            "tactical_analysis": {},
+        },
+        compatibility_analyzer=lambda bike_type, tire_width_mm, extras, surface_map: ([], [], True),
+        tire_setup_getter=lambda **kwargs: (40, "setup"),
+        battery_drain_calculator=lambda **kwargs: {},
+    )
+
+    service = make_service(routing_session)
+    service.surface_analyzer = real_surface.get_surface_analyzer
+
+    bike = SimpleNamespace(
+        bike_type="gravel",
+        is_ebike=False,
+        tire_size="700c",
+        tire_width_mm=40,
+        battery_wh=0,
+    )
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=make_rider(),
+        bike=bike,
+        mission=make_mission(),
+    )
+
+    assert result["status"] == "Success"
+    assert result["info"]["surface_analysis"]["status"] == "Success"
+    assert len(routing_session.calls) == 1
+    assert surface_session.calls == []
+    assert result["info"]["distance_km"] == result["info"]["surface_analysis"]["tactical_briefing"]["distance_km"]
 
 
 def test_get_complete_trail_scout_surface_failure_weather_unavailable():

@@ -16,15 +16,13 @@
 
 from __future__ import annotations
 
+import math
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
-import math
-import numpy as np
 import requests
 
 from bikescout.schemas import BikeSetup, MissionConstraints, RiderProfile, RouteGeometry
@@ -35,7 +33,6 @@ from bikescout.tools.nutrition import get_nutrition_plan
 from bikescout.tools.poi import get_poi_scout
 from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.weather import apply_weather_windowing, get_weather_forecast
-
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 ORS_BASE_URL = "https://api.openrouteservice.org/v2/directions"
@@ -172,7 +169,7 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
     except Exception as e:
         return {
             "status": "Error",
-            "message": f"GPX Generation failed: {str(e)}",
+            "message": f"GPX Generation failed: {e!s}",
         }
 
 
@@ -213,8 +210,8 @@ class TrailScoutService:
             rider: RiderProfile,
             bike: BikeSetup,
             mission: MissionConstraints,
-            dest_latitude: Optional[float] = None,
-            dest_longitude: Optional[float] = None,
+            dest_latitude: float | None = None,
+            dest_longitude: float | None = None,
             style: Literal["sparkline", "filled", "bars"] = "sparkline",
             target_date: str = None,
             include_gpx: bool = True,
@@ -266,9 +263,18 @@ class TrailScoutService:
 
             surface_report: dict[str, Any]
             try:
-                surface_report = self.surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
+                surface_report = self.surface_analyzer(
+                    api_key,
+                    latitude,
+                    longitude,
+                    rider,
+                    bike,
+                    mission,
+                    target_date,
+                    route_feature=feature,
+                )
             except Exception as e:
-                surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
+                surface_report = {"status": "Error", "message": f"Surface Analysis failed: {e!s}"}
 
             if surface_report.get("status") == "Success":
                 t_brief = surface_report.get("tactical_briefing", {})
@@ -316,7 +322,7 @@ class TrailScoutService:
                         response_payload["conditions"]["weather_status"] = "Unavailable"
 
                 except Exception as e:
-                    response_payload["conditions"]["weather_error"] = f"Technical bypass: {str(e)}"
+                    response_payload["conditions"]["weather_error"] = f"Technical bypass: {e!s}"
 
             if include_mud_analysis:
                 mud_analysis = self.mud_analyzer(latitude, longitude, dominant_surface, target_date)
@@ -361,7 +367,7 @@ class TrailScoutService:
                         response_payload["gpx_export_path"] = gpx_report["file_location"]
                         response_payload["mcp_resource_uri_gpx"] = gpx_report["mcp_resource_uri"]
                 except Exception as e:
-                    response_payload["gpx_error"] = f"GPX failed: {str(e)}"
+                    response_payload["gpx_error"] = f"GPX failed: {e!s}"
 
             if include_altimetry:
                 try:
@@ -370,12 +376,12 @@ class TrailScoutService:
                         response_payload["elevation_profile_path"] = altimetry_report["file_location"]
                         response_payload["mcp_resource_uri_elevation_profile"] = altimetry_report["mcp_resource_uri"]
                 except Exception as e:
-                    response_payload["elevation_error"] = f"Altimetry failed: {str(e)}"
+                    response_payload["elevation_error"] = f"Altimetry failed: {e!s}"
 
             return response_payload
 
         except Exception as e:
-            return {"status": "Error", "error_message": f"Master Orchestrator failed: {str(e)}"}
+            return {"status": "Error", "error_message": f"Master Orchestrator failed: {e!s}"}
 
     @staticmethod
     def _normalize_direction_bias(direction_bias) -> list[str]:
@@ -473,8 +479,7 @@ class TrailScoutService:
             dx = (lon - anchor_lon) * lon_scale
             dist_m = math.sqrt((dx * dx) + (dy * dy))
 
-            if dist_m < best_m:
-                best_m = dist_m
+            best_m = min(best_m, dist_m)
 
         return best_m
 
@@ -707,8 +712,8 @@ def get_complete_trail_scout(
         rider: RiderProfile,
         bike: BikeSetup,
         mission: MissionConstraints,
-        dest_latitude: Optional[float] = None,
-        dest_longitude: Optional[float] = None,
+        dest_latitude: float | None = None,
+        dest_longitude: float | None = None,
         style: Literal["sparkline", "filled", "bars"] = "sparkline",
         target_date: str = None,
         include_gpx: bool = True,

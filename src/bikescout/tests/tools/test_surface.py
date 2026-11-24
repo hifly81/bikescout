@@ -360,6 +360,46 @@ def test_get_surface_analyzer_handles_local_processing_error(service, rider, bik
     assert "Global failure: Local processing error:" in result["message"]
 
 
+def test_get_surface_analyzer_uses_provided_route_feature_without_ors_request(service, rider, bike, mission):
+    geometry = [
+        [10.0, 45.0, 100],
+        [10.001, 45.001, 102],
+        [10.002, 45.002, 105],
+        [10.003, 45.003, 103],
+        [10.004, 45.004, 108],
+        [10.005, 45.005, 110],
+        [10.006, 45.006, 115],
+        [10.007, 45.007, 111],
+    ]
+    route_feature = {
+        "properties": {"extras": {"surface": {"summary": [{"value": 5, "distance": 2000}]}}},
+        "geometry": {"coordinates": geometry},
+    }
+    service.http_session = FakeSession(responses=[])
+
+    result = service.get_surface_analyzer(
+        "key", 45.0, 10.0, rider, bike, mission, route_feature=route_feature
+    )
+
+    assert result["status"] == "Success"
+    assert result["profile_used"] == "cycling-regular"
+    assert service.http_session.calls == []
+    terrain = result["tactical_briefing"]["terrain_analysis"]
+    assert terrain["profile_points"] == len(geometry)
+    assert result["tactical_briefing"]["distance_km"] == round(terrain["profile_length_m"] / 1000, 2)
+    assert result["tactical_briefing"]["elevation_gain_m"] == round(terrain["total_ascent_m"])
+
+
+def test_get_surface_analyzer_provided_route_error_is_structured(service, rider, bike, mission):
+    service.http_session = FakeSession(responses=[])
+
+    result = service.get_surface_analyzer("key", 45.0, 10.0, rider, bike, mission, route_feature="invalid")
+
+    assert result["status"] == "Error"
+    assert "Local processing error" in result["message"]
+    assert service.http_session.calls == []
+
+
 def test_module_level_wrapper(monkeypatch, rider, bike, mission):
     class FakeService:
         def __init__(self):

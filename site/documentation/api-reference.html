@@ -461,7 +461,7 @@
                             <td><code>distance_km</code></td>
                             <td><code>float</code></td>
                             <td>-</td>
-                            <td>Total route distance calculated in kilometers.</td>
+                            <td>Total route distance in kilometers, measured from the <strong>selected route geometry</strong> that is also exported to GPX, map and altimetry.</td>
                         </tr>
                         <tr>
                             <td><code>elevation_gain_m</code></td>
@@ -737,7 +737,7 @@
                             <td><code>profile_used</code></td>
                             <td><code>string</code></td>
                             <td>-</td>
-                            <td>The specific routing profile applied (e.g., 'cycling-mountain', 'cycling-gravel').</td>
+                            <td>The ORS profile used to generate the selected route (e.g., <code>cycling-mountain</code>, <code>cycling-road</code>). Surface analysis reuses that route's geometry and does not open a second routing request.</td>
                         </tr>
                         <tr>
                             <td><code>metadata</code></td>
@@ -968,8 +968,8 @@
                         </thead>
                         <tbody>
                             <tr><td><code>route_type</code></td><td><code>string</code></td><td>-</td><td>The specific cycling activity profile (e.g., 'cycling-road', 'cycling-mountain').</td></tr>
-                            <tr><td><code>distance_km</code></td><td><code>float</code></td><td>-</td><td>The total length of the route measured in kilometers.</td></tr>
-                            <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>Total vertical elevation gain in meters, derived from the Terrain Truth Engine when surface analysis succeeds.</td></tr>
+                            <tr><td><code>distance_km</code></td><td><code>float</code></td><td>-</td><td>The total length in kilometers of the selected route whose geometry is exported to GPX, map and altimetry.</td></tr>
+                            <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>Total vertical elevation gain in meters, derived by the Terrain Truth Engine from the same exported route geometry when surface analysis succeeds.</td></tr>
                             <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>The overall challenge rating based on gradient, surface, and distance.</td></tr>
                             <tr><td><code>surface_analysis</code></td><td><code>RouteSurface</code></td><td>-</td><td>A detailed breakdown of surface compositions, terrain intelligence and traction indices.</td></tr>
                             <tr><td><code>max_gradient</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Steepest positive gradient found anywhere on the route in percent.</td></tr>
@@ -1352,6 +1352,25 @@
                         Advanced trail discovery engine. Returns comprehensive route data, technical difficulty assessment, navigation files (GPX), and visual altimetry reports.
                         Supports both <strong>Round Trips</strong> (single point) and <strong>A to B</strong> routing. Synchronizes with weather and soil models to provide
                         real-time tactical advice. If <code>target_date</code> is omitted, it defaults to the current day.
+                    </p>
+                    <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50 mt-4">
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            <strong class="text-emerald-400">Single-route consistency:</strong> the orchestrator selects one ORS route (applying distance flexibility and the
+                            directional anchor, with up to three seeds when a bias is set) and passes that exact route feature to the surface analyzer. Surface composition,
+                            ascent, gradients and climbs are therefore computed from the same geometry used for the GPX track, tactical map and elevation profile — no
+                            second routing request is issued for surface analysis, so reported metrics never disagree with the exported route.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Verification prompt -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Verification prompt</h4>
+                    <pre class="code-block text-sm whitespace-pre-wrap">Plan a gravel loop starting at latitude 45.0, longitude 10.0. Target about 40 km with a south-east directional bias, ride_character_first priority, and 20% distance flexibility. Use seed 42, complexity 5. Include surface analysis, GPX export, tactical map, and elevation profile. Give me the reported distance, ascent, max gradient, and climb list, plus the links to the downloaded files.</pre>
+                    <p class="text-sm text-slate-400 mt-2 leading-relaxed">
+                        This exercises distance flexibility, the directional anchor and multi-seed selection. Verify that the reported
+                        <code>distance_km</code>, <code>ascent_m</code> and <code>climb_list</code> match the geometry in the downloaded
+                        GPX/map/elevation assets, and that only one routing pass is billed to ORS.
                     </p>
                 </div>
 

@@ -19,46 +19,46 @@ import os
 import random
 import re
 from datetime import date
+
 import streamlit as st
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
+
 from bikescout.app_helpers import (
     build_mission_snapshot,
     clamp_complexity,
+    compute_mission_intensity,
+    compute_readiness_score,
     ext_cast,
-    extract_location_hint,
+    extract_avoid_urban_from_text,
+    extract_direction_bias_from_text,
+    extract_distance_flex_from_text,
+    extract_distance_km_from_text,
     extract_point_to_point,
+    extract_prefer_rural_from_text,
     normalize_bike_type,
+    normalize_direction_bias,
     normalize_tire_size,
+    resolve_location_query,
     resolve_profile,
     resolve_route_mode,
     summarize_mission,
     wants_overlay,
-    resolve_location_query,
-    compute_readiness_score,
-    compute_mission_intensity,
-    extract_direction_bias_from_text,
-    extract_distance_km_from_text,
-    extract_distance_flex_from_text,
-    extract_prefer_rural_from_text,
-    extract_avoid_urban_from_text,
-    normalize_direction_bias
 )
 from bikescout.app_ui_helpers import (
-    inject_global_styles,
-    inject_component_styles,
-    render_empty_state, get_poi_style,
-    get_surface_icon,
-    metric_card,
-    section_intro,
-    mini_kpi,
-    render_score_card,
-    render_mission_hud,
-    render_mission_intensity_badge,
-    render_warning_ribbon,
     build_warning_ribbon,
+    get_poi_style,
+    get_surface_icon,
+    inject_component_styles,
+    inject_global_styles,
+    metric_card,
+    render_empty_state,
+    render_mission_intensity_badge,
+    render_rider_profile_panel,
+    render_score_card,
+    render_warning_ribbon,
     render_weather_tiles_native,
-    render_rider_profile_panel
+    section_intro,
 )
 from bikescout.mcp_server import (
     analyze_gpx_track,
@@ -1208,16 +1208,15 @@ def render_route_results(res_data: dict) -> None:
     gpx_path = res_data.get("gpx_export_path")
     if gpx_path and os.path.exists(gpx_path):
         dl_col, _ = st.columns([1, 5])
-        with dl_col:
-            with open(gpx_path, "rb") as file:
-                st.download_button(
-                    "Download GPX",
-                    file,
-                    file_name="mission.gpx",
-                    mime="application/gpx+xml",
-                    type="primary",
-                    use_container_width=True,
-                )
+        with dl_col, open(gpx_path, "rb") as file:
+            st.download_button(
+                "Download GPX",
+                file,
+                file_name="mission.gpx",
+                mime="application/gpx+xml",
+                type="primary",
+                use_container_width=True,
+            )
 
 
 def process_local_mcp_request(raw_llm_json: str, user_input: str):

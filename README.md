@@ -58,18 +58,18 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ---
 
-## Example Queries
+## Example Scenarios
 
 You can ask **BikeScout** complex, multi-step requests. It combines real-time data with technical cycling intelligence to provide expert-level answers.
 
 ### 🗺️ Advanced Planning (Multi-Tool)
-* *"I'm at Monte Cavo with my MTB bike (29 tires). Plan a 25km loop for me. Check if the terrain is compatible with my bike, verify the afternoon rain probability, and suggest a 'Fraschetta' for the finish. Use the Castelli Romani guide."*
+* *"I'm at Monte Cavo, near Rome (Italy) with my MTB bike (29 tires). Plan a 25km loop for me. Check if the terrain is compatible with my bike, verify the afternoon rain probability, and suggest a 'Fraschetta' for the finish. Use the Castelli Romani guide."*
 
 ### ⚙️ Bike Setup & Surface Intelligence
 * *"Check this route from Barcelona city center to El Prat. I'm on a Road Bike with 25mm tires. Is it compatible? Give me the exact percentage of gravel vs asphalt."*
 
 ### 📈 Visual Elevation & Gradient Analysis
-* *"Plan a 40km route starting from Bormio. I need the Visual Elevation Profile to see the exact gradients of the Stelvio climb. Highlight sections over 12% so I can manage my pacing."*
+* *"Plan a 40km route starting from Bormio, Italy. I need the Visual Elevation Profile to see the exact gradients of the Stelvio climb. Highlight sections over 12% so I can manage my pacing."*
 * *"Give me the terrain truth for this route: true ascent, maximum gradient, every significant climb with a FIETS category, and how confident you are in the elevation data."*
 
 ### 🏔️ Local Expertise

@@ -1,5 +1,12 @@
 # Changelog - BikeScout
 
+## [Unreleased]
+* feat(terrain): add offline elevation truth engine with adaptive hysteresis, true ascent, max gradient, FIETS climb list and data confidence
+* feat(ui): show full terrain results in the route briefing, including climb list, confidence, technical grade and warnings
+* docs(api): document terrain models, climb list fields and data-confidence payloads in the API reference
+* fix(surface): read surface breakdown from the actual surface analyzer response
+* test: harden GPX cleanup test monkeypatch so pytest teardown keeps the real `Path.stat` signature
+
 ## [1.6.2]
 * chore(release): bump version to 1.6.2 ([8923ced](https://github.com/hifly81/bikescout/commit/8923ced5a6645e9ca24a377658f9952782c69e9c))
 * fix(planner): respect explicit mud analysis requests regardless of bike type ([ed3f2da](https://github.com/hifly81/bikescout/commit/ed3f2da008fba36470ed1c79cdf54cf78e0db003))

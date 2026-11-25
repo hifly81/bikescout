@@ -194,6 +194,105 @@ def clamp_complexity(raw_complexity: Any) -> int:
     return max(1, min(5, value))
 
 
+_WHEEL_SIZE_PATTERNS = (
+    r'\b29\s*-?\s*(?:er\b|"|inch(?:es)?\b|in\b|pollici\b)',
+    r'\b27[.,]5\s*-?\s*(?:er\b|"|inch(?:es)?\b|in\b|pollici\b)',
+    r"\b650\s*b\b",
+)
+
+_COMPLEXITY_PATTERNS = (
+    (
+        r"\bvery\s+hard\b|\bextreme(?:ly)?\b|\bmolto\s+difficile\b|\bdifficilissim[oa]\b",
+        5,
+    ),
+    (r"\bhard\b|\bdifficile\b|\bimpegnativ[oa]\b", 4),
+    (r"\bmoderat[eo]\b", 3),
+    (r"\beasy\b|\bfacile\b", 2),
+)
+
+
+def extract_bike_type_from_text(user_input: str) -> str | None:
+    """
+    Infer a bike discipline from explicit names, then from wheel-size hints.
+
+    Explicit disciplines always win over wheel size, so a "29-inch road bike"
+    stays a road bike. A bare 29"/27.5"/650b reference implies an MTB.
+
+    Args:
+        user_input: The natural-language mission request.
+    Returns:
+        A normalized discipline name, or None when the text gives no hint.
+    """
+    text = str(user_input or "").lower().replace("”", '"')
+
+    if any(
+        keyword in text
+        for keyword in ("e-mtb", "emtb", "e bike", "e-bike", "ebike", "electric bike", "bici elettrica")
+    ):
+        return "e-mtb"
+    if "downhill" in text or "enduro" in text:
+        return "enduro"
+    if "gravel" in text:
+        return "gravel"
+    if any(keyword in text for keyword in ("road bike", "road cycling", "bici da corsa")):
+        return "road"
+    if any(keyword in text for keyword in ("mountain bike", "mtb")):
+        return "mtb"
+    if any(re.search(pattern, text) for pattern in _WHEEL_SIZE_PATTERNS):
+        return "mtb"
+    return None
+
+
+def extract_complexity_from_text(user_input: str) -> int | None:
+    """
+    Map difficulty wording to the 1..5 complexity scale.
+
+    Args:
+        user_input: The natural-language mission request.
+    Returns:
+        The mapped complexity value, or None when no difficulty is stated.
+    """
+    text = str(user_input or "").lower()
+    for pattern, value in _COMPLEXITY_PATTERNS:
+        if re.search(pattern, text):
+            return value
+    return None
+
+
+def apply_text_overrides(args: dict[str, Any], user_input: str) -> dict[str, Any]:
+    """
+    Override LLM-generated arguments with deterministic text-derived values.
+
+    Args:
+        args: Tool arguments produced by the planner.
+        user_input: The original natural-language request.
+    Returns:
+        A new argument dictionary with bike_type, is_ebike, complexity and
+        off-road routing preferences corrected when stated explicitly.
+    """
+    overrides: dict[str, Any] = {}
+
+    if extract_prefer_offroad_from_text(user_input):
+        overrides["avoid_urban"] = True
+        overrides["prefer_rural"] = True
+        overrides["priority_mode"] = "ride_character_first"
+
+    bike_type = extract_bike_type_from_text(user_input)
+    if bike_type is not None:
+        final_bike, is_ebike = normalize_bike_type(bike_type)
+        overrides["bike_type"] = final_bike
+        overrides["is_ebike"] = is_ebike
+
+    complexity = extract_complexity_from_text(user_input)
+    if complexity is not None:
+        overrides["complexity"] = clamp_complexity(complexity)
+
+    if not overrides:
+        return dict(args)
+
+    return {**args, **overrides}
+
+
 def build_mission_snapshot(
         *,
         location_name: str,
@@ -214,6 +313,10 @@ def build_mission_snapshot(
         "distance_km": distance_km,
         "bike_type": args.get("bike_type"),
         "tire_size": args.get("tire_size"),
+        "tire_width_mm": args.get("tire_width_mm"),
+        "rim_internal_width_mm": args.get("rim_internal_width_mm"),
+        "casing_type": args.get("casing_type"),
+        "tubeless": args.get("tubeless"),
     }
 
     if route_mode == "point_to_point":
@@ -368,6 +471,28 @@ def extract_prefer_rural_from_text(user_input: str) -> bool:
         "quiet roads",
         "country roads",
         "scenic roads",
+    ]
+    return any(p in text for p in patterns)
+
+
+def extract_prefer_offroad_from_text(user_input: str) -> bool:
+    """Detect an explicit request for off-road / singletrack riding."""
+    text = (user_input or "").lower()
+    patterns = [
+        "singletrack",
+        "single track",
+        "off-road",
+        "off road",
+        "mtb trails",
+        "mountain bike trails",
+        "dirt trails",
+        "trail riding",
+        "avoid paved",
+        "avoid asphalt",
+        "no asphalt",
+        "mostly trails",
+        "sentieri",
+        "fuoristrada",
     ]
     return any(p in text for p in patterns)
 

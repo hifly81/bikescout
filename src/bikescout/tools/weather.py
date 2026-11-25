@@ -16,14 +16,13 @@
 
 from __future__ import annotations
 
+import zoneinfo
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from typing import Any, Dict
 
 import requests
-import zoneinfo
 from timezonefinder import TimezoneFinder
-
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -138,13 +137,7 @@ class WeatherService:
                     "reference_hour_local": f"{target_hour}:00",
                     "temp_max": max_temp_value,
                 },
-                "safety_advice": get_safety_advice(
-                    app_temp=curr_app_temp,
-                    rain_prob=curr_rain_prob,
-                    rain_mm=curr_rain_mm,
-                    wind_speed=curr_wind,
-                    wind_gusts=curr_gusts,
-                ),
+                "safety_advice": self._worst_case_safety_advice(forecast_summary),
             }
 
         except requests.exceptions.RequestException as e:
@@ -230,6 +223,57 @@ class WeatherService:
         return forecast_summary
 
     @staticmethod
+    def _worst_case_safety_advice(forecast: list[dict[str, str]]) -> dict[str, Any]:
+        """
+        Build the safety briefing from the worst point of the forecast window.
+
+        Peak wind and gusts are taken from the same hour to avoid combining
+        unrelated readings. Rain is the maximum of the window, and clothing
+        advice uses the coldest apparent temperature of the window.
+
+        Args:
+            forecast: Hourly snapshots produced by _forecast_summary.
+        Returns:
+            A SafetyAdvice dictionary for the whole mission window.
+        """
+        if not forecast:
+            return get_safety_advice(
+                app_temp=20.0, rain_prob=0, rain_mm=0.0, wind_speed=0.0, wind_gusts=0.0
+            )
+
+        peak_risk = -1.0
+        peak_wind = 0.0
+        peak_gusts = 0.0
+        coldest_app_temp: float | None = None
+        max_rain_prob = 0.0
+        max_rain_mm = 0.0
+
+        for entry in forecast:
+            wind = WeatherService._coerce_float(entry.get("wind"), 0.0)
+            gusts = WeatherService._coerce_float(entry.get("gusts"), 0.0)
+            rain_prob = WeatherService._coerce_float(entry.get("rain_prob"), 0.0)
+            rain_mm = WeatherService._coerce_float(entry.get("rain_mm"), 0.0)
+            app_temp = WeatherService._coerce_float(entry.get("app_temp"), 20.0)
+
+            risk = (wind * 0.4) + (gusts * 0.6)
+            if risk > peak_risk:
+                peak_risk = risk
+                peak_wind = wind
+                peak_gusts = gusts
+
+            coldest_app_temp = app_temp if coldest_app_temp is None else min(coldest_app_temp, app_temp)
+            max_rain_prob = max(max_rain_prob, rain_prob)
+            max_rain_mm = max(max_rain_mm, rain_mm)
+
+        return get_safety_advice(
+            app_temp=coldest_app_temp if coldest_app_temp is not None else 20.0,
+            rain_prob=int(max_rain_prob),
+            rain_mm=max_rain_mm,
+            wind_speed=peak_wind,
+            wind_gusts=peak_gusts,
+        )
+
+    @staticmethod
     def _coerce_float(value: Any, fallback: float) -> float:
         try:
             return float(value)
@@ -292,4 +336,8 @@ def apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
         )
 
     weather_data["tactical_forecast"] = filtered_forecast
+    if filtered_forecast:
+        weather_data["safety_advice"] = WeatherService._worst_case_safety_advice(
+            filtered_forecast
+        )
     return weather_data

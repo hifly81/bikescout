@@ -18,18 +18,36 @@ from __future__ import annotations
 
 import math
 import zoneinfo
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Literal
+from typing import Any
 
 import requests
 from astral import Observer
 from astral.sun import elevation
 from timezonefinder import TimezoneFinder
 
-
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+
+# Display categories from the surface analyzer are mapped to TAEL soil keys.
+MUD_SURFACE_ALIASES = {
+    "asphalt": "asphalt",
+    "paved": "asphalt",
+    "road": "asphalt",
+    "concrete": "asphalt",
+    "unpaved": "dirt",
+    "sand": "sand",
+    "gravel": "gravel",
+    "grass": "grass",
+    "dirt": "dirt",
+    "earth": "earth",
+    "clay": "clay",
+    "mixed": "dirt",
+    "unmapped": "dirt",
+    "unmapped/mixed": "dirt",
+}
 
 
 def get_solar_altitude(lat: float, lon: float, current_dt: datetime) -> float:
@@ -69,9 +87,9 @@ class MudAnalysisService:
             self,
             lat: float,
             lon: float,
-            surface_type: Literal["asphalt", "sand", "gravel", "grass", "dirt", "earth", "clay"] = "dirt",
-            target_date: str = None,
-    ) -> Dict[str, Any]:
+            surface_type: str = "dirt",
+            target_date: str | None = None,
+    ) -> dict[str, Any]:
         try:
             lat = self._coerce_float(lat, 0.0)
             lon = self._coerce_float(lon, 0.0)
@@ -150,7 +168,10 @@ class MudAnalysisService:
                 surface_type=normalized_surface_type,
             )
 
-            traction_risk, traction_advice = self._traction_risk((recent_rain_12h * 1.5) + (M * 0.5))
+            traction_risk, traction_advice = self._traction_risk(
+                (recent_rain_12h * 1.5) + (M * 0.5),
+                normalized_surface_type,
+            )
             damage_risk, damage_advice = self._damage_risk(M)
             global_label = self._global_mud_label(M)
 
@@ -221,7 +242,7 @@ class MudAnalysisService:
     def _normalize_surface_type(surface_type: Any) -> str:
         if not isinstance(surface_type, str) or not surface_type.strip():
             return "dirt"
-        return surface_type.strip().lower()
+        return MUD_SURFACE_ALIASES.get(surface_type.strip().lower(), "dirt")
 
     @staticmethod
     def _coerce_float(value: Any, fallback: float) -> float:
@@ -255,7 +276,26 @@ class MudAnalysisService:
         return eta_hours
 
     @staticmethod
-    def _traction_risk(traction_index: float) -> tuple[str, str]:
+    def _traction_risk(
+            traction_index: float,
+            surface_type: str = "dirt",
+    ) -> tuple[str, str]:
+        """Translate the raw slip index into a surface-aware grip briefing.
+
+        Args:
+            traction_index: Combined rain/moisture slip index.
+            surface_type: Normalized TAEL surface key.
+        Returns:
+            A ``(level, advice)`` pair. Hard surfaces never report mud packing.
+        """
+        normalized_surface = surface_type.strip().lower()
+        if normalized_surface in {"asphalt", "concrete", "paved", "road"}:
+            if traction_index < 2.0:
+                return "Low", "Firm tarmac grip. Minimal slip risk."
+            if traction_index < 6.0:
+                return "Medium", "Wet tarmac: reduced grip, watch manhole covers and paint."
+            return "Medium", "Standing water on pavement: aquaplaning risk in the wetter sections."
+
         if traction_index < 2.0:
             return "Low", "Maximum grip. Surface is hardpack."
         if traction_index < 6.0:
@@ -309,9 +349,9 @@ service = MudAnalysisService()
 def get_mud_risk_analysis(
         lat: float,
         lon: float,
-        surface_type: Literal["asphalt", "sand", "gravel", "grass", "dirt", "earth", "clay"] = "dirt",
-        target_date: str = None,
-) -> Dict[str, Any]:
+        surface_type: str = "dirt",
+        target_date: str | None = None,
+) -> dict[str, Any]:
     return service.get_mud_risk_analysis(
         lat=lat,
         lon=lon,

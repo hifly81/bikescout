@@ -35,7 +35,7 @@
   "operatingSystem": "Independent",
   "downloadUrl": "https://github.com/hifly81/bikescout",
   "license": "https://www.gnu.org/licenses/agpl-3.0-standalone.html",
-  "softwareVersion": "1.6.2",
+  "softwareVersion": "1.7.0",
   "keywords": "AI, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
   "author": {
     "@type": "Person",
@@ -115,31 +115,34 @@
 
         <p>In tactical cycling, the interface between the tire and the ground is the most critical variable for mission success. ASI ensures this interface is optimized for either <strong>Efficiency</strong>, <strong>Compliance</strong>, or <strong>Flotation</strong>.</p>
 
-        <h2>The Baseline: Weight Normalization</h2>
-        <p>Every ASI calculation starts with a baseline normalized at 85kg. Using a heuristic linear adjustment, the system increases or decreases the target pressure by 1 PSI for every 5kg of deviation from the baseline. This ensures that a lightweight climber and a heavy-duty enduro rider receive tailored data for the same trail.</p>
+        <h2>The Baseline: Volume and Load Distribution</h2>
+        <p>ASI now starts from total system mass (rider + bike) and scales a discipline reference pressure non-linearly. Tire air volume is approximated from the square of the tire width, then adjusted for rim internal width, casing stiffness and tubeless/tube setup. Road and gravel split the load 45/55 front-to-rear; MTB, e-MTB and enduro use 40/60 to account for steep descents and rear-wheel bias.</p>
 
         <div class="formula-card">
-            Weight_Adjustment = (Rider_Weight - 85.0) / 5.0 <br>
-            Adjusted_PSI = Base_PSI + Weight_Adjustment
+            Support_PSI = Base_PSI × (System_Mass / Reference_Mass)^1.25 × (Reference_Width / Tire_Width)^2 <br>
+            × (Reference_Rim_IU / Rim_IU)^0.5 × Casing_Factor × Tube_Factor <br>
+            Front_PSI = Support_PSI × Grip_Factor × (Front_Share / 0.5)^0.6 <br>
+            Rear_PSI = Support_PSI × Grip_Factor × (Rear_Share / 0.5)^0.6
         </div>
 
-
+        <p>Tubeless setups keep the nominal pressure; inner tubes add roughly 18%. Stiffer casings (Trail, Enduro, DH) need progressively less pressure for the same support. A rim width outside the recommended range for the tire is flagged as a <strong>Rim-Width Mismatch</strong> warning.</p>
 
         <h2>The Tactical Strategy Logic</h2>
-        <p>ASI doesn't just calculate numbers; it selects a <strong>Strategy</strong>. Depending on the data ingested from the <em>TAEL® Model</em> and <em>Surface Analyzer</em>, the system applies specific offsets:</p>
+        <p>ASI doesn't just calculate numbers; it selects a <strong>Strategy</strong>. Depending on the data ingested from the <em>TAEL® Model</em>, <em>Surface Analyzer</em> and terrain engine, it applies an objective function balancing grip against rim-impact risk:</p>
 
         <ul>
-            <li><strong>Mud Flotation:</strong> Triggered when the Mud Index > 0.6. The system applies a 15% reduction in pressure to increase the tire's footprint and prevent "sinking".</li>
-            <li><strong>Compliance:</strong> Triggered on technical terrain (rocks, roots). It applies a -2.0 PSI offset to improve vibration damping and mechanical grip.</li>
-            <li><strong>Efficiency:</strong> Triggered on smooth or paved surfaces. It applies a +3.0 PSI offset to minimize rolling resistance.</li>
+            <li><strong>Mud Flotation:</strong> Triggered when the normalized Mud Index > 0.6. Pressure drops up to 15% to enlarge the contact patch.</li>
+            <li><strong>Compliance:</strong> Triggered on technical terrain (rocks, roots). Pressure drops for casing deflection and grip.</li>
+            <li><strong>Pinch-Flat Protection:</strong> On rocky S3+ terrain or high ascent, a support floor is enforced and a <em>Pinch-Flat Warning</em> is raised if grip optimization would go too low.</li>
+            <li><strong>Efficiency:</strong> Triggered on smooth or paved surfaces. Pressure rises slightly to minimize rolling resistance.</li>
         </ul>
 
         <h2>Cross-System Integration</h2>
-        <p>ASI is not an isolated tool. It is the final output of the BikeScout intelligence chain. It takes the "Dark Side" analysis from <strong>Shadow Persistence</strong> and the soil saturation data from <strong>TAEL®</strong> to warn the rider if their current equipment (e.g., road tires on a 40% mud route) is a safety risk.</p>
+        <p>ASI is not an isolated tool. It is the final output of the BikeScout intelligence chain. It combines TAEL® soil saturation, surface breakdown and technical grade to produce equipment advice (inserts, sealant check, high-volume casing) and tread choice (Mud Spikes vs Semi-Slick). It also warns when current equipment (e.g., road tires on a 40% mud route, or a 2.5" tire on a 19mm rim) is a safety risk.</p>
 
         <h2>Mechanical Briefing Output</h2>
-        <p>The result is a standardized <em>Tactical Display String</em>. Instead of a generic "check your tires," the rider receives: <br>
-            <code class="mono text-neon-text bg-slate-900 px-2 py-1 rounded text-sm">29" wheels | 22.5 PSI (1.55 Bar) [Mud Flotation Setup]</code>.</p>
+        <p>The result is a structured recommendation with machine-readable <code>psi_front</code>, <code>psi_rear</code>, advice and warnings, plus a standardized <em>Tactical Display String</em>: <br>
+            <code class="mono text-neon-text bg-slate-900 px-2 py-1 rounded text-sm">29" wheels | 58mm | F: 19.9 PSI | R: 25.4 PSI (1.37/1.75 Bar) [Standard Setup]</code>.</p>
 
         <div class="mt-16 flex flex-wrap gap-4">
             <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Actionable-Intel</span>

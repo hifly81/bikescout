@@ -16,15 +16,15 @@
 
 from __future__ import annotations
 
+import math
+import sys
 import time
+import traceback
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
-import math
-import numpy as np
 import requests
 
 from bikescout.schemas import BikeSetup, MissionConstraints, RiderProfile, RouteGeometry
@@ -36,9 +36,8 @@ from bikescout.tools.poi import get_poi_scout
 from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.weather import apply_weather_windowing, get_weather_forecast
 
-
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-ORS_BASE_URL = "https://api.openrouteservice.org/v2/directions"
+ORS_BASE_URL = "https://api.heigit.org/openrouteservice/v2/directions"
 EARTH_METERS_PER_DEGREE = 111_320.0
 
 
@@ -47,19 +46,75 @@ class TrailScoutConfig:
     routing_timeout_seconds: float = 15.0
 
 
-def calculate_detailed_difficulty(dist_km: float, ascent_m: float) -> str:
+_DIFFICULTY_LABELS = (
+    "Beginner (Short and relatively flat, ideal for everyone)",
+    "Moderate (Accessible for regular cyclists)",
+    "Advanced (Requires good fitness and stamina)",
+    "Expert (Challenging distance or very steep climbs)",
+)
+_COMPLEXITY_MIN_LEVEL = {4: 2, 5: 3}
+_AVG_CLIMB_ADVANCED_PERCENT = 7.0
+_AVG_CLIMB_EXPERT_PERCENT = 10.0
+
+# ORS surface values that represent rideable off-road surfaces.
+_OFFROAD_SURFACE_IDS = frozenset({2, 5, 10, 11, 12})
+_OFFROAD_SURFACE_TOKENS = (
+    "unpaved", "dirt", "gravel", "grass", "earth", "compact", "trail", "sand",
+)
+_OFFROAD_PENALTY_M = 4000.0
+_OFFROAD_TARGET_SHARE = 0.6
+
+
+def calculate_detailed_difficulty(
+        dist_km: float,
+        ascent_m: float,
+        complexity: int = 3,
+        avg_climb_gradient: float = 0.0,
+) -> str:
+    """
+    Rate mission difficulty from distance, ascent, climb pitch and intent.
+
+    Distance/ascent define the physical baseline. The sustained climb gradient
+    (not GPS micro-spikes) and an explicitly requested high complexity can only
+    raise that baseline, so a "very hard" request is never reported as moderate.
+
+    Args:
+        dist_km: Route distance in kilometers.
+        ascent_m: Cumulative elevation gain in meters.
+        complexity: Requested difficulty intent on the 1..5 scale.
+        avg_climb_gradient: Weighted gradient of significant climbs in percent.
+    Returns:
+        One of the four canonical difficulty labels, or "Unknown".
+    """
     if dist_km == 0:
         return "Unknown"
 
     avg_gradient = (ascent_m / (dist_km * 1000)) * 100
 
     if dist_km > 50 or ascent_m > 1000 or avg_gradient > 7:
-        return "Expert (Challenging distance or very steep climbs)"
-    if dist_km > 30 or ascent_m > 600 or avg_gradient > 4:
-        return "Advanced (Requires good fitness and stamina)"
-    if dist_km > 15 or ascent_m > 300:
-        return "Moderate (Accessible for regular cyclists)"
-    return "Beginner (Short and relatively flat, ideal for everyone)"
+        level = 3
+    elif dist_km > 30 or ascent_m > 600 or avg_gradient > 4:
+        level = 2
+    elif dist_km > 15 or ascent_m > 300:
+        level = 1
+    else:
+        level = 0
+
+    try:
+        climb_gradient = float(str(avg_climb_gradient or 0.0).replace("%", "").strip())
+    except (TypeError, ValueError):
+        climb_gradient = 0.0
+    if climb_gradient >= _AVG_CLIMB_EXPERT_PERCENT:
+        level = max(level, 3)
+    elif climb_gradient >= _AVG_CLIMB_ADVANCED_PERCENT:
+        level = max(level, 2)
+
+    try:
+        requested_complexity = int(complexity)
+    except (TypeError, ValueError):
+        requested_complexity = 3
+    requested_level = _COMPLEXITY_MIN_LEVEL.get(requested_complexity, 0)
+    return _DIFFICULTY_LABELS[max(level, requested_level)]
 
 
 def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
@@ -172,7 +227,7 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
     except Exception as e:
         return {
             "status": "Error",
-            "message": f"GPX Generation failed: {str(e)}",
+            "message": f"GPX Generation failed: {e!s}",
         }
 
 
@@ -213,8 +268,8 @@ class TrailScoutService:
             rider: RiderProfile,
             bike: BikeSetup,
             mission: MissionConstraints,
-            dest_latitude: Optional[float] = None,
-            dest_longitude: Optional[float] = None,
+            dest_latitude: float | None = None,
+            dest_longitude: float | None = None,
             style: Literal["sparkline", "filled", "bars"] = "sparkline",
             target_date: str = None,
             include_gpx: bool = True,
@@ -264,25 +319,66 @@ class TrailScoutService:
                 dest_longitude=dest_longitude,
             )
 
+            surface_report: dict[str, Any]
             try:
-                surface_report = self.surface_analyzer(api_key, latitude, longitude, rider, bike, mission, target_date)
+                surface_report = self.surface_analyzer(
+                    api_key,
+                    latitude,
+                    longitude,
+                    rider,
+                    bike,
+                    mission,
+                    target_date,
+                    route_feature=feature,
+                )
             except Exception as e:
-                surface_report = {"status": "Error", "message": f"Surface Analysis failed: {str(e)}"}
+                surface_report = {"status": "Error", "message": f"Surface Analysis failed: {e!s}"}
 
             if surface_report.get("status") == "Success":
+                offroad_share = self._offroad_share_from_route(data)
+                offroad_percent = round(offroad_share * 100.0, 1)
+                metadata = surface_report.get("metadata")
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                    surface_report["metadata"] = metadata
+                metadata["offroad_share_percent"] = offroad_percent
+                if self._prefers_offroad(mission):
+                    target_met = offroad_share >= _OFFROAD_TARGET_SHARE
+                    metadata["offroad_request_status"] = "met" if target_met else "not_met"
+                    metadata["offroad_request_note"] = (
+                        f"Selected route is {offroad_percent}% off-road (target: >=60%)."
+                        if target_met
+                        else (
+                            f"Only {offroad_percent}% off-road; ORS returned mostly paved roads "
+                            "in this area. Try another seed, direction bias or starting point."
+                        )
+                    )
+
                 t_brief = surface_report.get("tactical_briefing", {})
                 dist_km = t_brief.get("distance_km")
                 ascent_m = t_brief.get("elevation_gain_m")
+                terrain = t_brief.get("terrain_analysis") or {}
 
-                surface_analysis = surface_report.get("info", {}).get("surface_analysis", {})
-                breakdown = surface_analysis.get("surface_breakdown", [])
+                breakdown = surface_report.get("surface_breakdown", [])
 
                 dominant_surface = self._dominant_surface_from_breakdown(breakdown)
 
                 response_payload["info"]["distance_km"] = dist_km
                 response_payload["info"]["ascent_m"] = ascent_m
-                response_payload["info"]["difficulty"] = calculate_detailed_difficulty(dist_km, ascent_m)
+                response_payload["info"]["difficulty"] = calculate_detailed_difficulty(
+                    dist_km,
+                    ascent_m,
+                    complexity=getattr(mission, "complexity", 3),
+                    avg_climb_gradient=terrain.get("avg_climb_gradient", 0.0),
+                )
                 response_payload["info"]["surface_analysis"] = surface_report
+                response_payload["info"]["max_gradient"] = t_brief.get(
+                    "max_gradient", terrain.get("max_gradient")
+                )
+                response_payload["info"]["climb_list"] = t_brief.get("climb_list") or terrain.get("climbs")
+                response_payload["info"]["data_confidence"] = t_brief.get(
+                    "data_confidence", terrain.get("data_confidence")
+                )
 
                 perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
                 estimated_hours = perf["estimated_hours"]
@@ -306,7 +402,7 @@ class TrailScoutService:
                         response_payload["conditions"]["weather_status"] = "Unavailable"
 
                 except Exception as e:
-                    response_payload["conditions"]["weather_error"] = f"Technical bypass: {str(e)}"
+                    response_payload["conditions"]["weather_error"] = f"Technical bypass: {e!s}"
 
             if include_mud_analysis:
                 mud_analysis = self.mud_analyzer(latitude, longitude, dominant_surface, target_date)
@@ -351,7 +447,7 @@ class TrailScoutService:
                         response_payload["gpx_export_path"] = gpx_report["file_location"]
                         response_payload["mcp_resource_uri_gpx"] = gpx_report["mcp_resource_uri"]
                 except Exception as e:
-                    response_payload["gpx_error"] = f"GPX failed: {str(e)}"
+                    response_payload["gpx_error"] = f"GPX failed: {e!s}"
 
             if include_altimetry:
                 try:
@@ -360,12 +456,18 @@ class TrailScoutService:
                         response_payload["elevation_profile_path"] = altimetry_report["file_location"]
                         response_payload["mcp_resource_uri_elevation_profile"] = altimetry_report["mcp_resource_uri"]
                 except Exception as e:
-                    response_payload["elevation_error"] = f"Altimetry failed: {str(e)}"
+                    response_payload["elevation_error"] = f"Altimetry failed: {e!s}"
 
             return response_payload
 
         except Exception as e:
-            return {"status": "Error", "error_message": f"Master Orchestrator failed: {str(e)}"}
+            sys.stderr.write(f"Master Orchestrator failed: {e!s}\n")
+            traceback.print_exc(file=sys.stderr)
+            return {
+                "status": "Error",
+                "error_message": f"Master Orchestrator failed: {e!s}",
+                "error_traceback": traceback.format_exc(),
+            }
 
     @staticmethod
     def _normalize_direction_bias(direction_bias) -> list[str]:
@@ -463,10 +565,58 @@ class TrailScoutService:
             dx = (lon - anchor_lon) * lon_scale
             dist_m = math.sqrt((dx * dx) + (dy * dy))
 
-            if dist_m < best_m:
-                best_m = dist_m
+            best_m = min(best_m, dist_m)
 
         return best_m
+
+    @staticmethod
+    def _offroad_share_from_route(route_data: dict) -> float:
+        """Return the off-road fraction of a route from ORS surface extras.
+
+        Only the route already returned by ORS is inspected, so candidate
+        selection never triggers an additional routing request.
+        """
+        try:
+            features = route_data.get("features") or []
+            if not features:
+                return 0.0
+            extras = (features[0].get("properties") or {}).get("extras") or {}
+            summary = (extras.get("surface") or {}).get("summary") or []
+        except (AttributeError, TypeError):
+            return 0.0
+
+        total_m = 0.0
+        offroad_m = 0.0
+        for item in summary:
+            if not isinstance(item, dict):
+                continue
+            try:
+                segment_m = float(item.get("amount") or item.get("distance") or 0.0)
+            except (TypeError, ValueError):
+                continue
+            total_m += segment_m
+
+            value = item.get("value")
+            label = str(value).lower()
+            is_offroad = (
+                value in _OFFROAD_SURFACE_IDS
+                or any(token in label for token in _OFFROAD_SURFACE_TOKENS)
+            )
+            if is_offroad:
+                offroad_m += segment_m
+
+        if total_m <= 0.0:
+            return 0.0
+        return max(0.0, min(1.0, offroad_m / total_m))
+
+    @staticmethod
+    def _prefers_offroad(mission) -> bool:
+        bike_type = str(getattr(mission, "bike_type", "") or "").strip().lower()
+        if bike_type not in {"mtb", "enduro", "e-mtb"}:
+            return False
+        if not (getattr(mission, "avoid_urban", False) and getattr(mission, "prefer_rural", False)):
+            return False
+        return str(getattr(mission, "priority_mode", "balanced")).strip().lower() == "ride_character_first"
 
     @staticmethod
     def _route_candidate_score(route_data: dict, mission, anchor: dict | None) -> float:
@@ -490,7 +640,11 @@ class TrailScoutService:
         if anchor:
             anchor_distance_m = TrailScoutService._distance_to_anchor_m(route_data, anchor)
 
-        return (distance_error_km * distance_weight * 1000.0) + (anchor_distance_m * anchor_weight)
+        score = (distance_error_km * distance_weight * 1000.0) + (anchor_distance_m * anchor_weight)
+        if TrailScoutService._prefers_offroad(mission):
+            offroad_share = TrailScoutService._offroad_share_from_route(route_data)
+            score += (1.0 - offroad_share) * _OFFROAD_PENALTY_M
+        return score
 
     def _request_route_candidate(self, api_key: str, mission, payload: dict) -> dict:
         endpoint = f"{ORS_BASE_URL}/{mission.profile}/geojson"
@@ -697,8 +851,8 @@ def get_complete_trail_scout(
         rider: RiderProfile,
         bike: BikeSetup,
         mission: MissionConstraints,
-        dest_latitude: Optional[float] = None,
-        dest_longitude: Optional[float] = None,
+        dest_latitude: float | None = None,
+        dest_longitude: float | None = None,
         style: Literal["sparkline", "filled", "bars"] = "sparkline",
         target_date: str = None,
         include_gpx: bool = True,

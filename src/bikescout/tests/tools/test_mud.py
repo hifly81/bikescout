@@ -1,5 +1,5 @@
-from datetime import datetime
 import zoneinfo
+from datetime import datetime
 
 import pytest
 
@@ -127,6 +127,15 @@ def test_normalize_surface_type(service):
     assert service._normalize_surface_type(None) == "dirt"
 
 
+def test_normalize_display_surface_labels(service):
+    assert service._normalize_surface_type(" Paved ") == "asphalt"
+    assert service._normalize_surface_type("Asphalt") == "asphalt"
+    assert service._normalize_surface_type("Concrete") == "asphalt"
+    assert service._normalize_surface_type("Unpaved") == "dirt"
+    assert service._normalize_surface_type("Unmapped/Mixed") == "dirt"
+    assert service._normalize_surface_type("Unknown") == "dirt"
+
+
 def test_coerce_float(service):
     assert service._coerce_float("12.5", 0.0) == 12.5
     assert service._coerce_float("bad", 1.0) == 1.0
@@ -172,6 +181,19 @@ def test_traction_risk(service):
     assert service._traction_risk(1.0)[0] == "Low"
     assert service._traction_risk(3.0)[0] == "Medium"
     assert service._traction_risk(10.0)[0] == "High"
+
+
+def test_traction_risk_on_hard_surfaces_never_reports_mud_packing(service):
+    assert service._traction_risk(1.0, "asphalt") == (
+        "Low",
+        "Firm tarmac grip. Minimal slip risk.",
+    )
+    assert service._traction_risk(3.0, "concrete")[0] == "Medium"
+
+    level, advice = service._traction_risk(10.0, "asphalt")
+    assert level == "Medium"
+    assert "aquaplaning" in advice.lower()
+    assert "pack" not in advice.lower()
 
 
 def test_damage_risk(service):
@@ -228,6 +250,33 @@ def test_get_mud_risk_analysis_success_archive(fixed_now):
     assert result["metadata"]["model"] == "TAEL® v3.2"
     assert result["tactical_analysis"]["surface_type"] == "dirt"
     assert session.calls[0]["url"] == mud_module.ARCHIVE_URL
+
+
+def test_get_mud_risk_analysis_maps_paved_to_asphalt(fixed_now):
+    payload = {
+        "hourly": {
+            "time": ["2026-06-03T10:00"],
+            "precipitation": [12.0],
+            "temperature_2m": [20.0],
+            "wind_speed_10m": [10.0],
+            "cloudcover": [30.0],
+        }
+    }
+    service = MudAnalysisService(
+        config=MudAnalysisConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload=payload)),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        solar_altitude_func=lambda lat, lon, dt: 30.0,
+        now_func=fixed_now,
+    )
+
+    result = service.get_mud_risk_analysis(45.0, 10.0, "Paved", None)
+
+    assert result["status"] == "Success"
+    assert result["tactical_analysis"]["surface_type"] == "asphalt"
+    traction = result["tactical_analysis"]["traction_risk"]
+    assert traction["level"] == "Medium"
+    assert "aquaplaning" in traction["advice"].lower()
 
 
 def test_get_mud_risk_analysis_success_forecast(fixed_now):

@@ -1,5 +1,5 @@
-from datetime import datetime
 import zoneinfo
+from datetime import datetime
 
 import pytest
 import requests
@@ -131,6 +131,41 @@ def test_build_forecast_params(service):
     assert params["end_date"] == "2026-06-03"
 
 
+def test_worst_case_safety_advice_uses_peak_wind_hour(service):
+    forecast = [
+        {
+            "time": "09:00",
+            "temp": "20",
+            "app_temp": "19",
+            "rain_prob": "80",
+            "rain_mm": "0.4",
+            "wind": "18.8",
+            "gusts": "62.3",
+        },
+        {
+            "time": "10:00",
+            "temp": "13",
+            "app_temp": "9",
+            "rain_prob": "93",
+            "rain_mm": "2.4",
+            "wind": "26.6",
+            "gusts": "108.7",
+        },
+    ]
+
+    advice = service._worst_case_safety_advice(forecast)
+
+    assert advice["status"] == "[NOT RECOMMENDED]"
+    assert advice["wind_risk_score"] == round((26.6 * 0.4) + (108.7 * 0.6), 1)
+    assert advice["gear_advice"].startswith("Spring/Fall")
+
+
+def test_worst_case_safety_advice_empty_forecast_is_safe(service):
+    advice = service._worst_case_safety_advice([])
+
+    assert advice["status"] == "[GO]"
+
+
 def test_reference_index_found(service):
     hourly = {"time": ["2026-06-03T08:00", "2026-06-03T09:00"]}
     target = datetime(2026, 6, 3, 9, 0, 0)
@@ -228,6 +263,35 @@ def test_get_weather_forecast_success(service, fixed_now):
     assert result["reference_conditions"]["temp_actual"] == 20
     assert result["reference_conditions"]["temp_max"] == 22
     assert session.calls[0]["url"] == weather_module.OPEN_METEO_URL
+
+
+def test_get_weather_forecast_safety_advice_scans_whole_window(service, fixed_now):
+    payload = {
+        "hourly": {
+            "time": ["2026-06-03T09:00", "2026-06-03T10:00"],
+            "temperature_2m": [15, 13],
+            "apparent_temperature": [14, 9],
+            "precipitation_probability": [80, 93],
+            "precipitation": [0.4, 2.4],
+            "windspeed_10m": [18.8, 26.6],
+            "windgusts_10m": [62.3, 108.7],
+            "winddirection_10m": [180, 190],
+            "weathercode": [1, 2],
+        }
+    }
+    session = FakeSession(response=FakeResponse(payload=payload))
+    service = WeatherService(
+        config=WeatherConfig(),
+        requests_session=session,
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        now_func=fixed_now,
+    )
+
+    result = service.get_weather_forecast(45.0, 10.0, None, 9)
+
+    assert result["reference_conditions"]["wind_gusts"] == 62.3
+    assert result["safety_advice"]["status"] == "[NOT RECOMMENDED]"
+    assert result["safety_advice"]["wind_risk_score"] > 55
 
 
 def test_get_weather_forecast_with_target_date(service, fixed_now):
@@ -374,6 +438,32 @@ def test_apply_weather_windowing_updates_reference_conditions():
     assert result["reference_conditions"]["wind_speed"] == 13.0
     assert result["reference_conditions"]["wind_dir_degrees"] == 195
     assert result["reference_conditions"]["reference_hour"] == "Calculated window 09-10"
+
+
+def test_apply_weather_windowing_recomputes_safety_advice_for_ride_window():
+    weather_data = {
+        "tactical_forecast": [
+            {
+                "time": "08:00", "app_temp": "18", "rain_prob": "10", "rain_mm": "0.0",
+                "wind": "60", "gusts": "120", "wind_direction": "180",
+            },
+            {
+                "time": "09:00", "app_temp": "19", "rain_prob": "10", "rain_mm": "0.0",
+                "wind": "12", "gusts": "20", "wind_direction": "190",
+            },
+            {
+                "time": "20:00", "app_temp": "18", "rain_prob": "10", "rain_mm": "0.0",
+                "wind": "60", "gusts": "120", "wind_direction": "180",
+            },
+        ],
+        "reference_conditions": {},
+        "safety_advice": {"status": "[NOT RECOMMENDED]"},
+    }
+
+    result = apply_weather_windowing(weather_data, 9, 19)
+
+    assert result["safety_advice"]["status"] == "[GO]"
+    assert result["safety_advice"]["wind_risk_score"] == round((12 * 0.4) + (20 * 0.6), 1)
 
 
 def test_apply_weather_windowing_creates_reference_conditions_if_missing():

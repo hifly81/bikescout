@@ -14,14 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import os
 import sys
+import traceback
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, TypeVar, cast
 
 from dotenv import load_dotenv
 from fastmcp import FastMCP
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from bikescout.schemas import (
     BikeSetup,
@@ -34,6 +37,11 @@ from bikescout.schemas import (
     StrategicPlannerResponse,
     TacticalForecastResponse,
     WeatherContext,
+)
+from bikescout.tools.bike_setup import (
+    default_casing_type,
+    default_rim_internal_width_mm,
+    default_tire_width_mm,
 )
 from bikescout.tools.geocoding import get_coordinates
 from bikescout.tools.gonogo import calculate_ride_windows
@@ -48,6 +56,98 @@ load_dotenv()
 
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 ORS_API_KEY = os.getenv("ORS_API_KEY")
+
+ResponseT = TypeVar("ResponseT", bound=BaseModel)
+
+
+def _error_reason(data: dict[str, Any]) -> str:
+    """Extract the diagnostic message from a tool error payload.
+
+    Args:
+        data: Raw response dictionary returned by a domain service.
+
+    Returns:
+        The cause of the error, or a fallback message when none is provided.
+    """
+    for key in ("error_message", "message", "error"):
+        value = data.get(key)
+        if value:
+            return str(value)
+    return "Tool returned status=Error without a diagnostic message."
+
+
+def _log_error_details(
+    reason: str | None = None,
+    exception: BaseException | None = None,
+    show_call_stack: bool = True,
+    tool_name: str = "BikeScout tool",
+) -> None:
+    """Print Error diagnostics to stderr.
+
+    Args:
+        reason: Human-readable cause of the failure, when known.
+        exception: Exception that caused the failure, when available.
+        show_call_stack: Print the current call stack when no exception is supplied.
+        tool_name: Name of the MCP tool that failed.
+    """
+    sys.stderr.write(f"{tool_name} failed with status=Error\n")
+    if reason:
+        sys.stderr.write(f"Reason: {reason}\n")
+    if exception is not None:
+        traceback.print_exception(
+            type(exception), exception, exception.__traceback__, file=sys.stderr
+        )
+    elif show_call_stack:
+        sys.stderr.write("Traceback (most recent call last):\n")
+        traceback.print_stack(file=sys.stderr)
+
+
+def _error_mission_response(
+    reason: str | None = None,
+    exception: BaseException | None = None,
+    tool_name: str = "trail_scout_simple",
+) -> FullMissionBriefingResponse:
+    """Build an Error response after printing its diagnostics to stderr.
+
+    Args:
+        reason: Human-readable cause of the failure, when known.
+        exception: Exception that caused the failure, when available.
+        tool_name: Name of the MCP tool that failed.
+
+    Returns:
+        A FullMissionBriefingResponse with status "Error".
+    """
+    _log_error_details(reason=reason, exception=exception, tool_name=tool_name)
+    return FullMissionBriefingResponse.model_validate(
+        {"payload_version": BIKESCOUT_PROTOCOL_VERSION, "status": "Error"}
+    )
+
+
+def _tool_error_response(
+    response_model: type[ResponseT],
+    tool_name: str,
+    data: dict[str, Any] | None = None,
+    exception: BaseException | None = None,
+) -> ResponseT:
+    """Build an Error response after printing its diagnostics to stderr.
+
+    Uses ``model_construct`` because most response schemas require fields that
+    are absent from a service error payload.
+
+    Args:
+        response_model: Pydantic response class of the MCP tool.
+        tool_name: Name of the MCP tool that failed.
+        data: Raw error payload returned by the domain service, when available.
+        exception: Exception that caused the failure, when available.
+
+    Returns:
+        A partially populated response with status "Error".
+    """
+    reason = _error_reason(data) if data is not None else None
+    _log_error_details(reason=reason, exception=exception, tool_name=tool_name)
+    return response_model.model_construct(
+        payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
+    )
 
 
 @mcp.tool()
@@ -66,8 +166,17 @@ def geocode_location(location_name: str, language: str = "en") -> GeocodingRespo
         - importance: A score indicating the reliability of the match.
         - place_class/type: Contextual info to distinguish between cities, peaks, or regions.
     """
-    data = get_coordinates(location_name, language)
-    return GeocodingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    try:
+        data = get_coordinates(location_name, language)
+        if data.get("status") == "Error":
+            return _tool_error_response(
+                GeocodingResponse, tool_name="geocode_location", data=data
+            )
+        return GeocodingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
+        return _tool_error_response(
+            GeocodingResponse, tool_name="geocode_location", exception=exc
+        )
 
 
 @mcp.tool()
@@ -137,40 +246,47 @@ def trail_scout(
     """
 
     if not ORS_API_KEY:
-        print("Error: ORS_API_KEY is not set.", file=sys.stderr)
-        print(
-            "Please set the ORS_API_KEY environment variable or add it to your .env file.",
-            file=sys.stderr,
+        _log_error_details(
+            reason="ORS_API_KEY is not set. Set it in the environment or in .env "
+            "(get a free key at https://openrouteservice.org/).",
+            show_call_stack=False,
+            tool_name="trail_scout",
         )
-        print(
-            "You can get a free key at https://openrouteservice.org/", file=sys.stderr
-        )
-        return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
+        return FullMissionBriefingResponse.model_validate(
+            {"payload_version": BIKESCOUT_PROTOCOL_VERSION, "status": "Error"}
         )
 
-    data = get_complete_trail_scout(
-        ORS_API_KEY,
-        latitude,
-        longitude,
-        rider,
-        bike,
-        mission,
-        dest_latitude,
-        dest_longitude,
-        style,
-        target_date,
-        include_gpx,
-        include_map,
-        include_poi,
-        include_altimetry,
-        include_weather,
-        include_mud_analysis,
-        include_nutrition_plan,
-    )
-    return FullMissionBriefingResponse(
-        payload_version=BIKESCOUT_PROTOCOL_VERSION, **data
-    )
+    try:
+        data = get_complete_trail_scout(
+            ORS_API_KEY,
+            latitude,
+            longitude,
+            rider,
+            bike,
+            mission,
+            dest_latitude,
+            dest_longitude,
+            style,
+            target_date,
+            include_gpx,
+            include_map,
+            include_poi,
+            include_altimetry,
+            include_weather,
+            include_mud_analysis,
+            include_nutrition_plan,
+        )
+        if data.get("status") == "Error":
+            return _error_mission_response(
+                reason=_error_reason(data), tool_name="trail_scout"
+            )
+        return FullMissionBriefingResponse(
+            payload_version=BIKESCOUT_PROTOCOL_VERSION, **data
+        )
+    except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
+        return _error_mission_response(
+            reason=str(exc), exception=exc, tool_name="trail_scout"
+        )
 
 
 @mcp.tool()
@@ -183,6 +299,10 @@ def trail_scout_simple(
     fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
     bike_type: Literal["mtb", "road", "gravel", "e-mtb", "enduro"] = "mtb",
     tire_size: Literal["32", "29", "27.5", "700c", "650b"] = "29",
+    tire_width_mm: int | None = None,
+    rim_internal_width_mm: int | None = None,
+    casing_type: Literal["xc", "trail", "enduro", "dh"] | None = None,
+    tubeless: bool = True,
     is_ebike: bool = False,
     battery_wh: int = 625,
     total_length_km: int = 30,
@@ -237,6 +357,10 @@ def trail_scout_simple(
         fitness_level: Rider's stamina level ("beginner", "intermediate", "pro").
         bike_type: Type of bicycle to optimize the mechanical and tactical advice.
         tire_size: Wheel/tire diameter for specific pressure (PSI) recommendations.
+        tire_width_mm: Actual tire width; defaults to the discipline reference.
+        rim_internal_width_mm: Rim internal width; defaults to the discipline reference.
+        casing_type: Casing stiffness (xc, trail, enduro, dh); defaults by discipline.
+        tubeless: False for inner tubes, which require roughly 18% more pressure.
         is_ebike: Set to True if using a pedelec/e-bike to enable battery analysis.
         battery_wh: Battery capacity in Watt-hours (default: 625).
         total_length_km: The total distance of the round trip in kilometers (e.g., 25.0).
@@ -287,6 +411,15 @@ def trail_scout_simple(
         bike = BikeSetup(
             bike_type=bike_type,
             tire_size=tire_size,
+            tire_width_mm=tire_width_mm or default_tire_width_mm(bike_type),
+            rim_internal_width_mm=(
+                rim_internal_width_mm or default_rim_internal_width_mm(bike_type)
+            ),
+            casing_type=cast(
+                Literal["xc", "trail", "enduro", "dh"],
+                casing_type or default_casing_type(bike_type),
+            ),
+            tubeless=tubeless,
             is_ebike=is_ebike,
             battery_wh=battery_wh,
         )
@@ -305,7 +438,7 @@ def trail_scout_simple(
             priority_mode=priority_mode,
         )
 
-        return trail_scout(
+        response = trail_scout(
             latitude=latitude,
             longitude=longitude,
             rider=rider,
@@ -322,11 +455,10 @@ def trail_scout_simple(
             include_mud_analysis=include_mud_analysis,
             include_nutrition_plan=include_nutrition_plan,
         )
+        return response
 
-    except (ValueError, KeyError, RuntimeError, ValidationError):
-        return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
-        )
+    except (ValueError, KeyError, RuntimeError, ValidationError) as exc:
+        return _error_mission_response(reason=str(exc), exception=exc)
 
 
 @mcp.tool()
@@ -354,8 +486,17 @@ def check_trail_weather(
         - safety_advice: Crucial briefing on wind risk scores and recommended gear.
     """
     # Now passing the optional target_date to the underlying weather engine
-    data = get_weather_forecast(lat, lon, target_date)
-    return TacticalForecastResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    try:
+        data = get_weather_forecast(lat, lon, target_date)
+        if data.get("status") == "Error":
+            return _tool_error_response(
+                TacticalForecastResponse, tool_name="check_trail_weather", data=data
+            )
+        return TacticalForecastResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
+        return _tool_error_response(
+            TacticalForecastResponse, tool_name="check_trail_weather", exception=exc
+        )
 
 
 @mcp.tool()
@@ -387,10 +528,19 @@ def ride_window_planner(
         - mud_risk_impact: The percentage of mission success affected by soil saturation.
     """
 
-    data = calculate_ride_windows(
-        lat, lon, ride_duration_hours, surface_type, target_date
-    )
-    return StrategicPlannerResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    try:
+        data = calculate_ride_windows(
+            lat, lon, ride_duration_hours, surface_type, target_date
+        )
+        if data.get("status") == "Error":
+            return _tool_error_response(
+                StrategicPlannerResponse, tool_name="ride_window_planner", data=data
+            )
+        return StrategicPlannerResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
+        return _tool_error_response(
+            StrategicPlannerResponse, tool_name="ride_window_planner", exception=exc
+        )
 
 
 @mcp.tool()
@@ -429,47 +579,60 @@ def hydration_scout(
         A HydrationScoutResponse containing the tactical weather context and
         the complete nutrition briefing (fluids, carbs, electrolytes).
     """
-    # 1. Fetch weather context using the updated forecast engine
-    # This now supports both real-time and future dates
-    weather_data = get_weather_forecast(lat, lon, target_date)
+    try:
+        # 1. Fetch weather context using the updated forecast engine
+        # This now supports both real-time and future dates
+        weather_data = get_weather_forecast(lat, lon, target_date)
+        if weather_data.get("status") == "Error":
+            return _tool_error_response(
+                HydrationScoutResponse, tool_name="hydration_scout", data=weather_data
+            )
 
-    # 2. Extract peak temperature from the tactical forecast window
-    # Default to 20°C if weather data is unavailable
-    max_temp = 20.0
+        # 2. Extract peak temperature from the tactical forecast window
+        # Default to 20°C if weather data is unavailable
+        max_temp = 20.0
 
-    # We now look for 'tactical_forecast' (the new key in our updated weather tool)
-    forecast = weather_data.get("tactical_forecast", [])
+        # We now look for 'tactical_forecast' (the new key in our updated weather tool)
+        forecast = weather_data.get("tactical_forecast", [])
 
-    if forecast:
-        try:
-            # We parse the temperature strings (e.g., "24.5°C" -> 24.5)
-            # and find the maximum expected during the ride window
-            temps = [float(h["temp"].replace("°C", "")) for h in forecast]
-            max_temp = max(temps)
-        except (ValueError, KeyError, TypeError):
-            # Fallback to the reference condition if list parsing fails
-            ref_cond = weather_data.get("reference_conditions", {})
-            max_temp = float(ref_cond.get("temp", 20.0))
+        if forecast:
+            try:
+                # We parse the temperature strings (e.g., "24.5°C" -> 24.5)
+                # and find the maximum expected during the ride window
+                temps = [float(h["temp"].replace("°C", "")) for h in forecast]
+                max_temp = max(temps)
+            except (ValueError, KeyError, TypeError):
+                # Fallback to the reference condition if list parsing fails
+                ref_cond = weather_data.get("reference_conditions", {})
+                max_temp = float(ref_cond.get("temp", 20.0))
 
-    # 3. Execute the Nutrition Logic
-    # The engine calculates carbs/hour and ml/hour based on heat and intensity
-    data = get_nutrition_plan(
-        duration_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile
-    )
+        # 3. Execute the Nutrition Logic
+        # The engine calculates carbs/hour and ml/hour based on heat and intensity
+        data = get_nutrition_plan(
+            duration_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile
+        )
+        if data.get("status") == "Error":
+            return _tool_error_response(
+                HydrationScoutResponse, tool_name="hydration_scout", data=data
+            )
 
-    context = WeatherContext(
-        date_referenced=weather_data.get("metadata", {}).get(
-            "date_analyzed", target_date
-        ),
-        max_temp_detected=f"{max_temp}°C",
-        is_future_event=weather_data.get("metadata", {}).get(
-            "is_future_planning", False
-        ),
-    )
+        context = WeatherContext(
+            date_referenced=weather_data.get("metadata", {}).get(
+                "date_analyzed", target_date
+            ),
+            max_temp_detected=f"{max_temp}°C",
+            is_future_event=weather_data.get("metadata", {}).get(
+                "is_future_planning", False
+            ),
+        )
 
-    return HydrationScoutResponse(
-        payload_version=BIKESCOUT_PROTOCOL_VERSION, weather_context=context, **data
-    )
+        return HydrationScoutResponse(
+            payload_version=BIKESCOUT_PROTOCOL_VERSION, weather_context=context, **data
+        )
+    except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
+        return _tool_error_response(
+            HydrationScoutResponse, tool_name="hydration_scout", exception=exc
+        )
 
 
 @mcp.tool()
@@ -519,22 +682,30 @@ def analyze_gpx_track(
         - report_path: Local URI to the generated PDF document (if requested).
     """
 
-    data = analyze_track(
-        gpx_url=gpx_url,
-        rider_weight_kg=rider_weight_kg,
-        rider_gender=rider_gender,
-        rider_fitness_level=rider_fitness_level,
-        sweat_profile=sweat_profile,
-        bike_weight_kg=bike_weight_kg,
-        pro_intensity=pro_intensity,
-        activity_type=activity_type,
-        target_date=target_date,
-        start_hour=start_hour,
-        end_hour=end_hour,
-        report=report,
-    )
-
-    return GpxRaceAuditResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    try:
+        data = analyze_track(
+            gpx_url=gpx_url,
+            rider_weight_kg=rider_weight_kg,
+            rider_gender=rider_gender,
+            rider_fitness_level=rider_fitness_level,
+            sweat_profile=sweat_profile,
+            bike_weight_kg=bike_weight_kg,
+            pro_intensity=pro_intensity,
+            activity_type=activity_type,
+            target_date=target_date,
+            start_hour=start_hour,
+            end_hour=end_hour,
+            report=report,
+        )
+        if data.get("status") == "Error":
+            return _tool_error_response(
+                GpxRaceAuditResponse, tool_name="analyze_gpx_track", data=data
+            )
+        return GpxRaceAuditResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+    except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
+        return _tool_error_response(
+            GpxRaceAuditResponse, tool_name="analyze_gpx_track", exception=exc
+        )
 
 
 @mcp.resource("bikescout://altimetry/{filename}")

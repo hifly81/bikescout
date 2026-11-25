@@ -3,7 +3,7 @@
 ### Open-source AI cycling route planner for MTB, gravel, road and e-bike riders
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Version](https://img.shields.io/badge/Version-1.6.2-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-1.7.0-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
@@ -58,24 +58,25 @@ The system provides precise setup advice, tailoring your equipment to the demand
 
 ---
 
-## Example Queries
+## Example Scenarios
 
 You can ask **BikeScout** complex, multi-step requests. It combines real-time data with technical cycling intelligence to provide expert-level answers.
 
 ### 🗺️ Advanced Planning (Multi-Tool)
-* *"I'm at Monte Cavo with my MTB bike (29 tires). Plan a 25km loop for me. Check if the terrain is compatible with my bike, verify the afternoon rain probability, and suggest a 'Fraschetta' for the finish. Use the Castelli Romani guide."*
+* *"I'm at Monte Cavo, near Rome (Italy) with my MTB bike (29 tires). Plan a 25km loop for me. Check if the terrain is compatible with my bike, verify the afternoon rain probability, and suggest a 'Fraschetta' for the finish. Use the Castelli Romani guide."*
 
 ### ⚙️ Bike Setup & Surface Intelligence
 * *"Check this route from Barcelona city center to El Prat. I'm on a Road Bike with 25mm tires. Is it compatible? Give me the exact percentage of gravel vs asphalt."*
 
 ### 📈 Visual Elevation & Gradient Analysis
-* *"Plan a 40km route starting from Bormio. I need the Visual Elevation Profile to see the exact gradients of the Stelvio climb. Highlight sections over 12% so I can manage my pacing."*
+* *"Plan a 40km route starting from Bormio, Italy. I need the Visual Elevation Profile to see the exact gradients of the Stelvio climb. Highlight sections over 12% so I can manage my pacing."*
+* *"Give me the terrain truth for this route: true ascent, maximum gradient, every significant climb with a FIETS category, and how confident you are in the elevation data."*
 
 ### 🏔️ Local Expertise
 * *"Use the Derby local guide to plan a road cycling route starting from Derby. I need at least 800m of elevation gain. Also, recommend the correct tire pressure for high-altitude descents."*
 
 ### 🛠️ Quick Tech Checks
-* *"Give me the safety checklist and calculate the tire pressure for a 90kg rider on 2.3" tubeless tires for a muddy ride."*
+* *"Give me the safety checklist and calculate front/rear pressure for a 90kg rider on 2.3" tubeless tires (25mm internal rims, DH casing) for a muddy S3 ride."*
 
 ### 🏁 Post-Ride Analysis & Terrain Truth
 * *"Analyze my ride from 2026-04-12. Compare my average speed with the Mud Risk at that time and tell me if the terrain conditions were the reason for my slow pace."*

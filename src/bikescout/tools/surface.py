@@ -16,133 +16,34 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
 import requests
 
 from bikescout.tools.battery import calculate_battery_drain
 from bikescout.tools.bike_setup import analyze_compatibility, get_tire_setup
 from bikescout.tools.mud import get_mud_risk_analysis
+from bikescout.tools.terrain import analyze_terrain_profile, segment_distances_m
+
+ORS_DIRECTIONS_URL = "https://api.heigit.org/openrouteservice/v2/directions"
+
+# TAEL moisture is expressed in millimeters; 20mm is the Extreme threshold.
+MUD_NORMALIZATION_MAX_MM = 20.0
+
+
+def _normalize_mud_index(raw_mud_mm: Any) -> float:
+    """Convert a raw TAEL moisture reading into a 0.0-1.0 mud severity index."""
+    try:
+        value = float(raw_mud_mm)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(value / MUD_NORMALIZATION_MAX_MM, 1.0))
 
 
 @dataclass(frozen=True)
 class SurfaceAnalyzerConfig:
     ors_timeout_seconds: float = 7.0
-
-
-def _sanitize_elevation_profile(
-        geometry,
-        window_size=11,
-        threshold=3.0,
-        max_step_up_m=30.0,
-        max_step_down_m=30.0,
-):
-    elevations = [float(p[2]) for p in geometry if len(p) > 2 and isinstance(p[2], (int, float))]
-    if len(elevations) < window_size:
-        return 0.0
-
-    cleaned = [elevations[0]]
-    for ele in elevations[1:]:
-        prev = cleaned[-1]
-        delta = ele - prev
-
-        if delta > max_step_up_m:
-            ele = prev + max_step_up_m
-        elif delta < -max_step_down_m:
-            ele = prev - max_step_down_m
-
-        cleaned.append(ele)
-
-    weights = np.ones(window_size) / window_size
-    smoothed = np.convolve(cleaned, weights, mode="valid")
-
-    total_ascent = 0.0
-    last_valley = smoothed[0]
-    last_peak = smoothed[0]
-    is_climbing = True
-
-    for ele in smoothed[1:]:
-        if is_climbing:
-            if ele > last_peak:
-                last_peak = ele
-            elif ele < last_peak - threshold:
-                total_ascent += (last_peak - last_valley)
-                is_climbing = False
-                last_valley = ele
-        else:
-            if ele < last_valley:
-                last_valley = ele
-            elif ele > last_valley + threshold:
-                is_climbing = True
-                last_peak = ele
-
-    if is_climbing and last_peak > last_valley:
-        total_ascent += (last_peak - last_valley)
-
-    return round(total_ascent, 0)
-
-def _cap_implausible_ascent(total_ascent_m: float, total_dist_m: float, bike_type: str) -> float:
-    if total_dist_m <= 0:
-        return 0.0
-
-    bike_type_low = str(bike_type).lower()
-    dist_km = total_dist_m / 1000.0
-    ascent_per_km = total_ascent_m / max(dist_km, 1e-6)
-
-    if "enduro" in bike_type_low:
-        hard_cap_per_km = 180.0
-    elif "mountain" in bike_type_low or "mtb" in bike_type_low:
-        hard_cap_per_km = 140.0
-    else:
-        hard_cap_per_km = 90.0
-
-    hard_cap_total = dist_km * hard_cap_per_km
-    return round(min(total_ascent_m, hard_cap_total), 0)
-
-
-def _categorize_climb(total_ascent: float, total_dist_m: float, bike_type: str):
-    bike_type_low = str(bike_type).lower()
-
-    if "enduro" in bike_type_low:
-        climbing_ratio = 0.25
-        effort_multiplier = 1.6
-    elif "mountain" in bike_type_low or "mtb" in bike_type_low:
-        climbing_ratio = 0.30
-        effort_multiplier = 1.4
-    else:
-        climbing_ratio = 0.45
-        effort_multiplier = 1.0
-
-    climbing_dist = total_dist_m * climbing_ratio
-    avg_gradient = (total_ascent / climbing_dist) * 100 if climbing_dist > 0 else 0
-
-    max_display = 25.0 if "enduro" in bike_type_low else 20.0
-    display_gradient = min(avg_gradient, max_display)
-
-    scoring_gradient = min(display_gradient, 18.0)
-    adjusted_score = total_ascent * (scoring_gradient / 10) * effort_multiplier
-
-    if total_ascent < 50:
-        return "Flat / Rolling", display_gradient
-
-    if adjusted_score >= 800 or total_ascent > 1000:
-        category = "Hors Catégorie (HC)"
-    elif adjusted_score >= 500:
-        category = "C1 - Brutal Ascent"
-    elif adjusted_score >= 300:
-        category = "C2 - Hard Climb"
-    elif adjusted_score >= 150:
-        category = "C3 - Challenging"
-    else:
-        category = "C4 - Short Burner"
-
-    if "enduro" in bike_type_low:
-        category = f"Enduro Tech: {category}"
-
-    return category, display_gradient
 
 
 def _extract_dominant_surface(surface_extra, surface_map):
@@ -170,56 +71,92 @@ class SurfaceAnalyzerService:
         self.tire_setup_getter = tire_setup_getter or get_tire_setup
         self.battery_drain_calculator = battery_drain_calculator or calculate_battery_drain
 
-    def get_surface_analyzer(self, api_key, lat, lon, rider, bike, mission, target_date: str = None):
+    def get_surface_analyzer(
+            self,
+            api_key,
+            lat,
+            lon,
+            rider,
+            bike,
+            mission,
+            target_date: str | None = None,
+            route_feature: dict[str, Any] | None = None,
+    ):
+        """
+        Analyze surface, terrain and mechanical setup for a cycling route.
+
+        When ``route_feature`` is supplied (as the orchestrator does with the
+        route it already selected), its geometry and extra info are analyzed
+        directly. No second ORS request is made, so the reported distance,
+        ascent and climb metrics always describe the very same geometry that is
+        exported to GPX, map and altimetry. Without a provided feature the
+        service keeps its standalone behavior and requests a route from ORS.
+
+        Args:
+            api_key: OpenRouteService API key.
+            lat: Starting latitude, used for mud intelligence on the standalone path.
+            lon: Starting longitude, used for mud intelligence on the standalone path.
+            rider: Rider profile.
+            bike: Bike setup.
+            mission: Mission constraints.
+            target_date: Optional target date for mud analysis.
+            route_feature: Optional ORS route feature to analyze instead of
+                requesting a new route from ORS.
+        Returns:
+            A structured surface analysis report with status "Success" or "Error".
+        """
         safe_complexity = self._safe_complexity(getattr(mission, "complexity", 10))
         safe_length = self._safe_length_m(getattr(mission, "total_length_km", 0))
-        attempts = self._attempts_for_profile(getattr(mission, "profile", "cycling-regular"))
+        if route_feature is not None:
+            attempts = [(str(getattr(mission, "profile", "cycling-regular")), [])]
+        else:
+            attempts = self._attempts_for_profile(getattr(mission, "profile", "cycling-regular"))
 
         last_error = ""
         for current_profile, requested_extras in attempts:
             try:
-                url = f"https://api.openrouteservice.org/v2/directions/{current_profile}/geojson"
-                headers = {"Authorization": api_key, "Content-Type": "application/json"}
+                if route_feature is not None:
+                    data = {"features": [route_feature]}
+                else:
+                    url = f"{ORS_DIRECTIONS_URL}/{current_profile}/geojson"
+                    headers = {"Authorization": api_key, "Content-Type": "application/json"}
 
-                body = self._request_body(
-                    lat=lat,
-                    lon=lon,
-                    mission=mission,
-                    safe_length=safe_length,
-                    safe_complexity=safe_complexity,
-                    requested_extras=requested_extras,
-                )
+                    body = self._request_body(
+                        lat=lat,
+                        lon=lon,
+                        mission=mission,
+                        safe_length=safe_length,
+                        safe_complexity=safe_complexity,
+                        requested_extras=requested_extras,
+                    )
 
-                res = self.http_session.post(url, json=body, headers=headers, timeout=self.config.ors_timeout_seconds)
+                    res = self.http_session.post(
+                        url, json=body, headers=headers, timeout=self.config.ors_timeout_seconds
+                    )
 
-                if res.status_code != 200:
-                    try:
-                        detail = res.json().get("error", {}).get("message", res.text)
-                    except Exception:
-                        detail = res.text
+                    if res.status_code != 200:
+                        try:
+                            detail = res.json().get("error", {}).get("message", res.text)
+                        except Exception:
+                            detail = res.text
 
-                    last_error = f"ORS {res.status_code}: {detail}"
-                    continue
+                        last_error = f"ORS {res.status_code}: {detail}"
+                        continue
 
-                data = res.json()
+                    data = res.json()
+
                 feature = data["features"][0]
                 props = feature.get("properties", {})
                 geometry = feature.get("geometry", {}).get("coordinates", [])
                 extras = props.get("extras", {})
 
-                real_dist_m = self._geometry_distance_m(geometry)
-                clean_ascent = _sanitize_elevation_profile(
+                terrain = analyze_terrain_profile(
                     geometry,
-                    window_size=11,
-                    threshold=3.0,
-                    max_step_up_m=25.0,
-                    max_step_down_m=25.0,
-                )
-                clean_ascent = _cap_implausible_ascent(
-                    total_ascent_m=clean_ascent,
-                    total_dist_m=real_dist_m,
                     bike_type=bike.bike_type,
-)
+                    extras=extras,
+                )
+                clean_ascent = terrain["total_ascent_m"]
+                real_dist_m = terrain["profile_length_m"] or self._geometry_distance_m(geometry)
 
                 surface_map = {
                     0: "Unknown",
@@ -232,25 +169,40 @@ class SurfaceAnalyzerService:
                 }
                 dominant_surface = _extract_dominant_surface(extras.get("surface", {}), surface_map)
 
-                mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
-                t_analysis = mud_analysis.get("tactical_analysis") or {}
-                raw_mud = t_analysis.get("mud_risk_numeric")
-                mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
-
-                tire_display = self.tire_setup_getter(
-                    bike_type=bike.bike_type,
-                    tire_size_option=bike.tire_size,
-                    mud_index=mud_score_val,
-                    surface_type=dominant_surface,
-                    rider_weight_kg=rider.weight_kg,
-                )
-
-                climb_cat, avg_grad = _categorize_climb(clean_ascent, real_dist_m, bike.bike_type)
                 breakdown, warnings, compatible = self.compatibility_analyzer(
                     bike.bike_type,
                     bike.tire_width_mm,
                     extras,
                     surface_map,
+                    getattr(bike, "rim_internal_width_mm", None),
+                )
+
+                mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
+                t_analysis = mud_analysis.get("tactical_analysis") or {}
+                raw_mud = t_analysis.get("mud_risk_numeric")
+                mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
+                mud_index = _normalize_mud_index(mud_score_val)
+
+                tire_display = self.tire_setup_getter(
+                    bike_type=bike.bike_type,
+                    tire_size_option=bike.tire_size,
+                    mud_index=mud_index,
+                    surface_type=dominant_surface,
+                    rider_weight_kg=rider.weight_kg,
+                    tire_width_mm=getattr(bike, "tire_width_mm", None),
+                    rim_internal_width_mm=getattr(bike, "rim_internal_width_mm", None),
+                    casing_type=getattr(bike, "casing_type", "trail"),
+                    tubeless=getattr(bike, "tubeless", True),
+                    technical_difficulty=terrain.get("technical_difficulty"),
+                    ascent_m=clean_ascent,
+                    surface_analysis=breakdown,
+                )
+
+                climb_cat = terrain["climb_category"]
+                avg_grad = terrain["avg_climb_gradient"]
+                setup_warnings = self._tire_setup_warnings(tire_display)
+                tactical_warnings = (
+                    list(warnings) + list(terrain["warnings"]) + setup_warnings
                 )
 
                 emtb_analysis = self._emtb_analysis(
@@ -263,7 +215,7 @@ class SurfaceAnalyzerService:
                     mud_score_val=mud_score_val,
                 )
 
-                avg_gradient_total = (clean_ascent / real_dist_m * 100) if real_dist_m > 0 else 0
+                avg_gradient_total = terrain["avg_gradient"]
 
                 return {
                     "status": "Success",
@@ -271,13 +223,18 @@ class SurfaceAnalyzerService:
                     "metadata": {
                         "analyzed_date": mud_analysis.get("metadata", {}).get("target_date"),
                         "api_extras": list(extras.keys()),
+                        "elevation_source": "ORS geometry elevation (offline terrain engine)",
                     },
                     "tactical_briefing": {
                         "distance_km": round(real_dist_m / 1000, 2),
-                        "elevation_gain_m": clean_ascent,
+                        "elevation_gain_m": round(clean_ascent),
                         "climb_category": climb_cat,
                         "avg_gradient": f"{round(avg_gradient_total, 1)}%",
                         "avg_climb_gradient": f"{round(avg_grad, 1)}%",
+                        "terrain_analysis": terrain,
+                        "max_gradient": terrain["max_gradient"],
+                        "data_confidence": terrain["data_confidence"],
+                        "technical_difficulty": terrain["technical_difficulty"],
                         "mud_intelligence": {
                             "score": mud_score_val,
                             "label": t_analysis.get("mud_risk_score", "Unknown"),
@@ -290,17 +247,26 @@ class SurfaceAnalyzerService:
                         "compatible": compatible,
                         "setup_details": tire_display,
                         "bike_type": bike.bike_type,
-                        "safety_warnings": warnings,
+                        "safety_warnings": tactical_warnings,
                     },
                     "surface_breakdown": breakdown,
                     "emtb_tactical": emtb_analysis,
                 }
 
             except Exception as e:
-                last_error = f"Local processing error: {str(e)}"
+                last_error = f"Local processing error: {e!s}"
                 continue
 
         return {"status": "Error", "message": f"Global failure: {last_error}"}
+
+    @staticmethod
+    def _tire_setup_warnings(tire_setup: Any) -> list[str]:
+        """Extract setup warnings from a structured recommendation or legacy tuple."""
+        if hasattr(tire_setup, "warnings"):
+            return list(tire_setup.warnings or [])
+        if isinstance(tire_setup, dict):
+            return list(tire_setup.get("warnings") or [])
+        return []
 
     @staticmethod
     def _safe_complexity(value: Any) -> int:
@@ -369,20 +335,7 @@ class SurfaceAnalyzerService:
 
     @staticmethod
     def _geometry_distance_m(geometry) -> float:
-        R = 6371000
-        deg_to_rad = math.pi / 180
-        real_dist_m = 0.0
-        step = 1
-
-        for i in range(0, len(geometry) - step, step):
-            p1, p2 = geometry[i], geometry[i + step]
-            lat1, lon1 = p1[1] * deg_to_rad, p1[0] * deg_to_rad
-            lat2, lon2 = p2[1] * deg_to_rad, p2[0] * deg_to_rad
-            x = (lon2 - lon1) * math.cos((lat1 + lat2) / 2)
-            y = lat2 - lat1
-            real_dist_m += math.sqrt(x * x + y * y) * R
-
-        return real_dist_m
+        return sum(segment_distances_m(geometry))
 
     @staticmethod
     def _flat_surface_breakdown(breakdown) -> dict[str, int]:
@@ -430,7 +383,16 @@ class SurfaceAnalyzerService:
 service = SurfaceAnalyzerService()
 
 
-def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: str = None):
+def get_surface_analyzer(
+        api_key,
+        lat,
+        lon,
+        rider,
+        bike,
+        mission,
+        target_date: str | None = None,
+        route_feature: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return service.get_surface_analyzer(
         api_key=api_key,
         lat=lat,
@@ -439,4 +401,5 @@ def get_surface_analyzer(api_key, lat, lon, rider, bike, mission, target_date: s
         bike=bike,
         mission=mission,
         target_date=target_date,
+        route_feature=route_feature,
     )

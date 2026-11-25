@@ -24,8 +24,7 @@ from typing import Any
 
 import requests
 
-
-ORS_POIS_URL = "https://api.openrouteservice.org/pois"
+ORS_POIS_URL = "https://api.heigit.org/openpoiservice/v0/pois"
 
 
 class PoiScoutError(Exception):

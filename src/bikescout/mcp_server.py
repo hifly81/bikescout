@@ -14,8 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import os
 import sys
+import traceback
 from pathlib import Path
 from typing import Literal
 
@@ -48,6 +51,49 @@ load_dotenv()
 
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 ORS_API_KEY = os.getenv("ORS_API_KEY")
+
+
+def _log_error_details(
+    reason: str | None = None,
+    exception: BaseException | None = None,
+    show_call_stack: bool = True,
+) -> None:
+    """Print Error diagnostics to stderr.
+
+    Args:
+        reason: Human-readable cause of the failure, when known.
+        exception: Exception that caused the failure, when available.
+        show_call_stack: Print the current call stack when no exception is supplied.
+    """
+    sys.stderr.write("BikeScout mission failed with status=Error\n")
+    if reason:
+        sys.stderr.write(f"Reason: {reason}\n")
+    if exception is not None:
+        traceback.print_exception(
+            type(exception), exception, exception.__traceback__, file=sys.stderr
+        )
+    elif show_call_stack:
+        sys.stderr.write("Traceback (most recent call last):\n")
+        traceback.print_stack(file=sys.stderr)
+
+
+def _error_mission_response(
+    reason: str | None = None,
+    exception: BaseException | None = None,
+) -> FullMissionBriefingResponse:
+    """Build an Error response after printing its diagnostics to stderr.
+
+    Args:
+        reason: Human-readable cause of the failure, when known.
+        exception: Exception that caused the failure, when available.
+
+    Returns:
+        A FullMissionBriefingResponse with status "Error".
+    """
+    _log_error_details(reason=reason, exception=exception)
+    return FullMissionBriefingResponse.model_validate(
+        {"payload_version": BIKESCOUT_PROTOCOL_VERSION, "status": "Error"}
+    )
 
 
 @mcp.tool()
@@ -137,16 +183,13 @@ def trail_scout(
     """
 
     if not ORS_API_KEY:
-        print("Error: ORS_API_KEY is not set.", file=sys.stderr)
-        print(
-            "Please set the ORS_API_KEY environment variable or add it to your .env file.",
-            file=sys.stderr,
+        _log_error_details(
+            reason="ORS_API_KEY is not set. Set it in the environment or in .env "
+            "(get a free key at https://openrouteservice.org/).",
+            show_call_stack=False,
         )
-        print(
-            "You can get a free key at https://openrouteservice.org/", file=sys.stderr
-        )
-        return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
+        return FullMissionBriefingResponse.model_validate(
+            {"payload_version": BIKESCOUT_PROTOCOL_VERSION, "status": "Error"}
         )
 
     data = get_complete_trail_scout(
@@ -168,6 +211,15 @@ def trail_scout(
         include_mud_analysis,
         include_nutrition_plan,
     )
+    if data.get("status") == "Error":
+        _log_error_details(
+            reason=str(
+                data.get("error_message")
+                or data.get("message")
+                or "Trail scout service returned an Error without a diagnostic message."
+            ),
+            show_call_stack=False,
+        )
     return FullMissionBriefingResponse(
         payload_version=BIKESCOUT_PROTOCOL_VERSION, **data
     )
@@ -305,7 +357,7 @@ def trail_scout_simple(
             priority_mode=priority_mode,
         )
 
-        return trail_scout(
+        response = trail_scout(
             latitude=latitude,
             longitude=longitude,
             rider=rider,
@@ -322,11 +374,10 @@ def trail_scout_simple(
             include_mud_analysis=include_mud_analysis,
             include_nutrition_plan=include_nutrition_plan,
         )
+        return response
 
-    except (ValueError, KeyError, RuntimeError, ValidationError):
-        return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
-        )
+    except (ValueError, KeyError, RuntimeError, ValidationError) as exc:
+        return _error_mission_response(reason=str(exc), exception=exc)
 
 
 @mcp.tool()

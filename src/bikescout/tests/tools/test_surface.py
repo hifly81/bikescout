@@ -416,3 +416,9 @@ def test_module_level_wrapper(monkeypatch, rider, bike, mission):
 
     assert result == {"status": "Success"}
     assert len(fake_service.calls) == 1
+
+
+def test_directions_endpoint_uses_heigit_host():
+    assert surface_module.ORS_DIRECTIONS_URL == (
+        "https://api.heigit.org/openrouteservice/v2/directions"
+    )

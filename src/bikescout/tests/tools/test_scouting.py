@@ -919,6 +919,21 @@ def test_get_complete_trail_scout_gpx_and_altimetry_errors():
     assert result["elevation_error"] == "Altimetry failed: alt fail"
 
 
+def test_request_route_candidate_uses_heigit_endpoint():
+    session = FakeSession(response=FakeResponse(payload={"features": []}))
+    service = TrailScoutService(http_session=session)
+
+    service._request_route_candidate(
+        "key",
+        make_mission(profile="cycling-mountain"),
+        {"coordinates": [[9.0, 45.0], [9.1, 45.1]]},
+    )
+
+    assert session.calls[0]["url"] == (
+        "https://api.heigit.org/openrouteservice/v2/directions/cycling-mountain/geojson"
+    )
+
+
 def test_get_complete_trail_scout_master_error():
     session = FakeSession(exc=requests.exceptions.RequestException("network down"))
     service = make_service(session)
@@ -938,6 +953,7 @@ def test_get_complete_trail_scout_master_error():
 
     assert result["status"] == "Error"
     assert "Master Orchestrator failed: network down" == result["error_message"]
+    assert "network down" in result["error_traceback"]
 
 
 def test_module_level_wrapper(monkeypatch):

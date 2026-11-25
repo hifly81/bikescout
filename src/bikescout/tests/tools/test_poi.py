@@ -274,6 +274,7 @@ def test_get_poi_scout_success(config, stderr_buffer):
     assert result["amenities"][0]["distance_m"] == 50
     assert session.calls[0]["url"] == poi_module.ORS_POIS_URL
     assert session.calls[0]["timeout"] == 10.0
+    assert poi_module.ORS_POIS_URL == "https://api.heigit.org/openpoiservice/v0/pois"
 
 
 def test_get_poi_scout_returns_api_error(config, stderr_buffer):

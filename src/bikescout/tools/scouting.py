@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import math
+import sys
 import time
+import traceback
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,7 +37,7 @@ from bikescout.tools.surface import get_surface_analyzer
 from bikescout.tools.weather import apply_weather_windowing, get_weather_forecast
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-ORS_BASE_URL = "https://api.openrouteservice.org/v2/directions"
+ORS_BASE_URL = "https://api.heigit.org/openrouteservice/v2/directions"
 EARTH_METERS_PER_DEGREE = 111_320.0
 
 
@@ -381,7 +383,13 @@ class TrailScoutService:
             return response_payload
 
         except Exception as e:
-            return {"status": "Error", "error_message": f"Master Orchestrator failed: {e!s}"}
+            sys.stderr.write(f"Master Orchestrator failed: {e!s}\n")
+            traceback.print_exc(file=sys.stderr)
+            return {
+                "status": "Error",
+                "error_message": f"Master Orchestrator failed: {e!s}",
+                "error_traceback": traceback.format_exc(),
+            }
 
     @staticmethod
     def _normalize_direction_bias(direction_bias) -> list[str]:

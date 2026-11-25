@@ -7,6 +7,7 @@ from bikescout.mcp_server import (
     trail_scout,
     trail_scout_simple,
 )
+from bikescout.schemas import FullMissionBriefingResponse
 
 
 class TestMcpServer:
@@ -186,10 +187,42 @@ class TestMcpServer:
             report=True,
         )
 
-    def test_trail_scout_simple_error_handling(self):
+    def test_trail_scout_simple_error_handling(self, capsys):
         with patch(
             "bikescout.mcp_server.RiderProfile",
             side_effect=ValueError("Validation Error"),
         ):
             response = trail_scout_simple(latitude=45.0, longitude=9.0)
-            assert response.status == "Error"
+
+        assert response.status == "Error"
+        captured = capsys.readouterr()
+        assert "status=Error" in captured.err
+        assert "Traceback (most recent call last)" in captured.err
+        assert "Validation Error" in captured.err
+
+    @patch("bikescout.mcp_server.trail_scout")
+    def test_trail_scout_simple_returns_delegated_error(self, m_trail_scout, capsys):
+        m_trail_scout.return_value = FullMissionBriefingResponse.model_validate(
+            {"payload_version": "1.0", "status": "Error"}
+        )
+
+        response = trail_scout_simple(latitude=45.0, longitude=9.0)
+
+        assert response.status == "Error"
+        assert capsys.readouterr().err == ""
+
+    @patch("bikescout.mcp_server.get_complete_trail_scout")
+    @patch("bikescout.mcp_server.ORS_API_KEY", "mocked_valid_api_key")
+    def test_trail_scout_simple_logs_service_error_reason(self, m_scout, capsys):
+        m_scout.return_value = {
+            "status": "Error",
+            "error_message": "Master Orchestrator failed: network down",
+            "error_traceback": "Traceback (most recent call last): network down",
+        }
+
+        response = trail_scout_simple(latitude=45.0, longitude=9.0)
+
+        assert response.status == "Error"
+        captured = capsys.readouterr()
+        assert "status=Error" in captured.err
+        assert "Reason: Master Orchestrator failed: network down" in captured.err

@@ -26,6 +26,8 @@ from bikescout.tools.bike_setup import analyze_compatibility, get_tire_setup
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.terrain import analyze_terrain_profile, segment_distances_m
 
+ORS_DIRECTIONS_URL = "https://api.heigit.org/openrouteservice/v2/directions"
+
 
 @dataclass(frozen=True)
 class SurfaceAnalyzerConfig:
@@ -104,7 +106,7 @@ class SurfaceAnalyzerService:
                 if route_feature is not None:
                     data = {"features": [route_feature]}
                 else:
-                    url = f"https://api.openrouteservice.org/v2/directions/{current_profile}/geojson"
+                    url = f"{ORS_DIRECTIONS_URL}/{current_profile}/geojson"
                     headers = {"Authorization": api_key, "Content-Type": "application/json"}
 
                     body = self._request_body(

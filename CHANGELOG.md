@@ -1,11 +1,20 @@
 # Changelog - BikeScout
 
-## [Unreleased]
-* feat(terrain): add offline elevation truth engine with adaptive hysteresis, true ascent, max gradient, FIETS climb list and data confidence
-* feat(ui): show full terrain results in the route briefing, including climb list, confidence, technical grade and warnings
-* docs(api): document terrain models, climb list fields and data-confidence payloads in the API reference
-* fix(surface): read surface breakdown from the actual surface analyzer response
-* test: harden GPX cleanup test monkeypatch so pytest teardown keeps the real `Path.stat` signature
+## [1.7.0]
+* ready to release 1.7.0 ([680d2af](https://github.com/hifly81/bikescout/commit/680d2afe20d8940ae081d858fd419686603d37de))
+* feat(mission): normalize rider intent and off-road route reporting ([845549e](https://github.com/hifly81/bikescout/commit/845549ec5cde3127e6b85a4b63f93fe3abde544a))
+* fix(mcp): log errors and tracebacks for all MCP tools ([362e8b6](https://github.com/hifly81/bikescout/commit/362e8b6dbe288bf477ec91febd7059f5a6fc46be))
+* fix(tools): migrate ORS to HeiGIT and log mission errors ([734f0da](https://github.com/hifly81/bikescout/commit/734f0da764d7e1d223b28878e5f2502335b8018d))
+* fix(scouting): analyze exported route instead of re-querying ORS ([ce6c78a](https://github.com/hifly81/bikescout/commit/ce6c78a1dab2f816ebf8b76d45097d6978acaa72))
+* feat(terrain): add offline terrain truth engine and expose climb analytics ([e5a1914](https://github.com/hifly81/bikescout/commit/e5a19145015e7ba80b4ae2543cbba4ce0f28a7dd))
+* (ui) mx token raised to 1024 ([d1a2317](https://github.com/hifly81/bikescout/commit/d1a23177c90dae3f795d264f171d293ba68a709b))
+* (ui) mx token raised to 1024 ([ecd1082](https://github.com/hifly81/bikescout/commit/ecd108284dd6f7ad9ba7cbf1a9cb914a2d23d368))
+* (site) code commands for ollama and local llms ([bef3cb0](https://github.com/hifly81/bikescout/commit/bef3cb0dd8db81886b82cfa815c9d50e6cf78d99))
+* (test) added test for app.py ([ecde222](https://github.com/hifly81/bikescout/commit/ecde222b0ba6e7f53e1104082c47041f798c3199))
+* added gh workflow for pages ([013c4ec](https://github.com/hifly81/bikescout/commit/013c4ecf9a39c3ed006df45a03d7c8409c8113d6))
+* ADLC: added instructions for agents2 ([8cd3dfc](https://github.com/hifly81/bikescout/commit/8cd3dfc13196109fb19821d102100614785b268e))
+* replcaed AGENTS.md ([9f060c6](https://github.com/hifly81/bikescout/commit/9f060c65e6dde0bdf0509206b69fc0e7183908bd))
+* changelog ([73598df](https://github.com/hifly81/bikescout/commit/73598df7c9daf7e81a6c071114491b51423a04e3))
 
 ## [1.6.2]
 * chore(release): bump version to 1.6.2 ([8923ced](https://github.com/hifly81/bikescout/commit/8923ced5a6645e9ca24a377658f9952782c69e9c))

@@ -14,10 +14,75 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import re
+from typing import Any
+
 import streamlit as st
-from bikescout.app_helpers import (
-    ext_cast
+
+from bikescout.app_helpers import ext_cast
+from bikescout.tools.bike_setup import (
+    default_casing_type,
+    default_rim_internal_width_mm,
+    default_tire_width_mm,
 )
+
+
+def normalize_tire_setup(details: Any) -> dict[str, Any]:
+    """Normalize structured or legacy tire setup payloads for display."""
+    normalized: dict[str, Any] = {
+        "wheel_label": "Standard",
+        "tire_width_mm": None,
+        "rim_internal_width_mm": None,
+        "casing_type": "trail",
+        "tubeless": True,
+        "psi_front": None,
+        "psi_rear": None,
+        "bar_front": None,
+        "bar_rear": None,
+        "strategy": "Standard",
+        "knob_choice": None,
+        "advice": [],
+        "warnings": [],
+        "tactical_display": "",
+    }
+
+    data: Any = details
+    if hasattr(data, "model_dump"):
+        data = data.model_dump()
+    if isinstance(data, dict):
+        normalized.update(
+            {key: value for key, value in data.items() if key in normalized}
+        )
+        return normalized
+
+    if isinstance(data, (list, tuple)) and len(data) > 1 and isinstance(data[1], str):
+        raw_text = data[1]
+        normalized["tire_width_mm"] = data[0]
+        wheel_match = re.search(r"(\S+)\s*wheels", raw_text)
+        front_match = re.search(r"F:\s*([\d.]+)\s*PSI", raw_text)
+        rear_match = re.search(r"R:\s*([\d.]+)\s*PSI", raw_text)
+        single_psi_match = re.search(r"([\d.]+)\s*PSI", raw_text)
+        bar_match = re.search(r"\(([\d.]+)\s*Bar\)", raw_text)
+        type_match = re.search(r"\[(.*?)\]", raw_text)
+
+        if wheel_match:
+            normalized["wheel_label"] = wheel_match.group(1)
+        if front_match:
+            normalized["psi_front"] = float(front_match.group(1))
+        if rear_match:
+            normalized["psi_rear"] = float(rear_match.group(1))
+        if single_psi_match:
+            single_psi = float(single_psi_match.group(1))
+            normalized["psi_front"] = normalized["psi_front"] or single_psi
+            normalized["psi_rear"] = normalized["psi_rear"] or single_psi
+        if bar_match:
+            normalized["bar_front"] = float(bar_match.group(1))
+            normalized["bar_rear"] = normalized["bar_front"]
+        if type_match:
+            normalized["strategy"] = type_match.group(1).removesuffix(" Setup")
+        normalized["tactical_display"] = raw_text
+
+    return normalized
 
 
 def inject_global_styles() -> None:
@@ -933,5 +998,42 @@ def render_rider_profile_panel() -> None:
 
             metric_card("Bike", profile["bike_type"], "🚲", "#7c3aed", "Default ride setup")
             metric_card("Tire", profile["tire_size"], "🛞", "#38bdf8", "Tool-safe normalized value")
+
+        default_width = default_tire_width_mm(profile["bike_type"])
+        default_rim = default_rim_internal_width_mm(profile["bike_type"])
+        setup1, setup2, setup3, setup4 = st.columns(4)
+        with setup1:
+            profile["tire_width_mm"] = st.number_input(
+                "Tire width (mm)",
+                min_value=18,
+                max_value=75,
+                value=int(profile.get("tire_width_mm") or default_width),
+                key="rider_profile_tire_width_mm",
+            )
+        with setup2:
+            profile["rim_internal_width_mm"] = st.number_input(
+                "Rim internal (mm)",
+                min_value=10,
+                max_value=45,
+                value=int(profile.get("rim_internal_width_mm") or default_rim),
+                key="rider_profile_rim_internal_width_mm",
+            )
+        with setup3:
+            casing_options = ["xc", "trail", "enduro", "dh"]
+            current_casing = profile.get("casing_type") or default_casing_type(profile["bike_type"])
+            if current_casing not in casing_options:
+                current_casing = "trail"
+            profile["casing_type"] = st.selectbox(
+                "Casing",
+                casing_options,
+                index=casing_options.index(current_casing),
+                key="rider_profile_casing_type",
+            )
+        with setup4:
+            profile["tubeless"] = st.checkbox(
+                "Tubeless setup",
+                value=bool(profile.get("tubeless", True)),
+                key="rider_profile_tubeless",
+            )
 
         st.session_state["rider_profile"] = profile

@@ -28,6 +28,18 @@ from bikescout.tools.terrain import analyze_terrain_profile, segment_distances_m
 
 ORS_DIRECTIONS_URL = "https://api.heigit.org/openrouteservice/v2/directions"
 
+# TAEL moisture is expressed in millimeters; 20mm is the Extreme threshold.
+MUD_NORMALIZATION_MAX_MM = 20.0
+
+
+def _normalize_mud_index(raw_mud_mm: Any) -> float:
+    """Convert a raw TAEL moisture reading into a 0.0-1.0 mud severity index."""
+    try:
+        value = float(raw_mud_mm)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(value / MUD_NORMALIZATION_MAX_MM, 1.0))
+
 
 @dataclass(frozen=True)
 class SurfaceAnalyzerConfig:
@@ -157,28 +169,41 @@ class SurfaceAnalyzerService:
                 }
                 dominant_surface = _extract_dominant_surface(extras.get("surface", {}), surface_map)
 
-                mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
-                t_analysis = mud_analysis.get("tactical_analysis") or {}
-                raw_mud = t_analysis.get("mud_risk_numeric")
-                mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
-
-                tire_display = self.tire_setup_getter(
-                    bike_type=bike.bike_type,
-                    tire_size_option=bike.tire_size,
-                    mud_index=mud_score_val,
-                    surface_type=dominant_surface,
-                    rider_weight_kg=rider.weight_kg,
-                )
-
-                climb_cat = terrain["climb_category"]
-                avg_grad = terrain["avg_climb_gradient"]
                 breakdown, warnings, compatible = self.compatibility_analyzer(
                     bike.bike_type,
                     bike.tire_width_mm,
                     extras,
                     surface_map,
+                    getattr(bike, "rim_internal_width_mm", None),
                 )
-                tactical_warnings = list(warnings) + list(terrain["warnings"])
+
+                mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
+                t_analysis = mud_analysis.get("tactical_analysis") or {}
+                raw_mud = t_analysis.get("mud_risk_numeric")
+                mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
+                mud_index = _normalize_mud_index(mud_score_val)
+
+                tire_display = self.tire_setup_getter(
+                    bike_type=bike.bike_type,
+                    tire_size_option=bike.tire_size,
+                    mud_index=mud_index,
+                    surface_type=dominant_surface,
+                    rider_weight_kg=rider.weight_kg,
+                    tire_width_mm=getattr(bike, "tire_width_mm", None),
+                    rim_internal_width_mm=getattr(bike, "rim_internal_width_mm", None),
+                    casing_type=getattr(bike, "casing_type", "trail"),
+                    tubeless=getattr(bike, "tubeless", True),
+                    technical_difficulty=terrain.get("technical_difficulty"),
+                    ascent_m=clean_ascent,
+                    surface_analysis=breakdown,
+                )
+
+                climb_cat = terrain["climb_category"]
+                avg_grad = terrain["avg_climb_gradient"]
+                setup_warnings = self._tire_setup_warnings(tire_display)
+                tactical_warnings = (
+                    list(warnings) + list(terrain["warnings"]) + setup_warnings
+                )
 
                 emtb_analysis = self._emtb_analysis(
                     bike=bike,
@@ -208,7 +233,6 @@ class SurfaceAnalyzerService:
                         "avg_climb_gradient": f"{round(avg_grad, 1)}%",
                         "terrain_analysis": terrain,
                         "max_gradient": terrain["max_gradient"],
-                        "climb_list": terrain["climb_list"],
                         "data_confidence": terrain["data_confidence"],
                         "technical_difficulty": terrain["technical_difficulty"],
                         "mud_intelligence": {
@@ -234,6 +258,15 @@ class SurfaceAnalyzerService:
                 continue
 
         return {"status": "Error", "message": f"Global failure: {last_error}"}
+
+    @staticmethod
+    def _tire_setup_warnings(tire_setup: Any) -> list[str]:
+        """Extract setup warnings from a structured recommendation or legacy tuple."""
+        if hasattr(tire_setup, "warnings"):
+            return list(tire_setup.warnings or [])
+        if isinstance(tire_setup, dict):
+            return list(tire_setup.get("warnings") or [])
+        return []
 
     @staticmethod
     def _safe_complexity(value: Any) -> int:

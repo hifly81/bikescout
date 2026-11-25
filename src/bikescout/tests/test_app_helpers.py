@@ -1,11 +1,15 @@
 import pytest
 
 from bikescout.app_helpers import (
+    apply_text_overrides,
     build_mission_snapshot,
     clamp_complexity,
     ext_cast,
+    extract_bike_type_from_text,
+    extract_complexity_from_text,
     extract_location_hint,
     extract_point_to_point,
+    extract_prefer_offroad_from_text,
     normalize_bike_type,
     normalize_tire_size,
     resolve_profile,
@@ -219,6 +223,10 @@ class TestBuildMissionSnapshot:
         assert ctx["distance_km"] == 35.5
         assert ctx["bike_type"] == "mtb"
         assert ctx["tire_size"] == "29"
+        assert ctx["tire_width_mm"] is None
+        assert ctx["rim_internal_width_mm"] is None
+        assert ctx["casing_type"] is None
+        assert ctx["tubeless"] is None
         assert ctx["destination_name"] is None
         assert ctx["dest_latitude"] is None
         assert ctx["dest_longitude"] is None
@@ -240,6 +248,95 @@ class TestBuildMissionSnapshot:
         assert ctx["destination_name"] == "Bolzano"
         assert ctx["dest_latitude"] == 46.50
         assert ctx["dest_longitude"] == 11.35
+
+
+class TestTextIntentOverrides:
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("a 29-inch wheel bike", "mtb"),
+            ('29" wheels please', "mtb"),
+            ("29er loop", "mtb"),
+            ("27,5 pollici", "mtb"),
+            ("650b trail ride", "mtb"),
+            ("road bike near Rome", "road"),
+            ("bici da corsa", "road"),
+            ("gravel adventure", "gravel"),
+            ("enduro mission", "enduro"),
+            ("e-bike tour", "e-mtb"),
+            ("nothing useful here", None),
+        ],
+    )
+    def test_bike_type_from_text(self, text, expected):
+        assert extract_bike_type_from_text(text) == expected
+
+    def test_explicit_discipline_wins_over_wheel_size(self):
+        assert extract_bike_type_from_text("29-inch road bike") == "road"
+
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("very hard ride", 5),
+            ("an extreme mission", 5),
+            ("difficilissima", 5),
+            ("hard loop", 4),
+            ("difficile", 4),
+            ("moderate ride", 3),
+            ("easy spin", 2),
+            ("hardtail mtb", None),
+            ("no difficulty mentioned", None),
+        ],
+    )
+    def test_complexity_from_text(self, text, expected):
+        assert extract_complexity_from_text(text) == expected
+
+    @pytest.mark.parametrize(
+        "text,expected",
+        [
+            ("mostly singletrack MTB trails", True),
+            ("off-road ride, avoid paved roads", True),
+            ("dirt trails and no asphalt", True),
+            ("percorso fuoristrada sui sentieri", True),
+            ("quiet country roads", False),
+        ],
+    )
+    def test_prefer_offroad_from_text(self, text, expected):
+        assert extract_prefer_offroad_from_text(text) is expected
+
+    def test_overrides_offroad_routing_preferences(self):
+        result = apply_text_overrides(
+            {"bike_type": "road", "priority_mode": "distance_first", "distance": 35},
+            "35 km mostly singletrack MTB trails",
+        )
+
+        assert result["avoid_urban"] is True
+        assert result["prefer_rural"] is True
+        assert result["priority_mode"] == "ride_character_first"
+        assert result["distance"] == 35
+
+    def test_overrides_only_explicit_intent(self):
+        args = {"bike_type": "road", "complexity": 3, "is_ebike": False}
+        result = apply_text_overrides(
+            args, "35 km near Albano, very hard, 29-inch wheel bike"
+        )
+
+        assert result == {
+            "bike_type": "mtb",
+            "complexity": 5,
+            "is_ebike": False,
+        }
+        assert args == {"bike_type": "road", "complexity": 3, "is_ebike": False}
+
+    def test_overrides_ebike_and_leaves_other_args_untouched(self):
+        result = apply_text_overrides(
+            {"bike_type": "mtb", "distance": 40, "complexity": 3},
+            "e-bike loop, hard",
+        )
+
+        assert result["bike_type"] == "e-mtb"
+        assert result["is_ebike"] is True
+        assert result["complexity"] == 4
+        assert result["distance"] == 40
 
 
 class TestSummarizeMission:

@@ -86,6 +86,23 @@ class BikeSetup(BaseModel):
         description="The actual width of the tire in mm. Critical for surface safety thresholds.",
         json_schema_extra={"examples": [54]},
     )
+    rim_internal_width_mm: int | None = Field(
+        None,
+        ge=10,
+        le=45,
+        description="Rim internal width in mm. Drives volume and rim-width mismatch checks.",
+        json_schema_extra={"examples": [25, 19]},
+    )
+    casing_type: Literal["xc", "trail", "enduro", "dh"] = Field(
+        "trail",
+        description="Casing construction: stiffer casings need less pressure for the same support.",
+        json_schema_extra={"examples": ["xc", "trail", "enduro", "dh"]},
+    )
+    tubeless: bool = Field(
+        True,
+        description="True for tubeless setups; tubes require roughly 18% more pressure.",
+        json_schema_extra={"examples": [True, False]},
+    )
     is_ebike: bool = Field(
         False,
         description="Set to True if the bike has an electric motor.",
@@ -307,7 +324,6 @@ class TerrainAnalysis(BaseModel):
     avg_climb_gradient: float = Field(..., description="Weighted gradient of detected climbs in percent")
     profile_length_m: float = Field(..., description="Ground length of the analyzed profile in meters")
     climbs: list[ClimbDetail] = Field(..., description="Detected climbs sorted along the route")
-    climb_list: list[ClimbDetail] = Field(..., description="Alias of climbs for display clients")
     climb_category: str = Field(..., description="Hardest detected climb category")
     data_confidence: float = Field(..., description="Confidence in the elevation data from 0.0 to 1.0")
     technical_difficulty: TechnicalDifficulty = Field(..., description="Technical grade and its provenance")
@@ -338,9 +354,6 @@ class TacticalBriefing(BaseModel):
     max_gradient: float | None = Field(
         None, description="Steepest positive gradient in percent from the terrain engine"
     )
-    climb_list: list[ClimbDetail] | None = Field(
-        None, description="Geometry-detected significant climbs sorted along the route"
-    )
     data_confidence: float | None = Field(
         None, description="Confidence in the elevation-derived terrain metrics"
     )
@@ -349,12 +362,44 @@ class TacticalBriefing(BaseModel):
     )
 
 
+class TireSetupRecommendation(BaseModel):
+    """Structured front/rear pressure recommendation from the volume/load model."""
+
+    wheel_label: str = Field(..., description="Wheel diameter label (e.g. 29, 700c)")
+    tire_width_mm: int = Field(..., description="Tire width used for the calculation")
+    rim_internal_width_mm: int | None = Field(
+        None, description="Rim internal width used for the calculation"
+    )
+    casing_type: str = Field(..., description="Casing stiffness class applied")
+    tubeless: bool = Field(..., description="Whether a tubeless setup was assumed")
+    psi_front: float = Field(..., description="Recommended front tire pressure in PSI")
+    psi_rear: float = Field(..., description="Recommended rear tire pressure in PSI")
+    bar_front: float = Field(..., description="Recommended front tire pressure in bar")
+    bar_rear: float = Field(..., description="Recommended rear tire pressure in bar")
+    strategy: str = Field(
+        ..., description="Dominant optimization strategy (Mud, Compliance, Efficiency, ...)"
+    )
+    load_split: dict[str, float] = Field(
+        ..., description="Front/rear load share, e.g. {'front': 0.4, 'rear': 0.6}"
+    )
+    knob_choice: str = Field(..., description="Suggested tread pattern for the conditions")
+    advice: list[str] = Field(
+        default_factory=list, description="Actionable setup intelligence messages"
+    )
+    warnings: list[str] = Field(
+        default_factory=list, description="Setup-specific warnings (e.g. pinch-flat risk)"
+    )
+    tactical_display: str = Field(
+        ..., description="Human-readable tactical string with differential pressures"
+    )
+
+
 class MechanicalSetup(BaseModel):
     compatible: bool = Field(
         ..., description="True if the bike setup is suitable for the route"
     )
-    setup_details: list[Any] = Field(
-        ..., description="Technical specifics [tire_width_mm, setup_string]"
+    setup_details: TireSetupRecommendation = Field(
+        ..., description="Structured tire-pressure and load-distribution recommendation"
     )
     bike_type: str = Field(
         ..., description="Category of bike analyzed (mtb, road, etc.)"

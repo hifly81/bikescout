@@ -53,6 +53,7 @@ def test_segment_distances_and_short_profile() -> None:
     assert result["total_ascent_m"] == 0.0
     assert result["data_confidence"] == 0.0
     assert result["climbs"] == []
+    assert "climb_list" not in result
     assert result["climb_category"] == "Flat / Rolling"
 
 
@@ -95,6 +96,7 @@ def test_detects_multiple_climbs_with_fiets_categories() -> None:
     result = analyze_terrain_profile(two_climb_geometry())
 
     assert len(result["climbs"]) == 2
+    assert "climb_list" not in result
     assert result["total_ascent_m"] >= 150.0
     for climb in result["climbs"]:
         assert climb["gain_m"] >= 10.0

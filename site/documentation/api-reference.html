@@ -191,9 +191,12 @@
                         <tbody>
                         <tr><td><code>bike_type</code></td><td><code>string</code></td><td>-</td><td>Geometry profile (Road, Gravel, MTB, Enduro, E-MTB).</td></tr>
                         <tr><td><code>tire_size</code></td><td><code>string</code></td><td>29</td><td>Diameter (26, 27.5, 29, 32, 700c, 650b).</td></tr>
-                        <tr><td><code>tire_width_mm</code></td><td><code>int</code></td><td>54</td><td>Actual width in mm (18 to 75).</td></tr>
+                        <tr><td><code>tire_width_mm</code></td><td><code>int</code></td><td>54</td><td>Actual width in mm (18 to 75). Drives tire-volume scaling and setup strategy.</td></tr>
+                        <tr><td><code>rim_internal_width_mm</code></td><td><code>int | null</code></td><td><code>null</code></td><td>Rim internal width in mm (10 to 45). Used for volume support and rim-width mismatch checks; defaults by bike category in <code>trail_scout_simple</code>.</td></tr>
+                        <tr><td><code>casing_type</code></td><td><code>string</code></td><td>trail</td><td>Casing stiffness class: <code>xc</code>, <code>trail</code>, <code>enduro</code>, or <code>dh</code>. Stiffer casings require less pressure for the same support.</td></tr>
+                        <tr><td><code>tubeless</code></td><td><code>bool</code></td><td>true</td><td>True for tubeless; false for inner tubes, which require roughly 18% more pressure.</td></tr>
                         <tr><td><code>is_ebike</code></td><td><code>bool</code></td><td>false</td><td>Triggers battery consumption logic.</td></tr>
-                        <tr><td><code>battery_wh</code></td><td><code>int</code></td><td>-</td><td>Battery capacity in Wh (required if is_ebike is true).</td></tr>
+                        <tr><td><code>battery_wh</code></td><td><code>int</code></td><td>625</td><td>Battery capacity in Wh (required if is_ebike is true).</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -206,12 +209,12 @@
                         <tr><td><code>total_length_km</code></td><td><code>int</code></td><td>30</td><td>The total distance of the round trip in kilometers (e.g., 25.0).</td></tr>
                         <tr><td><code>profile</code></td><td><code>string</code></td><td>cycling-mountain</td><td>ORS routing profile (<code>cycling-mountain</code>, <code>cycling-road</code>, <code>cycling-regular</code>, <code>cycling-electric</code>).</td></tr>
                         <tr><td><code>surface_preference</code></td><td><code>string</code></td><td>neutral</td><td>User preference for road vs off-road surfaces (<code>neutral</code>, <code>prefer_paved</code>, <code>avoid_unpaved</code>).</td></tr>
-                        <tr><td><code>complexity</code></td><td><code>int</code></td><td>3</td><td>Number of waypoints / route-shaping points used to generate the loop. Higher values allow more articulated route shapes.</td></tr>
+                        <tr><td><code>complexity</code></td><td><code>int</code></td><td>3</td><td>Number of waypoints / route-shaping points used to generate the loop. Also drives the difficulty grade: <code>4</code> raises it to Advanced, <code>5</code> to Expert.</td></tr>
                         <tr><td><code>seed</code></td><td><code>int</code></td><td>42</td><td>Randomizer seed used to reproduce specific route variations.</td></tr>
                         <tr><td><code>assist_mode</code></td><td><code>string</code></td><td>Eco</td><td>Defines the motor assistance profile (<code>Eco</code>, <code>Trail</code>, <code>Boost</code>) and influences e-bike battery consumption estimates.</td></tr>
                         <tr><td><code>direction_bias</code></td><td><code>list[string]</code></td><td>[]</td><td>Preferred geographic route bias, for example <code>["south"]</code> or <code>["south", "east"]</code>, used to steer loop generation toward a requested quadrant.</td></tr>
-                        <tr><td><code>avoid_urban</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation away from dense urban sections when possible.</td></tr>
-                        <tr><td><code>prefer_rural</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation toward quieter countryside roads and lower-density riding environments when possible.</td></tr>
+                        <tr><td><code>avoid_urban</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation away from dense urban sections when possible. Combined with <code>prefer_rural</code>, <code>priority_mode=ride_character_first</code> and an off-road bike type, this also ranks already-fetched ORS candidates by off-road share without extra routing requests.</td></tr>
+                        <tr><td><code>prefer_rural</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation toward quieter countryside roads and lower-density riding environments when possible. See <code>avoid_urban</code> for the off-road candidate ranking behavior.</td></tr>
                         <tr><td><code>distance_flex_percent</code></td><td><code>int</code></td><td>10</td><td>Allowed flexibility around the requested target distance when route character matters more than exact mileage.</td></tr>
                         <tr><td><code>priority_mode</code></td><td><code>string</code></td><td>balanced</td><td>Optimization mode for route generation: <code>balanced</code>, <code>distance_first</code>, or <code>ride_character_first</code>.</td></tr>
                         </tbody>
@@ -256,8 +259,8 @@
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
                         <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Visual alert status indicator (e.g., 🟡 [WATCH], 🔴 [DANGER]).</td></tr>
-                        <tr><td><code>message</code></td><td><code>string</code></td><td>-</td><td>Human-readable safety assessment and environmental briefing.</td></tr>
-                        <tr><td><code>wind_risk_score</code></td><td><code>float</code></td><td>-</td><td>Numeric risk index (0.0 to 10.0) specifically for crosswinds and stability.</td></tr>
+                        <tr><td><code>message</code></td><td><code>string</code></td><td>-</td><td>Human-readable safety assessment for the mission ride window (09:00-19:00), using peak rain and the worst wind/gust hour rather than only the reference hour.</td></tr>
+                        <tr><td><code>wind_risk_score</code></td><td><code>float</code></td><td>-</td><td>Wind index computed as <code>0.4 × wind + 0.6 × gusts</code> from the worst hour of the mission ride window (09:00-19:00); above 55 the advice becomes <code>[NOT RECOMMENDED]</code>.</td></tr>
                         <tr><td><code>gear_advice</code></td><td><code>string</code></td><td>-</td><td>Recommended clothing layers and mechanical equipment for the conditions.</td></tr>
                         </tbody>
                     </table>
@@ -268,10 +271,10 @@
                     <table>
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
-                        <tr><td><code>surface_type</code></td><td><code>string</code></td><td>-</td><td>The primary soil or surface type analyzed for saturation (e.g., 'Clay', 'Loam').</td></tr>
+                        <tr><td><code>surface_type</code></td><td><code>string</code></td><td>-</td><td>Normalized TAEL soil key for the dominant route surface. Display labels are mapped to soil types: <code>Paved</code>/<code>Concrete</code> become <code>asphalt</code>, <code>Unpaved</code>/<code>Unmapped/Mixed</code> become <code>dirt</code>.</td></tr>
                         <tr><td><code>mud_risk_numeric</code></td><td><code>float</code></td><td>-</td><td>Raw TAEL™ moisture index representing the calculated ground water saturation.</td></tr>
                         <tr><td><code>mud_risk_score</code></td><td><code>string</code></td><td>-</td><td>Qualitative risk label derived from the numeric index (e.g., 'Moderate', 'Extreme').</td></tr>
-                        <tr><td><code>traction_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Detailed grip assessment including specific tire tread and compound advice.</td></tr>
+                        <tr><td><code>traction_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Surface-aware grip assessment. On <code>asphalt</code>/<code>concrete</code> the level is capped at <code>Medium</code> and reports wet-tarmac or aquaplaning advice instead of mud packing.</td></tr>
                         <tr><td><code>trail_damage_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Risk of trail degradation, including probability of rut formation and erosion.</td></tr>
                         <tr><td><code>dry_time_eta</code></td><td><code>string</code></td><td>-</td><td>Estimated time until the trail surface is considered 'ready' or 'optimal' for riding.</td></tr>
                         </tbody>
@@ -335,7 +338,7 @@
                             <td><code>score</code></td>
                             <td><code>float</code></td>
                             <td>-</td>
-                            <td>TAEL™ mud score (0.0 to 10.0) indicating soil saturation levels.</td>
+                            <td>Raw TAEL™ moisture reading in mm. The tire-setup model normalizes it to a 0.0-1.0 mud index (<code>score / 20</code>, clamped) for flotation and knob decisions.</td>
                         </tr>
                         <tr>
                             <td><code>label</code></td>
@@ -347,7 +350,7 @@
                             <td><code>traction_risk</code></td>
                             <td><code>string</code></td>
                             <td>-</td>
-                            <td>Assessment of mechanical tire grip and slip probability on the predicted surface.</td>
+                            <td>Assessment of mechanical tire grip and slip probability. Hard surfaces report wet-pavement grip loss; unpaved surfaces report mud packing risk.</td>
                         </tr>
                         <tr>
                             <td><code>trail_damage_risk</code></td>
@@ -432,8 +435,7 @@
                         <tr><td><code>avg_gradient</code></td><td><code>float</code></td><td>-</td><td>Total ascent divided by analyzed profile length in percent.</td></tr>
                         <tr><td><code>avg_climb_gradient</code></td><td><code>float</code></td><td>-</td><td>Weighted average gradient of the detected significant climbs in percent.</td></tr>
                         <tr><td><code>profile_length_m</code></td><td><code>float</code></td><td>-</td><td>Ground length of the analyzed elevation profile in meters.</td></tr>
-                        <tr><td><code>climbs</code></td><td><code>list[ClimbDetail]</code></td><td>-</td><td>Geometry-detected significant climbs sorted along the route.</td></tr>
-                        <tr><td><code>climb_list</code></td><td><code>list[ClimbDetail]</code></td><td>-</td><td>Display alias of <code>climbs</code> used by clients that expose a Climb List.</td></tr>
+                        <tr><td><code>climbs</code></td><td><code>list[ClimbDetail]</code></td><td>-</td><td>Geometry-detected significant climbs sorted along the route. This is the single canonical climb list.</td></tr>
                         <tr><td><code>climb_category</code></td><td><code>string</code></td><td>-</td><td>Hardest FIETS-derived category on the route, or <code>Flat / Rolling</code>.</td></tr>
                         <tr><td><code>data_confidence</code></td><td><code>float</code></td><td>-</td><td>Heuristic confidence in the elevation-derived metrics from 0.0 to 1.0.</td></tr>
                         <tr><td><code>technical_difficulty</code></td><td><code>TechnicalDifficulty</code></td><td>-</td><td>Technical grade and its provenance.</td></tr>
@@ -506,12 +508,6 @@
                             <td>Steepest positive gradient found anywhere on the route in percent.</td>
                         </tr>
                         <tr>
-                            <td><code>climb_list</code></td>
-                            <td><code>list[ClimbDetail] | null</code></td>
-                            <td><code>null</code></td>
-                            <td>Geometry-detected significant climbs sorted along the route.</td>
-                        </tr>
-                        <tr>
                             <td><code>data_confidence</code></td>
                             <td><code>float | null</code></td>
                             <td><code>null</code></td>
@@ -543,13 +539,13 @@
                             <td><code>compatible</code></td>
                             <td><code>boolean</code></td>
                             <td>-</td>
-                            <td>Flag indicating if the user's bike setup is safely suitable for the route terrain.</td>
+                            <td>Flag indicating if the user's bike setup is safely suitable for the route terrain. Rim-width mismatch is warning-only and does not set this to false.</td>
                         </tr>
                         <tr>
                             <td><code>setup_details</code></td>
-                            <td><code>list[any]</code></td>
+                            <td><code>TireSetupRecommendation</code></td>
                             <td>-</td>
-                            <td>Technical specifics including tire width in mm and localized setup recommendations.</td>
+                            <td>Structured differential front/rear pressure recommendation from the tire-volume and load-distribution model.</td>
                         </tr>
                         <tr>
                             <td><code>bike_type</code></td>
@@ -561,10 +557,42 @@
                             <td><code>safety_warnings</code></td>
                             <td><code>list[string]</code></td>
                             <td>-</td>
-                            <td>Critical alerts regarding technical difficulty or environmental hazards.</td>
+                            <td>Critical alerts regarding technical difficulty, pinch-flat risk, or environmental hazards.</td>
                         </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">TireSetupRecommendation</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                        <tr><td><code>wheel_label</code></td><td><code>string</code></td><td>-</td><td>Wheel diameter label used in the tactical display (e.g. <code>29</code>, <code>700c</code>).</td></tr>
+                        <tr><td><code>tire_width_mm</code></td><td><code>int</code></td><td>-</td><td>Actual tire width in millimeters used for the calculation.</td></tr>
+                        <tr><td><code>rim_internal_width_mm</code></td><td><code>int | null</code></td><td><code>null</code></td><td>Rim internal width used for volume support and mismatch checks.</td></tr>
+                        <tr><td><code>casing_type</code></td><td><code>string</code></td><td>-</td><td>Casing stiffness class applied (<code>xc</code>, <code>trail</code>, <code>enduro</code>, <code>dh</code>).</td></tr>
+                        <tr><td><code>tubeless</code></td><td><code>boolean</code></td><td>-</td><td>Whether a tubeless setup was assumed; tubes add roughly 18% pressure.</td></tr>
+                        <tr><td><code>psi_front</code></td><td><code>float</code></td><td>-</td><td>Recommended front tire pressure in PSI.</td></tr>
+                        <tr><td><code>psi_rear</code></td><td><code>float</code></td><td>-</td><td>Recommended rear tire pressure in PSI.</td></tr>
+                        <tr><td><code>bar_front</code></td><td><code>float</code></td><td>-</td><td>Recommended front tire pressure in bar.</td></tr>
+                        <tr><td><code>bar_rear</code></td><td><code>float</code></td><td>-</td><td>Recommended rear tire pressure in bar.</td></tr>
+                        <tr><td><code>strategy</code></td><td><code>string</code></td><td>-</td><td>Dominant optimization: <code>Standard</code>, <code>Mud Flotation</code>, <code>Compliance</code>, <code>Efficiency</code>, or <code>Pinch-Flat Protection</code>.</td></tr>
+                        <tr><td><code>load_split</code></td><td><code>dict[string, float]</code></td><td>-</td><td>Front/rear load share: 0.45/0.55 for road and gravel, 0.40/0.60 for MTB, E-MTB and enduro.</td></tr>
+                        <tr><td><code>knob_choice</code></td><td><code>string</code></td><td>-</td><td>Suggested tread pattern: <code>Mud Spikes</code>, <code>Semi-Slick</code>, or <code>All-Terrain / Trail</code>.</td></tr>
+                        <tr><td><code>advice</code></td><td><code>list[string]</code></td><td><code>[]</code></td><td>Actionable equipment advice, including inserts and tubeless conversion for S3+ terrain.</td></tr>
+                        <tr><td><code>warnings</code></td><td><code>list[string]</code></td><td><code>[]</code></td><td>Setup-specific warnings such as pinch-flat risk or rim-width mismatch.</td></tr>
+                        <tr><td><code>tactical_display</code></td><td><code>string</code></td><td>-</td><td>Human-readable ASI string with differential pressures, for example <code>F: 19.9 PSI | R: 25.4 PSI (1.37/1.75 Bar)</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50 mb-6">
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        <strong class="text-emerald-400">Pressure model:</strong> reference pressure is scaled by total system mass (rider + bike) with a 1.25 exponent,
+                        tire width squared, rim internal width to the 0.5 power, casing stiffness and tube factor, then split across the wheels with a 0.6 load exponent.
+                        Rocky or stony surfaces, S3+ technical grades, ascent of 800m or more, and the normalized mud index select the grip strategy.
+                        S3+ terrain recommends tire inserts and tubeless conversion; low-pressure rocky setups raise the floor and add a pinch-flat warning.
+                    </p>
                 </div>
 
                 <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">SurfaceEntry</h4>
@@ -743,7 +771,7 @@
                             <td><code>metadata</code></td>
                             <td><code>object</code></td>
                             <td>-</td>
-                            <td>Technical metadata containing timestamps, engine versions, API flags and <code>elevation_source</code> for the terrain engine.</td>
+                            <td>Technical metadata containing timestamps, engine versions, API flags and <code>elevation_source</code> for the terrain engine. It also includes <code>offroad_share_percent</code> (share of the selected route on unpaved/gravel/dirt/grass surfaces) and, when an off-road ride was requested, <code>offroad_request_status</code> (<code>met</code>/<code>not_met</code>) plus <code>offroad_request_note</code>. The note is advisory only: no further ORS route is requested.</td>
                         </tr>
                         <tr>
                             <td><code>tactical_briefing</code></td>
@@ -970,10 +998,10 @@
                             <tr><td><code>route_type</code></td><td><code>string</code></td><td>-</td><td>The specific cycling activity profile (e.g., 'cycling-road', 'cycling-mountain').</td></tr>
                             <tr><td><code>distance_km</code></td><td><code>float</code></td><td>-</td><td>The total length in kilometers of the selected route whose geometry is exported to GPX, map and altimetry.</td></tr>
                             <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>Total vertical elevation gain in meters, derived by the Terrain Truth Engine from the same exported route geometry when surface analysis succeeds.</td></tr>
-                            <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>The overall challenge rating based on gradient, surface, and distance.</td></tr>
+                            <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>Overall rating from distance, ascent, sustained climb gradient and requested complexity. A complexity of 4 or 5 raises it to Advanced or Expert even on a shorter route.</td></tr>
                             <tr><td><code>surface_analysis</code></td><td><code>RouteSurface</code></td><td>-</td><td>A detailed breakdown of surface compositions, terrain intelligence and traction indices.</td></tr>
                             <tr><td><code>max_gradient</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Steepest positive gradient found anywhere on the route in percent.</td></tr>
-                            <tr><td><code>climb_list</code></td><td><code>list[ClimbDetail] | null</code></td><td><code>null</code></td><td>Geometry-detected significant climbs sorted along the route.</td></tr>
+                            <tr><td><code>climb_list</code></td><td><code>list[ClimbDetail] | null</code></td><td><code>null</code></td><td>Presentation view of <code>surface_analysis.tactical_briefing.terrain_analysis.climbs</code>; mirrors the canonical list instead of duplicating it inside each nested block.</td></tr>
                             <tr><td><code>data_confidence</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Confidence in the elevation-derived terrain metrics from 0.0 to 1.0.</td></tr>
                         </tbody>
                     </table>
@@ -1142,7 +1170,7 @@
                             <td><code>mechanical_setup</code></td>
                             <td><code>MechanicalSetup</code></td>
                             <td>-</td>
-                            <td>Specific recommendations for tire pressure, casing, and setup compatibility.</td>
+                            <td>Differential front/rear tire pressure, load distribution, casing and setup compatibility recommendations.</td>
                         </tr>
                         <tr>
                             <td><code>surface_breakdown</code></td>
@@ -1496,11 +1524,288 @@
                         <span class="text-emerald-400 font-mono text-sm">FullMissionBriefingResponse</span>
                     </div>
                     <ul class="space-y-2 text-sm text-slate-300">
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>info:</strong> Route morphology, surface analysis (TAEL™ mud risk), and mechanical/PSI guides.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>info:</strong> Route morphology, surface analysis (TAEL™ mud risk), and differential front/rear PSI with setup intelligence.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>conditions:</strong> Hourly synchronized weather, rain probability, and safety gear briefings.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>logistics:</strong> Hydration/Nutrition plan and strategic amenities (water fountains, etc.) detected along the path.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Visual Assets:</strong> Native URIs for Map, Elevation Profile, and GPX navigation file for direct chat rendering.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>gpx_stats:</strong> Technical summary of trace integrity (point count, segment healing).</li>
+                    </ul>
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool: trail_scout_simple -->
+        <details class="group mb-8 border border-slate-700 rounded-lg bg-slate-900/50 overflow-hidden">
+            <summary class="flex items-center justify-between cursor-pointer list-none p-4 hover:bg-slate-800/50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 font-mono text-sm rounded border border-blue-500/30">TOOL</span>
+                    <h3 class="text-2xl font-bold text-white font-mono">trail_scout_simple</h3>
+                </div>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+            </summary>
+
+            <div class="p-6 border-t border-slate-700 space-y-6">
+                <!-- Description -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
+                    <p class="text-slate-300 leading-relaxed">
+                        Flat-argument convenience wrapper around <code>trail_scout</code> for quick route generation. Only <code>latitude</code> and <code>longitude</code> are
+                        required; all other inputs have sensible defaults. It builds the rider, bike and mission models internally, so the same surface analysis,
+                        S-scale grading, TAEL™ mud risk and ASI pressure output are returned.
+                    </p>
+                    <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50 mt-4">
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            <strong class="text-emerald-400">Tire setup defaults:</strong> when physical setup fields are omitted, defaults are derived from
+                            <code>bike_type</code> — Road 25mm/19mm/<code>xc</code>, Gravel 40mm/21mm/<code>xc</code>, MTB 58mm/25mm/<code>trail</code>,
+                            E-MTB 60mm/27mm/<code>trail</code>, and Enduro 60mm/28mm/<code>enduro</code> (tire width / rim internal width / casing).
+                            <code>tubeless</code> defaults to true; inner tubes add roughly 18% pressure. Every call returns
+                            <code>MechanicalSetup.setup_details.tactical_display</code> in <code>F: ... PSI | R: ... PSI</code> form.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Parameters Table -->
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Parameters</h4>
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                            <tr class="bg-slate-800/50 text-slate-300 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Parameter</th>
+                                <th class="text-left py-2 px-3">Type</th>
+                                <th class="text-left py-2 px-3">Status</th>
+                                <th class="text-left py-2 px-3">Description</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-slate-400">
+                            <tr>
+                                <td class="py-2 px-3"><code>latitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Starting point latitude (WGS84).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>longitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-orange-400 font-semibold">Required</td>
+                                <td>Starting point longitude (WGS84).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>weight_kg</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 75.0</td>
+                                <td>Rider and gear mass used for energy, nutrition and tire-load calculations.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>gender</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "male"</td>
+                                <td><code>male</code> or <code>female</code>; scales sweat rate.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>sweat_profile</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "standard"</td>
+                                <td>Genetic sodium loss: <code>low</code>, <code>standard</code>, <code>high</code>, or <code>extreme</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>fitness_level</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "intermediate"</td>
+                                <td>Rider stamina: <code>beginner</code>, <code>intermediate</code>, or <code>pro</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>bike_type</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "mtb"</td>
+                                <td>Bike category: <code>mtb</code>, <code>road</code>, <code>gravel</code>, <code>e-mtb</code>, or <code>enduro</code>. Drives load split and setup defaults.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>tire_size</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "29"</td>
+                                <td>Wheel/tire diameter label: <code>32</code>, <code>29</code>, <code>27.5</code>, <code>700c</code>, or <code>650b</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>tire_width_mm</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Actual tire width (18 to 75mm). Falls back to the discipline reference when omitted.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>rim_internal_width_mm</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Rim internal width (10 to 45mm). Used for volume support and rim-width mismatch checks; falls back by discipline.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>casing_type</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Casing stiffness: <code>xc</code>, <code>trail</code>, <code>enduro</code>, or <code>dh</code>; falls back by discipline.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>tubeless</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: true</td>
+                                <td>True for tubeless; inner tubes require roughly 18% more pressure.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>is_ebike</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Enables battery analysis for pedelec/e-bike missions.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>battery_wh</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 625</td>
+                                <td>Battery capacity in Watt-hours.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>total_length_km</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 30</td>
+                                <td>Target round-trip distance in kilometers.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>profile</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "cycling-mountain"</td>
+                                <td>ORS routing profile: <code>cycling-mountain</code>, <code>cycling-road</code>, <code>cycling-regular</code>, or <code>cycling-electric</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>surface_preference</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "neutral"</td>
+                                <td>Road versus off-road bias: <code>neutral</code>, <code>prefer_paved</code>, or <code>avoid_unpaved</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>complexity</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 3</td>
+                                <td>Route complexity factor (1-5); shapes the loop and grades difficulty: <code>4</code> = Advanced, <code>5</code> = Expert ("very hard").</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>seed</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 42</td>
+                                <td>Random seed for reproducible route generation.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>assist_mode</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "Eco"</td>
+                                <td>E-bike motor support: <code>Eco</code>, <code>Trail</code>, or <code>Boost</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>direction_bias</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>list[string] | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Preferred route quadrants, for example <code>["south", "east"]</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>avoid_urban</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Bias route generation away from dense urban sections. With an MTB/enduro/e-MTB bike, <code>prefer_rural=true</code> and <code>priority_mode="ride_character_first"</code>, already-fetched candidates are also ranked by off-road share; no extra ORS request is made.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>prefer_rural</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Bias route generation toward quieter countryside roads. See <code>avoid_urban</code> for the off-road ranking behavior.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>distance_flex_percent</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 10</td>
+                                <td>Allowed tolerance around the requested distance when route character matters more.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>priority_mode</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "balanced"</td>
+                                <td>Optimization mode: <code>balanced</code>, <code>distance_first</code>, or <code>ride_character_first</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>dest_latitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Destination latitude for A-to-B missions.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>dest_longitude</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>float | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Destination longitude for A-to-B missions.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>style</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>enum</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: "filled"</td>
+                                <td>Elevation chart style: <code>sparkline</code>, <code>filled</code>, or <code>bars</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_gpx</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: true</td>
+                                <td>Generate and export a navigation GPX file.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_map</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a static PNG map of the route.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_poi</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Include amenities and points of interest.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_altimetry</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate the altimetry profile of the route.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_weather</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate weather conditions report.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_mud_analysis</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a report including mud analysis.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>include_nutrition_plan</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
+                                <td class="text-blue-400/70 italic text-xs">Default: false</td>
+                                <td>Generate a nutrition plan report.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Returns Section -->
+                <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Returns</h4>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-emerald-400 font-mono text-sm">FullMissionBriefingResponse</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>info:</strong> Route morphology, TAEL™ mud risk, and differential front/rear PSI with equipment advice and knob choice.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>conditions:</strong> Weather, rain probability, and safety gear briefings when requested.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>logistics:</strong> Hydration/nutrition plan and detected amenities when requested.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Visual Assets:</strong> Native URIs for the map, elevation profile, and GPX file.</li>
                     </ul>
                 </div>
             </div>
@@ -1578,7 +1883,7 @@
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>metadata:</strong> Contextual data including timezone synchronization and resolved location coordinates.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_forecast:</strong> A granular hourly breakdown of temperature, rain probability (%), and wind speed/direction.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>reference_conditions:</strong> Aggregated key metrics (Min/Max/Avg) for the selected analysis window.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>safety_advice:</strong> Mission-critical briefing covering wind risk scores, thermal stress alerts, and suggested gear/clothing.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>safety_advice:</strong> Mission-critical briefing covering worst-hour wind risk and peak rain within the 09:00-19:00 ride window, plus thermal stress alerts and suggested gear/clothing.</li>
                     </ul>
                 </div>
             </div>

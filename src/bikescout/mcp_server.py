@@ -20,7 +20,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, TypeVar, cast
 
 from dotenv import load_dotenv
 from fastmcp import FastMCP
@@ -37,6 +37,11 @@ from bikescout.schemas import (
     StrategicPlannerResponse,
     TacticalForecastResponse,
     WeatherContext,
+)
+from bikescout.tools.bike_setup import (
+    default_casing_type,
+    default_rim_internal_width_mm,
+    default_tire_width_mm,
 )
 from bikescout.tools.geocoding import get_coordinates
 from bikescout.tools.gonogo import calculate_ride_windows
@@ -294,6 +299,10 @@ def trail_scout_simple(
     fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
     bike_type: Literal["mtb", "road", "gravel", "e-mtb", "enduro"] = "mtb",
     tire_size: Literal["32", "29", "27.5", "700c", "650b"] = "29",
+    tire_width_mm: int | None = None,
+    rim_internal_width_mm: int | None = None,
+    casing_type: Literal["xc", "trail", "enduro", "dh"] | None = None,
+    tubeless: bool = True,
     is_ebike: bool = False,
     battery_wh: int = 625,
     total_length_km: int = 30,
@@ -348,6 +357,10 @@ def trail_scout_simple(
         fitness_level: Rider's stamina level ("beginner", "intermediate", "pro").
         bike_type: Type of bicycle to optimize the mechanical and tactical advice.
         tire_size: Wheel/tire diameter for specific pressure (PSI) recommendations.
+        tire_width_mm: Actual tire width; defaults to the discipline reference.
+        rim_internal_width_mm: Rim internal width; defaults to the discipline reference.
+        casing_type: Casing stiffness (xc, trail, enduro, dh); defaults by discipline.
+        tubeless: False for inner tubes, which require roughly 18% more pressure.
         is_ebike: Set to True if using a pedelec/e-bike to enable battery analysis.
         battery_wh: Battery capacity in Watt-hours (default: 625).
         total_length_km: The total distance of the round trip in kilometers (e.g., 25.0).
@@ -398,6 +411,15 @@ def trail_scout_simple(
         bike = BikeSetup(
             bike_type=bike_type,
             tire_size=tire_size,
+            tire_width_mm=tire_width_mm or default_tire_width_mm(bike_type),
+            rim_internal_width_mm=(
+                rim_internal_width_mm or default_rim_internal_width_mm(bike_type)
+            ),
+            casing_type=cast(
+                Literal["xc", "trail", "enduro", "dh"],
+                casing_type or default_casing_type(bike_type),
+            ),
+            tubeless=tubeless,
             is_ebike=is_ebike,
             battery_wh=battery_wh,
         )

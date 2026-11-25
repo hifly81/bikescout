@@ -19,12 +19,14 @@ import os
 import random
 import re
 from datetime import date
+from typing import Any
 
 import streamlit as st
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
 
 from bikescout.app_helpers import (
+    apply_text_overrides,
     build_mission_snapshot,
     clamp_complexity,
     compute_mission_intensity,
@@ -52,6 +54,7 @@ from bikescout.app_ui_helpers import (
     inject_component_styles,
     inject_global_styles,
     metric_card,
+    normalize_tire_setup,
     render_empty_state,
     render_mission_intensity_badge,
     render_rider_profile_panel,
@@ -64,6 +67,11 @@ from bikescout.mcp_server import (
     analyze_gpx_track,
     geocode_location,
     trail_scout_simple,
+)
+from bikescout.tools.bike_setup import (
+    default_casing_type,
+    default_rim_internal_width_mm,
+    default_tire_width_mm,
 )
 
 AVAILABLE_MODELS = {
@@ -167,6 +175,10 @@ def init_session_state() -> None:
         "rider_profile": {
             "bike_type": "mtb",
             "tire_size": "29",
+            "tire_width_mm": default_tire_width_mm("mtb"),
+            "rim_internal_width_mm": default_rim_internal_width_mm("mtb"),
+            "casing_type": default_casing_type("mtb"),
+            "tubeless": True,
             "fitness_level": "intermediate",
             "weight_kg": 75.0,
             "gender": "male",
@@ -308,11 +320,18 @@ Distance must be in kilometers.
 Complexity range is 1..5, default 3.
 Use point_to_point only for A to B routes.
 
+Bike and difficulty normalization rules:
+- Infer bike_type="mtb" when the user only names 29"/29er/27.5"/650b wheels; explicit disciplines win.
+- Map difficulty wording to complexity: easy=1-2, moderate=3, hard=4, very hard/extreme=5.
+- Map profile from bike_type: mtb/enduro/gravel -> cycling-mountain, road -> cycling-road, e-mtb -> cycling-electric.
+- Set every explicitly requested include_* flag to true, even for road rides.
+
 Routing preference extraction rules:
 - If the user asks to stay south, north, east, or west of the start area, set direction_bias accordingly.
 - If the user asks for south-east, south and east, or similar, set direction_bias to multiple values, e.g. ["south", "east"].
 - If the user asks to avoid the city, avoid urban streets, or avoid traffic-heavy urban riding, set avoid_urban=true.
 - If the user asks for countryside, quieter roads, open country, rural roads, or scenic non-urban riding, set prefer_rural=true.
+- If the user asks for mostly MTB singletrack, off-road/dirt trails, or to avoid paved roads, also set profile="cycling-mountain", avoid_urban=true, prefer_rural=true, priority_mode="ride_character_first", and distance_flex_percent between 15 and 20.
 - If the user cares more about the ride character than exact distance, set priority_mode="ride_character_first".
 - If the user explicitly wants the route as close as possible to the requested distance, set priority_mode="distance_first".
 - Otherwise use priority_mode="balanced".
@@ -323,6 +342,7 @@ Routing preference extraction rules:
 Examples:
 - "keep it south and east of town" -> direction_bias ["south", "east"]
 - "avoid the city and prefer countryside roads" -> avoid_urban true, prefer_rural true
+- "mostly singletrack MTB trails, no asphalt" -> profile cycling-mountain, avoid_urban true, prefer_rural true, priority_mode ride_character_first, distance_flex_percent 15 or 20
 - "about 60 km, doesn't have to be exact" -> distance_flex_percent 10 or 15, priority_mode "balanced"
 - "the vibe matters more than exact mileage" -> priority_mode "ride_character_first"
 - "make it exactly 60 km if possible" -> priority_mode "distance_first", distance_flex_percent 0
@@ -375,6 +395,35 @@ def _update_mission_context(
     history = st.session_state.get("mission_history", [])
     history = [summarize_mission(ctx)] + history[:4]
     st.session_state["mission_history"] = history
+
+
+VALID_CASING_TYPES = {"xc", "trail", "enduro", "dh"}
+
+
+def _setup_args_from_request(request: dict, profile: dict, bike_type: str) -> dict[str, Any]:
+    """Resolve tire/rim/casing inputs from a plan request and rider defaults."""
+    casing = str(
+        request.get("casing_type") or profile.get("casing_type") or default_casing_type(bike_type)
+    ).strip().lower()
+    if casing not in VALID_CASING_TYPES:
+        casing = default_casing_type(bike_type)
+
+    return {
+        "tire_width_mm": ext_cast(
+            request.get("tire_width_mm", profile.get("tire_width_mm")),
+            int,
+            default_tire_width_mm(bike_type),
+        ),
+        "rim_internal_width_mm": ext_cast(
+            request.get("rim_internal_width_mm", profile.get("rim_internal_width_mm")),
+            int,
+            default_rim_internal_width_mm(bike_type),
+        ),
+        "casing_type": casing,
+        "tubeless": ext_cast(
+            request.get("tubeless", profile.get("tubeless", True)), bool, True
+        ),
+    }
 
 
 def _append_mission_summary(text: str) -> str:
@@ -491,6 +540,7 @@ def execute_plan_request(plan_request: dict):
             final_bike,
             )
 
+        setup_args = _setup_args_from_request(plan_request, rider_profile, final_bike)
         complexity_val = clamp_complexity(plan_request.get("complexity", 3))
         raw_distance = ext_cast(plan_request.get("distance"), float, 25.0)
 
@@ -530,6 +580,7 @@ def execute_plan_request(plan_request: dict):
             {
                 "bike_type": final_bike,
                 "tire_size": tire_size,
+                **setup_args,
                 "complexity": complexity_val,
                 "direction_bias": direction_bias,
                 "avoid_urban": avoid_urban,
@@ -548,6 +599,7 @@ def execute_plan_request(plan_request: dict):
             "latitude": float(geo.lat),
             "longitude": float(geo.lon),
             "tire_size": tire_size,
+            **setup_args,
             "include_weather": bool(plan_request.get("include_weather", True)),
             "include_mud_analysis": bool(plan_request.get("include_mud", final_bike != "road")),
             "include_nutrition_plan": bool(plan_request.get("include_nutrition", True)),
@@ -621,8 +673,8 @@ def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list
     """Format geometry-detected climbs for the Streamlit climb list table."""
     climbs = (
         tactical_briefing.get("climb_list")
-        or terrain_analysis.get("climb_list")
         or terrain_analysis.get("climbs")
+        or terrain_analysis.get("climb_list")
         or []
     )
 
@@ -884,52 +936,63 @@ def render_route_results(res_data: dict) -> None:
         mechanical = surface_analysis.get("mechanical_setup", {}) or {}
         if mechanical:
             with st.expander("Mechanical setup", expanded=True):
+                setup = normalize_tire_setup(mechanical.get("setup_details"))
+                wheel_label = str(setup.get("wheel_label") or "Standard")
+                tire_width_mm = setup.get("tire_width_mm")
+                tire_label = (
+                    f'{wheel_label} · {tire_width_mm}mm' if tire_width_mm else wheel_label
+                )
+
+                psi_front = setup.get("psi_front")
+                psi_rear = setup.get("psi_rear")
+                pressure_label = (
+                    f'F: {psi_front} / R: {psi_rear} PSI'
+                    if psi_front is not None and psi_rear is not None
+                    else "N/A"
+                )
+                bar_front = setup.get("bar_front")
+                bar_rear = setup.get("bar_rear")
+                bar_label = (
+                    f'≈ {bar_front}/{bar_rear} Bar'
+                    if bar_front is not None and bar_rear is not None
+                    else ""
+                )
+
                 m1, m2, m3 = st.columns(3)
-
-                setup_details_list = mechanical.get("setup_details", []) or []
-                tire_size = "Standard"
-                pressure_psi = "N/A"
-                pressure_bar = "N/A"
-                setup_type = "Standard"
-
-                if len(setup_details_list) > 1 and isinstance(setup_details_list[1], str):
-                    raw_text = setup_details_list[1]
-                    wheel_match = re.search(r"(\d+(?:\.\d+)?)\s*wheels", raw_text)
-                    psi_match = re.search(r"([\d.]+)\s*PSI", raw_text)
-                    bar_match = re.search(r"\(([\d.]+)\s*Bar\)", raw_text)
-                    type_match = re.search(r"\[(.*?)\]", raw_text)
-
-                    if wheel_match:
-                        tire_size = f'{wheel_match.group(1)}"'
-                    if psi_match:
-                        pressure_psi = f"{psi_match.group(1)} PSI"
-                    if bar_match:
-                        pressure_bar = f"{bar_match.group(1)} Bar"
-                    if type_match:
-                        setup_type = type_match.group(1)
-                else:
-                    tire_size = f'{mechanical.get("tire_size", "Standard")}"'
-                    if mechanical.get("recommended_pressure_psi") is not None:
-                        pressure_psi = f'{mechanical.get("recommended_pressure_psi")} PSI'
-                    if mechanical.get("recommended_pressure_bar") is not None:
-                        pressure_bar = f'{mechanical.get("recommended_pressure_bar")} Bar'
-                    setup_type = mechanical.get("setup_type", "Standard")
-
                 with m1:
-                    metric_card("Wheels / tires", tire_size, "🛞", "#60a5fa", "Recommended wheel setup")
+                    metric_card(
+                        "Wheels / tires", tire_label, "🛞", "#60a5fa", "Volume-based setup"
+                    )
                 with m2:
-                    metric_card("Pressure", pressure_psi, "🔩", "#34d399", f"≈ {pressure_bar}")
+                    metric_card("Pressure F / R", pressure_label, "🔩", "#34d399", bar_label)
                 with m3:
-                    metric_card("Setup strategy", setup_type, "🧰", "#f59e0b", "Terrain optimization")
+                    metric_card(
+                        "Setup strategy",
+                        str(setup.get("strategy") or "Standard"),
+                        "🧰",
+                        "#f59e0b",
+                        "Terrain optimization",
+                    )
+
+                if setup.get("knob_choice"):
+                    st.caption(f'Tread choice: **{setup["knob_choice"]}**')
+
+                advice = [str(item) for item in (setup.get("advice") or [])]
+                if advice:
+                    st.markdown("**Setup intelligence**")
+                    for item in advice:
+                        st.markdown(f"- {item}")
 
                 if not mechanical.get("compatible", True):
                     st.error("This bike/setup may not be fully compatible with the current route profile.")
 
-                warnings = [
-                    warning
-                    for warning in (mechanical.get("safety_warnings", []) or [])
-                    if warning not in terrain_warnings
-                ]
+                warnings = []
+                for warning in (
+                    list(setup.get("warnings") or [])
+                    + list(mechanical.get("safety_warnings") or [])
+                ):
+                    if warning and warning not in terrain_warnings and warning not in warnings:
+                        warnings.append(warning)
                 for warning in warnings:
                     st.warning(warning)
 
@@ -1317,6 +1380,8 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             if raw_distance and raw_distance > 1000:
                 raw_distance = raw_distance / 1000
 
+            args = apply_text_overrides(args, user_input)
+
             final_bike, is_ebike = normalize_bike_type(args.get("bike_type"))
             complexity_val = clamp_complexity(args.get("complexity", 3))
             args["complexity"] = complexity_val
@@ -1326,6 +1391,12 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 args.get("tire_size") or rider_profile["tire_size"],
                 final_bike,
                 )
+            setup_profile = dict(rider_profile)
+            mission_context = st.session_state.get("mission_context") or {}
+            for key in ("tire_width_mm", "rim_internal_width_mm", "casing_type", "tubeless"):
+                if mission_context.get(key) is not None:
+                    setup_profile[key] = mission_context[key]
+            setup_args = _setup_args_from_request(args, setup_profile, final_bike)
 
             direction_bias = normalize_direction_bias(
                 args.get("direction_bias")
@@ -1374,6 +1445,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     **args,
                     "bike_type": final_bike,
                     "tire_size": normalized_tire_size,
+                    **setup_args,
                     "direction_bias": direction_bias,
                     "avoid_urban": avoid_urban,
                     "prefer_rural": prefer_rural,
@@ -1391,6 +1463,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 "latitude": float(args.get("latitude")),
                 "longitude": float(args.get("longitude")),
                 "tire_size": normalized_tire_size,
+                **setup_args,
                 "include_weather": True,
                 "include_mud_analysis": (
                         wants_overlay(
@@ -1535,6 +1608,54 @@ def render_plan_tab():
                 key="guided_goal",
             )
 
+        rider_defaults = st.session_state.get("rider_profile", {})
+        setup1, setup2, setup3, setup4 = st.columns(4)
+        with setup1:
+            guided_width = ext_cast(
+                rider_defaults.get("tire_width_mm"),
+                int,
+                default_tire_width_mm(bike_type),
+            )
+            tire_width_mm = st.number_input(
+                "Tire width (mm)",
+                min_value=18,
+                max_value=75,
+                value=int(guided_width),
+                key="guided_tire_width_mm",
+            )
+        with setup2:
+            guided_rim = ext_cast(
+                rider_defaults.get("rim_internal_width_mm"),
+                int,
+                default_rim_internal_width_mm(bike_type),
+            )
+            rim_internal_width_mm = st.number_input(
+                "Rim internal (mm)",
+                min_value=10,
+                max_value=45,
+                value=int(guided_rim),
+                key="guided_rim_internal_width_mm",
+            )
+        with setup3:
+            casing_options = ["xc", "trail", "enduro", "dh"]
+            guided_casing = str(
+                rider_defaults.get("casing_type") or default_casing_type(bike_type)
+            )
+            if guided_casing not in casing_options:
+                guided_casing = "trail"
+            casing_type = st.selectbox(
+                "Casing",
+                casing_options,
+                index=casing_options.index(guided_casing),
+                key="guided_casing_type",
+            )
+        with setup4:
+            tubeless = st.checkbox(
+                "Tubeless setup",
+                value=bool(rider_defaults.get("tubeless", True)),
+                key="guided_tubeless",
+            )
+
         loc1, loc2 = st.columns(2)
         with loc1:
             start_location = st.text_input(
@@ -1639,12 +1760,14 @@ def render_plan_tab():
         if route_mode == "Circular / Loop":
             prompt = (
                 f"Plan a {distance} km {bike_type} circular loop near {start_location} "
-                f"{goal_hint}, tire size {tire_size}, difficulty {complexity}. "
+                f"{goal_hint}, tire size {tire_size}, tire width {tire_width_mm}mm, "
+                f"difficulty {complexity}. "
             )
         else:
             prompt = (
                 f"Plan a {bike_type} route from {start_location} to {destination_location} "
-                f"{goal_hint}, tire size {tire_size}, difficulty {complexity}. "
+                f"{goal_hint}, tire size {tire_size}, tire width {tire_width_mm}mm, "
+                f"difficulty {complexity}. "
             )
 
         if direction_bias:
@@ -1691,6 +1814,10 @@ def render_plan_tab():
             "distance": float(distance) if distance is not None else None,
             "bike_type": bike_type,
             "tire_size": tire_size,
+            "tire_width_mm": tire_width_mm,
+            "rim_internal_width_mm": rim_internal_width_mm,
+            "casing_type": casing_type,
+            "tubeless": tubeless,
             "complexity": complexity,
             "goal": goal,
             "direction_bias": direction_bias,

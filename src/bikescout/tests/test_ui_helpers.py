@@ -35,3 +35,51 @@ class TestRenderEmptyState:
         assert "<strong>No routes yet</strong><br/>" in html
         assert "Start by selecting an area." in html
         assert kwargs["unsafe_allow_html"] is True
+
+
+class TestNormalizeTireSetup:
+    def test_normalizes_structured_model(self):
+        from bikescout.schemas import TireSetupRecommendation
+
+        setup = TireSetupRecommendation(
+            wheel_label='29"',
+            tire_width_mm=58,
+            rim_internal_width_mm=25,
+            casing_type="trail",
+            tubeless=True,
+            knob_choice="All-Terrain / Trail",
+            psi_front=19.9,
+            psi_rear=25.4,
+            bar_front=1.37,
+            bar_rear=1.75,
+            strategy="Compliance",
+            load_split={"front": 0.4, "rear": 0.6},
+            tactical_display='29" wheels | F: 19.9 PSI | R: 25.4 PSI',
+        )
+
+        result = ui_helpers.normalize_tire_setup(setup)
+
+        assert result["psi_front"] == 19.9
+        assert result["psi_rear"] == 25.4
+        assert result["strategy"] == "Compliance"
+
+    def test_normalizes_legacy_display_string(self):
+        legacy = (
+            40,
+            "700c wheels | F: 22 PSI | R: 25 PSI (1.52/1.72 Bar) [Mud Flotation Setup]",
+        )
+
+        result = ui_helpers.normalize_tire_setup(legacy)
+
+        assert result["wheel_label"] == "700c"
+        assert result["tire_width_mm"] == 40
+        assert result["psi_front"] == 22.0
+        assert result["psi_rear"] == 25.0
+        assert result["strategy"] == "Mud Flotation"
+
+    def test_empty_payload_returns_defaults(self):
+        result = ui_helpers.normalize_tire_setup([])
+
+        assert result["psi_front"] is None
+        assert result["strategy"] == "Standard"
+        assert result["advice"] == []

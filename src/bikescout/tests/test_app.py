@@ -39,6 +39,17 @@ class TestGenerateTacticalResponse:
         assert "You are BikeScout Tactical AI." in system["content"]
         assert "Return ONLY valid JSON" in system["content"]
 
+    def test_system_prompt_documents_intent_mapping_rules(self):
+        llm = StubLLM("{}")
+        app_module.generate_tactical_response(
+            [{"role": "user", "content": "a ride"}], llm
+        )
+        system = llm.calls[0]["messages"][0]["content"]
+        assert 'Infer bike_type="mtb"' in system
+        assert "very hard/extreme=5" in system
+        assert "explicitly requested include_* flag" in system
+        assert "mostly MTB singletrack" in system
+
     def test_user_messages_reach_the_llm(self):
         llm = StubLLM("{}")
         app_module.generate_tactical_response(
@@ -169,7 +180,23 @@ FAKE_MISSION_RESULT = {
             },
             "surface_breakdown": [{"type": "Paved", "percentage": "60%"}],
             "mechanical_setup": {
-                "setup_details": [],
+                "setup_details": {
+                    "wheel_label": '29"',
+                    "tire_width_mm": 58,
+                    "rim_internal_width_mm": 25,
+                    "casing_type": "trail",
+                    "tubeless": True,
+                    "psi_front": 19.9,
+                    "psi_rear": 25.4,
+                    "bar_front": 1.37,
+                    "bar_rear": 1.75,
+                    "strategy": "Standard",
+                    "load_split": {"front": 0.4, "rear": 0.6},
+                    "knob_choice": "All-Terrain / Trail",
+                    "advice": ["Tire Inserts Recommended (rear wheel first) for S3+ terrain"],
+                    "warnings": [],
+                    "tactical_display": '29" wheels | F: 19.9 PSI | R: 25.4 PSI [Standard Setup]',
+                },
                 "compatible": True,
                 "safety_warnings": [],
             },
@@ -269,6 +296,9 @@ class TestPlanFlow:
         expander_labels = [expander.label for expander in at.expander]
         assert "Climb list" in expander_labels
         assert "Terrain warnings" in expander_labels
+        assert "Mechanical setup" in expander_labels
+        assert any("F: 19.9 / R: 25.4 PSI" in value for value in markdown_values)
+        assert any("Tire Inserts Recommended" in value for value in markdown_values)
 
         climb_tables = [
             table.value for table in at.dataframe if "C3 - Challenging" in str(table.value)

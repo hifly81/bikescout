@@ -1074,6 +1074,20 @@ def _climb_chart_path(res_data: dict, number: int) -> str | None:
     return str(Path(profile_path).with_name(f"{Path(profile_path).stem}_climb_{number}.png"))
 
 
+def _altimetry_caption(res_data: dict) -> str | None:
+    """Build a compact data-credit and uncertainty note for the elevation chart."""
+    source = res_data.get("elevation_source")
+    interpolated = res_data.get("elevation_samples_interpolated")
+    total = res_data.get("elevation_samples_total")
+
+    parts: list[str] = []
+    if isinstance(source, str) and source:
+        parts.append(source)
+    if isinstance(interpolated, int) and interpolated > 0 and isinstance(total, int):
+        parts.append(f"{interpolated} of {total} elevation samples estimated from neighbours.")
+    return " ".join(parts) or None
+
+
 @st.dialog("Climb profile", icon=":material/show_chart:", width="medium")
 def _render_climb_profile_dialog(number: int, climb: dict[str, Any], chart_path: str) -> None:
     """Show the elevation profile generated for a single long climb."""
@@ -1700,6 +1714,14 @@ def render_route_results(res_data: dict) -> None:
             v1.image(map_uri, caption="Tactical map", use_container_width=True)
         if alt_uri:
             v2.image(alt_uri, caption="Elevation profile", use_container_width=True)
+            caption = _altimetry_caption(res_data)
+            if caption:
+                v2.caption(caption)
+        elevation_error = res_data.get("elevation_error")
+        if elevation_error:
+            st.warning(
+                f"Elevation profile unavailable: {elevation_error} Check the route data and retry."
+            )
 
     gpx_path = res_data.get("gpx_export_path")
     if gpx_path and os.path.exists(gpx_path):

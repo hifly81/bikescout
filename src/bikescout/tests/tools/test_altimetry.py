@@ -24,11 +24,13 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from matplotlib.figure import Figure
 
 from bikescout.tools.altimetry import (
     AltimetryConfig,
     AltimetryError,
     AltimetryService,
+    ElevationQuality,
     get_elevation_profile_image,
 )
 
@@ -64,7 +66,7 @@ def valid_geometry_2d():
 def test_normalize_geometry_accepts_2d(service, valid_geometry_2d):
     result = service._normalize_geometry(valid_geometry_2d)
     assert result.shape == (3, 3)
-    assert np.allclose(result[:, 2], [0.0, 0.0, 0.0])
+    assert np.isnan(result[:, 2]).all()
 
 
 def test_normalize_geometry_accepts_3d(service, valid_geometry_3d):
@@ -93,8 +95,8 @@ def test_normalize_geometry_raises_with_too_few_valid_points(service):
 def test_interpolate_invalid_all_invalid(service):
     values = np.array([10000.0, 20000.0, 30000.0])
     valid_mask = np.array([False, False, False])
-    result = service._interpolate_invalid(values, valid_mask)
-    assert np.allclose(result, [0.0, 0.0, 0.0])
+    with pytest.raises(AltimetryError, match="No valid elevation samples"):
+        service._interpolate_invalid(values, valid_mask)
 
 
 def test_interpolate_invalid_middle_gap(service):
@@ -107,17 +109,29 @@ def test_interpolate_invalid_middle_gap(service):
 def test_clean_elevations_removes_non_physical_values(service):
     elevations = np.array([100.0, 99999.0, 120.0])
     segment_distances = np.array([100.0, 100.0])
-    result = service._clean_elevations(elevations, segment_distances)
-    assert result[0] == 100.0
-    assert result[1] == pytest.approx(110.0)
-    assert result[2] == 120.0
+    cleaned, quality = service._clean_elevations(elevations, segment_distances)
+    assert cleaned[0] == 100.0
+    assert cleaned[1] == pytest.approx(110.0)
+    assert cleaned[2] == 120.0
+    assert quality.total_samples == 3
+    assert quality.interpolated_samples == 1
 
 
 def test_clean_elevations_removes_local_spike(service):
     elevations = np.array([100.0, 2000.0, 105.0])
     segment_distances = np.array([10.0, 10.0])
-    result = service._clean_elevations(elevations, segment_distances)
-    assert result[1] == pytest.approx(102.5)
+    cleaned, quality = service._clean_elevations(elevations, segment_distances)
+    assert cleaned[1] == pytest.approx(102.5)
+    assert quality.interpolated_samples == 1
+
+
+def test_clean_elevations_does_not_fabricate_missing_values(service):
+    elevations = np.array([float("nan"), 120.0, 110.0])
+    segment_distances = np.array([100.0, 100.0])
+    cleaned, quality = service._clean_elevations(elevations, segment_distances)
+    assert np.isfinite(cleaned).all()
+    assert cleaned[0] == pytest.approx(120.0)
+    assert quality.interpolated_samples == 1
 
 
 def test_haversine_segment_distances_shape_and_positive(service):
@@ -156,10 +170,11 @@ def test_generate_plot_rejects_invalid_dimensions(service, valid_geometry_3d, wi
 
 
 def test_build_profile_arrays(service, valid_geometry_3d):
-    distances_m, elevations = service._build_profile_arrays(valid_geometry_3d)
+    distances_m, elevations, quality = service._build_profile_arrays(valid_geometry_3d)
     assert len(distances_m) == len(elevations) == 3
     assert distances_m[0] == 0.0
     assert distances_m[-1] > 0.0
+    assert quality.interpolated_samples == 0
 
 
 def test_sanitize_filename_component(service):
@@ -177,6 +192,55 @@ def test_create_profile_image_success(service, valid_geometry_3d):
     assert Path(result["file_location"]).exists()
 
 
+def test_create_profile_image_reports_elevation_provenance(service):
+    geometry = DummyGeometry(
+        coordinates=[
+            [10.0, 45.0, 100.0],
+            [10.01, 45.01, 99999.0],
+            [10.02, 45.02, 120.0],
+        ]
+    )
+    result = service.create_profile_image(geometry, "with-gap")
+
+    assert result["status"] == "Success"
+    assert result["elevation_source"] == service.config.data_credit
+    assert result["elevation_samples_total"] == 3
+    assert result["elevation_samples_interpolated"] == 1
+    assert "1 of 3" in result["elevation_uncertainty"]
+    assert "estimates" in result["elevation_uncertainty"]
+
+
+def test_create_profile_image_without_gaps_has_no_uncertainty(service, valid_geometry_3d):
+    result = service.create_profile_image(DummyGeometry(coordinates=valid_geometry_3d), "clean")
+
+    assert result["status"] == "Success"
+    assert result["elevation_samples_interpolated"] == 0
+    assert result["elevation_uncertainty"] is None
+
+
+def test_create_profile_image_omits_profile_when_no_elevation_data(service, valid_geometry_2d):
+    result = service.create_profile_image(DummyGeometry(coordinates=valid_geometry_2d), "twod")
+
+    assert result["status"] == "Error"
+    assert "No valid elevation samples" in result["message"]
+    assert not Path(service.storage_dir).exists()
+
+
+def test_render_plot_footprints_data_credit(service, valid_geometry_3d, monkeypatch):
+    seen: list[str] = []
+    original_text = Figure.text
+
+    def spy(self, x, y, s, **kwargs):
+        seen.append(s)
+        return original_text(self, x, y, s, **kwargs)
+
+    monkeypatch.setattr(Figure, "text", spy)
+
+    service.generate_plot(valid_geometry_3d, style="filled")
+
+    assert any("HeiGIT" in text for text in seen)
+
+
 def test_create_climb_profile_images_skips_empty_slices(service, valid_geometry_3d):
     paths = service.create_climb_profile_images(
         [None, valid_geometry_3d, valid_geometry_3d[:1]], "mission-id"
@@ -190,8 +254,8 @@ def test_create_climb_profile_images_skips_empty_slices(service, valid_geometry_
 def test_create_profile_image_handles_2d(service, valid_geometry_2d):
     geometry = DummyGeometry(coordinates=valid_geometry_2d)
     result = service.create_profile_image(geometry, "twod")
-    assert result["status"] == "Success"
-    assert result["total_distance_km"] > 0
+    assert result["status"] == "Error"
+    assert "No valid elevation samples" in result["message"]
 
 
 def test_create_profile_image_rejects_missing_coordinates(service):
@@ -214,8 +278,8 @@ def test_cleanup_old_png_files_removes_stale_files(service):
     storage_dir = service.storage_dir
     storage_dir.mkdir(parents=True, exist_ok=True)
 
-    stale = storage_dir / "old.png"
-    fresh = storage_dir / "new.png"
+    stale = storage_dir / "bs_altimetry_old.png"
+    fresh = storage_dir / "bs_altimetry_new.png"
 
     stale.write_bytes(b"x")
     fresh.write_bytes(b"y")
@@ -227,6 +291,44 @@ def test_cleanup_old_png_files_removes_stale_files(service):
 
     assert not stale.exists()
     assert fresh.exists()
+
+
+def test_cleanup_old_png_files_preserves_other_missions_artifacts(service):
+    storage_dir = service.storage_dir
+    storage_dir.mkdir(parents=True, exist_ok=True)
+
+    stale_altimetry = storage_dir / "bs_altimetry_other_mission.png"
+    stale_map = storage_dir / "bs_maps_other_mission.png"
+    stale_altimetry.write_bytes(b"x")
+    stale_map.write_bytes(b"y")
+
+    old_time = time.time() - (service.config.cleanup_max_age_seconds + 100)
+    os.utime(stale_altimetry, (old_time, old_time))
+    os.utime(stale_map, (old_time, old_time))
+
+    service.cleanup_old_png_files(storage_dir)
+
+    assert not stale_altimetry.exists()
+    assert stale_map.exists()
+
+
+def test_cleanup_with_filename_only_targets_that_artifact(service):
+    storage_dir = service.storage_dir
+    storage_dir.mkdir(parents=True, exist_ok=True)
+
+    keep = storage_dir / "bs_altimetry_keep.png"
+    remove = storage_dir / "bs_altimetry_remove.png"
+    keep.write_bytes(b"x")
+    remove.write_bytes(b"y")
+
+    old_time = time.time() - (service.config.cleanup_max_age_seconds + 100)
+    os.utime(keep, (old_time, old_time))
+    os.utime(remove, (old_time, old_time))
+
+    service.cleanup_old_png_files(storage_dir, filename="bs_altimetry_remove.png")
+
+    assert keep.exists()
+    assert not remove.exists()
 
 
 def test_cleanup_old_png_files_ignores_non_png(service):
@@ -259,24 +361,24 @@ def test_duplicate_points_do_not_crash(service):
     assert result.total_distance_km > 0
 
 
-def test_all_invalid_elevations_become_zero(service):
+def test_all_invalid_elevations_are_rejected(service):
     geometry = [
         [10.0, 45.0, 99999.0],
         [10.01, 45.01, 99999.0],
         [10.02, 45.02, 99999.0],
     ]
-    distances_m, elevations = service._build_profile_arrays(geometry)
-    assert len(distances_m) == 3
-    assert np.allclose(elevations, [0.0, 0.0, 0.0])
+    with pytest.raises(AltimetryError, match="No valid elevation samples"):
+        service._build_profile_arrays(geometry)
 
 
-def test_none_elevation_becomes_zero(service):
+def test_none_elevation_becomes_missing(service):
     geometry = [
         [10.0, 45.0, None],
         [10.01, 45.01, 10.0],
     ]
     result = service._normalize_geometry(geometry)
-    assert result[0, 2] == 0.0
+    assert np.isnan(result[0, 2])
+    assert result[1, 2] == 10.0
 
 
 def test_generate_plot_uses_default_dimensions_when_none(service, valid_geometry_3d):
@@ -326,6 +428,7 @@ def test_render_plot_bars_with_single_point_uses_fallback_color_and_width(servic
         width=8,
         height=3,
         style="bars",
+        quality=ElevationQuality(total_samples=1, interpolated_samples=0),
     )
 
     decoded = base64.b64decode(image_b64)
@@ -345,18 +448,16 @@ def test_cleanup_old_png_files_ignores_oserror(service, monkeypatch):
     storage_dir = service.storage_dir
     storage_dir.mkdir(parents=True, exist_ok=True)
 
-    target = storage_dir / "old.png"
+    target = storage_dir / "bs_altimetry_old.png"
     target.write_bytes(b"x")
 
     old_time = time.time() - (service.config.cleanup_max_age_seconds + 100)
     os.utime(target, (old_time, old_time))
 
-    from pathlib import Path
-
     original_unlink = Path.unlink
 
     def fake_unlink(self):
-        if self.name == "old.png":
+        if self.name == "bs_altimetry_old.png":
             raise OSError("cannot delete")
         return original_unlink(self)
 
@@ -398,6 +499,7 @@ def test_render_plot_bars_uses_fallback_colors_when_grades_empty(service):
         width=8,
         height=3,
         style="bars",
+        quality=ElevationQuality(total_samples=1, interpolated_samples=0),
     )
 
     decoded = base64.b64decode(result)

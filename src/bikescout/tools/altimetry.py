@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import io
 import logging
+import math
 import re
 import time
 import uuid
@@ -54,12 +55,22 @@ class AltimetryConfig:
     default_height_in: int = 3
     dpi: int = 100
     title_prefix: str = "Tactical Elevation Profile"
+    data_credit: str = "Elevation data: ORS-compatible routing (HeiGIT)"
+
+
+@dataclass(frozen=True)
+class ElevationQuality:
+    """Provenance metadata for the elevation samples used in a profile."""
+
+    total_samples: int
+    interpolated_samples: int
 
 
 @dataclass(frozen=True)
 class AltimetryPlotResult:
     image_base64: str
     total_distance_km: float
+    elevation_quality: ElevationQuality
 
 
 @dataclass(frozen=True)
@@ -106,17 +117,19 @@ class AltimetryService:
         self._validate_dimensions(effective_width, effective_height)
         self._validate_style(style)
 
-        distances_m, elevations = self._build_profile_arrays(geometry)
+        distances_m, elevations, quality = self._build_profile_arrays(geometry)
         image_base64 = self._render_plot(
             distances_m=distances_m,
             elevations=elevations,
             width=effective_width,
             height=effective_height,
             style=style,
+            quality=quality,
         )
         return AltimetryPlotResult(
             image_base64=image_base64,
             total_distance_km=float(distances_m[-1] / 1000.0),
+            elevation_quality=quality,
         )
 
     def create_profile_image(
@@ -142,18 +155,26 @@ class AltimetryService:
                 style=style,
             )
 
-            storage_dir = self.storage_dir
-            storage_dir.mkdir(parents=True, exist_ok=True)
-            self.cleanup_old_png_files(storage_dir)
-
             unique_id = self._sanitize_filename_component(
                 uuid_input,
                 fallback=uuid.uuid4().hex[:12],
             )
             filename = f"bs_altimetry_{unique_id}.png"
+
+            storage_dir = self.storage_dir
+            storage_dir.mkdir(parents=True, exist_ok=True)
+            self.cleanup_old_png_files(storage_dir, filename=filename)
+
             file_path = storage_dir / filename
             file_path.write_bytes(base64.b64decode(result.image_base64))
 
+            quality = result.elevation_quality
+            uncertainty = None
+            if quality.interpolated_samples:
+                uncertainty = (
+                    f"{quality.interpolated_samples} of {quality.total_samples} elevation samples "
+                    "interpolated from neighbours; treat local gradients as estimates."
+                )
             return {
                 "status": "Success",
                 "message": "Elevation profile image created.",
@@ -162,6 +183,10 @@ class AltimetryService:
                 "style_applied": style,
                 "dimensions": f"{effective_width}x{effective_height} in",
                 "total_distance_km": round(result.total_distance_km, 2),
+                "elevation_source": self.config.data_credit,
+                "elevation_samples_total": quality.total_samples,
+                "elevation_samples_interpolated": quality.interpolated_samples,
+                "elevation_uncertainty": uncertainty,
             }
         except AltimetryError as exc:
             return {"status": "Error", "message": str(exc)}
@@ -204,9 +229,21 @@ class AltimetryService:
                 self.logger.debug("Climb %d altimetry skipped: %s", number, result["message"])
         return paths
 
-    def cleanup_old_png_files(self, directory: Path) -> None:
+    def cleanup_old_png_files(self, directory: Path, filename: str | None = None) -> None:
+        """Remove stale artifacts owned by this service.
+
+        Args:
+            directory: Artifact directory to inspect.
+            filename: When provided, only this exact artifact is considered. Otherwise
+                the sweep is limited to the service's ``bs_altimetry_*.png`` files.
+        """
         now = time.time()
-        for file_path in directory.glob("*.png"):
+        targets = (
+            [directory / filename]
+            if filename is not None
+            else sorted(directory.glob("bs_altimetry_*.png"))
+        )
+        for file_path in targets:
             try:
                 if (
                     file_path.is_file()
@@ -218,7 +255,7 @@ class AltimetryService:
 
     def _build_profile_arrays(
         self, geometry: Iterable[Sequence[object]]
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, ElevationQuality]:
         coords = self._normalize_geometry(geometry)
         lons = coords[:, 0]
         lats = coords[:, 1]
@@ -226,8 +263,8 @@ class AltimetryService:
 
         segment_distances_m = self._haversine_segment_distances_m(lons, lats)
         cumulative_distances_m = np.concatenate(([0.0], np.cumsum(segment_distances_m)))
-        elevations = self._clean_elevations(raw_elevations, segment_distances_m)
-        return cumulative_distances_m, elevations
+        elevations, quality = self._clean_elevations(raw_elevations, segment_distances_m)
+        return cumulative_distances_m, elevations, quality
 
     def _normalize_geometry(self, geometry: Iterable[Sequence[Any]]) -> np.ndarray:
         points: list[list[float]] = []
@@ -239,7 +276,7 @@ class AltimetryService:
             try:
                 lon = float(point[0])
                 lat = float(point[1])
-                ele = float(point[2]) if len(point) > 2 and point[2] is not None else 0.0
+                ele = float(point[2]) if len(point) > 2 and point[2] is not None else math.nan
             except (TypeError, ValueError):
                 continue
 
@@ -255,10 +292,12 @@ class AltimetryService:
 
     def _clean_elevations(
         self, elevations: np.ndarray, segment_distances_m: np.ndarray
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, ElevationQuality]:
         cleaned = elevations.astype(float).copy()
-        valid_mask = (cleaned >= self.config.abs_min_elevation_m) & (
-            cleaned <= self.config.abs_max_elevation_m
+        valid_mask = (
+            np.isfinite(cleaned)
+            & (cleaned >= self.config.abs_min_elevation_m)
+            & (cleaned <= self.config.abs_max_elevation_m)
         )
 
         if len(cleaned) >= 3 and len(segment_distances_m) >= 2:
@@ -276,7 +315,11 @@ class AltimetryService:
             )
             valid_mask[1:-1] &= ~spike_mask
 
-        return self._interpolate_invalid(cleaned, valid_mask)
+        quality = ElevationQuality(
+            total_samples=len(cleaned),
+            interpolated_samples=int(np.count_nonzero(~valid_mask)),
+        )
+        return self._interpolate_invalid(cleaned, valid_mask), quality
 
     @staticmethod
     def _interpolate_invalid(values: np.ndarray, valid_mask: np.ndarray) -> np.ndarray:
@@ -284,7 +327,7 @@ class AltimetryService:
             return values.copy()
 
         if not np.any(valid_mask):
-            return np.zeros_like(values, dtype=float)
+            raise AltimetryError("No valid elevation samples; elevation profile omitted.")
 
         xp = np.flatnonzero(valid_mask)
         fp = values[valid_mask]
@@ -310,6 +353,7 @@ class AltimetryService:
         width: int,
         height: int,
         style: PlotStyle,
+        quality: ElevationQuality,
     ) -> str:
         dist_km = distances_m / 1000.0
         segment_distances_m = np.diff(distances_m)
@@ -370,7 +414,16 @@ class AltimetryService:
             ax.set_ylabel("Elevation (m)", fontsize=8)
             ax.grid(True, linestyle="--", alpha=0.3)
 
-        fig.tight_layout()
+            footer = self.config.data_credit
+            if quality.interpolated_samples:
+                footer += (
+                    f" | {quality.interpolated_samples}/{quality.total_samples} samples "
+                    "interpolated (estimates)"
+                )
+            fig.text(0.01, 0.005, footer, fontsize=6, color="#666666", ha="left", va="bottom")
+            fig.tight_layout(rect=(0, 0.04, 1, 1))
+        else:
+            fig.tight_layout()
 
         buffer = io.BytesIO()
         try:

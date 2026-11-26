@@ -127,3 +127,33 @@ class TestNormalizeTireSetup:
         assert result["psi_front"] is None
         assert result["strategy"] == "Standard"
         assert result["advice"] == []
+
+
+class TestAltimetryCaption:
+    def test_combines_source_and_uncertainty(self):
+        caption = ui_helpers._altimetry_caption(
+            {
+                "elevation_source": "Elevation data: ORS-compatible routing (HeiGIT)",
+                "elevation_samples_total": 42,
+                "elevation_samples_interpolated": 3,
+            }
+        )
+
+        assert caption == (
+            "Elevation data: ORS-compatible routing (HeiGIT) "
+            "3 of 42 elevation samples estimated from neighbours."
+        )
+
+    def test_omits_uncertainty_when_no_samples_are_estimated(self):
+        caption = ui_helpers._altimetry_caption(
+            {
+                "elevation_source": "Elevation data: ORS-compatible routing (HeiGIT)",
+                "elevation_samples_total": 42,
+                "elevation_samples_interpolated": 0,
+            }
+        )
+
+        assert caption == "Elevation data: ORS-compatible routing (HeiGIT)"
+
+    def test_returns_none_when_provenance_is_missing(self):
+        assert ui_helpers._altimetry_caption({}) is None

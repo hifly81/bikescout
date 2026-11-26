@@ -800,6 +800,10 @@ def make_service(session):
             "status": "Success",
             "file_location": f"/tmp/{uuid_input}.png",
             "mcp_resource_uri": f"bikescout://altimetry/{uuid_input}",
+            "elevation_source": "Elevation data: ORS-compatible routing (HeiGIT)",
+            "elevation_samples_total": 42,
+            "elevation_samples_interpolated": 3,
+            "elevation_uncertainty": "3 of 42 elevation samples estimated from neighbours.",
         },
         nutrition_getter=lambda estimated_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile: {
             "status": "Success",
@@ -860,6 +864,13 @@ def test_get_complete_trail_scout_success_all_features():
     assert result["map_path"] == "/tmp/fixedid.html"
     assert result["gpx_export_path"] == "/tmp/fixedid.gpx"
     assert result["elevation_profile_path"] == "/tmp/fixedid.png"
+    assert result["elevation_source"] == "Elevation data: ORS-compatible routing (HeiGIT)"
+    assert result["elevation_samples_total"] == 42
+    assert result["elevation_samples_interpolated"] == 3
+    assert result["elevation_uncertainty"] == (
+        "3 of 42 elevation samples estimated from neighbours."
+    )
+    assert result.get("elevation_error") is None
 
 
 def test_get_complete_trail_scout_creates_climb_profile_images():
@@ -1243,6 +1254,36 @@ def test_get_complete_trail_scout_gpx_and_altimetry_errors():
     assert result["status"] == "Success"
     assert result["gpx_error"] == "GPX failed: gpx fail"
     assert result["elevation_error"] == "Altimetry failed: alt fail"
+
+
+def test_get_complete_trail_scout_exposes_altimetry_omission_reason():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    service = make_service(FakeSession(response=FakeResponse(payload=payload)))
+    service.altimetry_getter = lambda *args, **kwargs: {
+        "status": "Error",
+        "message": "No valid elevation samples; elevation profile omitted.",
+    }
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=make_rider(),
+        bike=make_bike(),
+        mission=make_mission(),
+        include_altimetry=True,
+    )
+
+    assert result["status"] == "Success"
+    assert result["elevation_error"] == "No valid elevation samples; elevation profile omitted."
+    assert "elevation_profile_path" not in result
 
 
 def test_request_route_candidate_uses_heigit_endpoint():

@@ -1224,6 +1224,11 @@
                         <tr><td><code>mcp_resource_uri_gpx</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The MCP URI for downloading the GPX mission file.</td></tr>
                         <tr><td><code>elevation_profile_path</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The local file path for the elevation profile chart.</td></tr>
                         <tr><td><code>mcp_resource_uri_elevation_profile</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The MCP URI for the visual altimetry analysis.</td></tr>
+                        <tr><td><code>elevation_source</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Credit for the elevation data behind the altimetry chart.</td></tr>
+                        <tr><td><code>elevation_samples_total</code></td><td><code>integer | null</code></td><td><code>null</code></td><td>Number of elevation samples considered for the altimetry chart.</td></tr>
+                        <tr><td><code>elevation_samples_interpolated</code></td><td><code>integer | null</code></td><td><code>null</code></td><td>Number of elevation samples estimated from neighbouring values.</td></tr>
+                        <tr><td><code>elevation_uncertainty</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Explanation of which elevation samples are estimates.</td></tr>
+                        <tr><td><code>elevation_error</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Reason why the elevation profile was omitted.</td></tr>
                         <tr><td><code>gpx_stats</code></td><td><code>dict[string, int] | null</code></td><td><code>null</code></td><td>Dictionary of raw metadata extracted from the GPX file.</td></tr>
                         </tbody>
                     </table>
@@ -1560,6 +1565,7 @@
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>conditions:</strong> Hourly synchronized weather, rain probability, and safety gear briefings.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>logistics:</strong> Hydration/Nutrition plan and strategic amenities (water fountains, etc.) detected along the path.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Visual Assets:</strong> Native URIs for Map, Elevation Profile, and GPX navigation file for direct chat rendering.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Elevation provenance:</strong> Data credit, total and estimated sample counts, and chart uncertainty; <code>elevation_error</code> explains an omitted profile.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>gpx_stats:</strong> Technical summary of trace integrity (point count, segment healing).</li>
                     </ul>
                 </div>
@@ -1838,6 +1844,7 @@
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>conditions:</strong> Weather, rain probability, and safety gear briefings when requested.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>logistics:</strong> Hydration/nutrition plan and detected amenities when requested.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Visual Assets:</strong> Native URIs for the map, elevation profile, and GPX file.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Elevation provenance:</strong> Data credit, total and estimated sample counts, and chart uncertainty; <code>elevation_error</code> explains an omitted profile.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>gpx_stats:</strong> Technical summary of trace integrity (point count, segment healing).</li>
                     </ul>
                 </div>

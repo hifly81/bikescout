@@ -238,6 +238,9 @@ def trail_scout(
           and its resource reference.
         - elevation_profile_path & mcp_resource_uri_elevation_profile: The visual
           altimetry report (PNG) in the requested 'style'.
+        - elevation_source / elevation_samples_total / elevation_samples_interpolated /
+          elevation_uncertainty: Elevation data credit and sample-level uncertainty;
+          elevation_error explains an omitted profile.
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
     """
 
@@ -387,6 +390,9 @@ def trail_scout_simple(
           and its resource reference.
         - elevation_profile_path & mcp_resource_uri_elevation_profile: The visual
           altimetry report (PNG) in the requested 'style'.
+        - elevation_source / elevation_samples_total / elevation_samples_interpolated /
+          elevation_uncertainty: Elevation data credit and sample-level uncertainty;
+          elevation_error explains an omitted profile.
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
     """
     try:

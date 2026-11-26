@@ -722,6 +722,21 @@ class FullMissionBriefingResponse(BaseModel):
     mcp_resource_uri_elevation_profile: str | None = Field(
         None, description="The MCP URI for the visual altimetry analysis."
     )
+    elevation_source: str | None = Field(
+        None, description="Credit for the elevation data behind the altimetry chart."
+    )
+    elevation_samples_total: int | None = Field(
+        None, description="Number of elevation samples considered for the altimetry chart."
+    )
+    elevation_samples_interpolated: int | None = Field(
+        None, description="Number of elevation samples estimated from neighbouring values."
+    )
+    elevation_uncertainty: str | None = Field(
+        None, description="Explanation of which elevation samples are estimates."
+    )
+    elevation_error: str | None = Field(
+        None, description="Reason why the elevation profile was omitted."
+    )
     gpx_stats: dict[str, int] | None = Field(
         None, description="Dictionary of raw metadata extracted from the GPX file."
     )

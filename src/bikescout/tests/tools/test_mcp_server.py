@@ -141,6 +141,11 @@ class TestMcpServer:
             "mcp_resource_uri_map": "bikescout://maps/map.png",
             "mcp_resource_uri_gpx": "bikescout://gpx/route.gpx",
             "mcp_resource_uri_elevation_profile": "bikescout://altimetry/profile.png",
+            "elevation_source": "Elevation data: ORS-compatible routing (HeiGIT)",
+            "elevation_samples_total": 120,
+            "elevation_samples_interpolated": 4,
+            "elevation_uncertainty": "4 of 120 elevation samples estimated from neighbours.",
+            "elevation_error": None,
         }
 
         response = trail_scout(
@@ -154,6 +159,13 @@ class TestMcpServer:
         assert response.status == "Success"
         assert response.info is not None
         assert response.info.distance_km == 30.0
+        assert response.elevation_source == "Elevation data: ORS-compatible routing (HeiGIT)"
+        assert response.elevation_samples_total == 120
+        assert response.elevation_samples_interpolated == 4
+        assert response.elevation_uncertainty == (
+            "4 of 120 elevation samples estimated from neighbours."
+        )
+        assert response.elevation_error is None
 
     @patch("bikescout.mcp_server.get_complete_trail_scout")
     @patch("bikescout.mcp_server.ORS_API_KEY", None)

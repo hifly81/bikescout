@@ -477,13 +477,21 @@ class TrailScoutService:
                     altimetry_report = self.altimetry_getter(
                         geometry=route_geo, uuid_input=filename_part, style=style
                     )
-                    if altimetry_report["status"] == "Success":
+                    if altimetry_report.get("status") == "Success":
                         response_payload["elevation_profile_path"] = altimetry_report[
                             "file_location"
                         ]
                         response_payload["mcp_resource_uri_elevation_profile"] = altimetry_report[
                             "mcp_resource_uri"
                         ]
+                        for key in (
+                            "elevation_source",
+                            "elevation_samples_total",
+                            "elevation_samples_interpolated",
+                            "elevation_uncertainty",
+                        ):
+                            if key in altimetry_report:
+                                response_payload[key] = altimetry_report[key]
                         climb_profiles = terrain.get("climb_profile_coordinates") or []
                         if climb_profiles:
                             self.climb_altimetry_getter(
@@ -491,6 +499,10 @@ class TrailScoutService:
                                 uuid_input=filename_part,
                                 style=style,
                             )
+                    else:
+                        response_payload["elevation_error"] = str(
+                            altimetry_report.get("message") or "Altimetry failed."
+                        )
                 except Exception as e:
                     response_payload["elevation_error"] = f"Altimetry failed: {e!s}"
 

@@ -476,6 +476,10 @@ class TrailScoutService:
                 if map_payload["status"] == "Success":
                     response_payload["map_path"] = map_payload["file_location"]
                     response_payload["mcp_resource_uri_map"] = map_payload["mcp_resource_uri"]
+                    if map_payload.get("style_applied"):
+                        response_payload["map_style_applied"] = map_payload["style_applied"]
+                    if map_payload.get("attribution"):
+                        response_payload["map_attribution"] = map_payload["attribution"]
 
             if include_gpx:
                 try:

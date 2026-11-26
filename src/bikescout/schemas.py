@@ -812,6 +812,12 @@ class FullMissionBriefingResponse(BaseModel):
     mcp_resource_uri_map: str | None = Field(
         None, description="The MCP URI for direct map layer access."
     )
+    map_style_applied: str | None = Field(
+        None, description="Map rendering style actually applied (gradient or solid)."
+    )
+    map_attribution: str | None = Field(
+        None, description="Attribution text for map tiles/data (e.g. OpenStreetMap)."
+    )
     gpx_export_path: str | None = Field(
         None, description="The local file path of the generated GPX file."
     )

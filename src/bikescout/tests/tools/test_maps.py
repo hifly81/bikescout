@@ -36,10 +36,19 @@ class DummyImage:
 
 
 class DummyStaticMap:
-    def __init__(self, width, height, url_template=None):
+    def __init__(
+        self,
+        width,
+        height,
+        url_template=None,
+        tile_request_timeout=None,
+        headers=None,
+    ):
         self.width = width
         self.height = height
         self.url_template = url_template
+        self.tile_request_timeout = tile_request_timeout
+        self.headers = headers
         self.lines = []
         self.markers = []
 
@@ -50,7 +59,9 @@ class DummyStaticMap:
         self.markers.append(marker)
 
     def render(self):
-        return DummyImage()
+        from PIL import Image
+
+        return Image.new("RGBA", (self.width, self.height), (255, 255, 255, 255))
 
 
 @pytest.fixture
@@ -269,6 +280,16 @@ def test_should_use_gradient_false_for_2d_points(service):
     assert service._should_use_gradient(points, requested=True) is False
 
 
+def test_should_use_gradient_true_when_partial_elevation(service):
+    points = [
+        (10.0, 45.0, 100.0),
+        (10.01, 45.01, None),
+        (10.02, 45.02, 120.0),
+    ]
+
+    assert service._should_use_gradient(points, requested=True) is True
+
+
 def test_approx_segment_run_m_positive(service):
     p1 = (10.0, 45.0, 100.0)
     p2 = (10.01, 45.01, 120.0)
@@ -326,10 +347,17 @@ def test_segment_color_from_points_returns_hex(service):
     p1 = (10.0, 45.0, 100.0)
     p2 = (10.001, 45.001, 110.0)
 
-    color = service._segment_color_from_points(p1, p2)
+    color = service._segment_color_from_points(p1, p2, fallback_color="red")
 
     assert color.startswith("#")
     assert len(color) == 7
+
+
+def test_segment_color_from_points_falls_back_without_elevation(service):
+    p1 = (10.0, 45.0, None)
+    p2 = (10.001, 45.001, 110.0)
+
+    assert service._segment_color_from_points(p1, p2, fallback_color="blue") == "blue"
 
 
 def test_sanitize_filename_component(service):
@@ -441,6 +469,7 @@ def test_save_local_tactical_map_success_gradient(
 
     assert result["status"] == "Success"
     assert result["style_applied"] == "gradient"
+    assert result["attribution"] == "© OpenStreetMap contributors"
     assert Path(result["file_location"]).exists()
 
 
@@ -470,6 +499,18 @@ def test_save_local_tactical_map_sanitizes_filename(
 
     assert result["status"] == "Success"
     assert "bad_name_value" in result["file_location"]
+
+
+def test_save_local_tactical_map_is_deterministic_for_same_content(
+    service, geojson_linestring_3d, patched_staticmap
+):
+    r1 = service.save_local_tactical_map("same", geojson_linestring_3d)
+    r2 = service.save_local_tactical_map("same", geojson_linestring_3d)
+
+    assert r1["status"] == "Success"
+    assert r2["status"] == "Success"
+    assert r1["file_location"] == r2["file_location"]
+    assert r1["mcp_resource_uri"] == r2["mcp_resource_uri"]
 
 
 def test_save_local_tactical_map_handles_domain_error(service):

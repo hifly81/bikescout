@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Sequence
+from datetime import date, timedelta
+from pathlib import Path
 from typing import Any, cast
 
 import streamlit as st
@@ -50,6 +52,9 @@ AVAILABLE_MODELS = {
         "description": "Size: ~6.3 GB",
     },
 }
+
+CUSTOM_MODEL_OPTION = "Custom GGUF (Hugging Face)"
+CUSTOM_MODEL_CONFIG_PATH = os.path.join("models", "custom_model.json")
 
 LOCAL_MODELS_DIR = "models"
 
@@ -164,18 +169,76 @@ def build_tactical_chain(model: BaseChatModel, system_prompt: str) -> Runnable[d
     return prompt | model | StrOutputParser()
 
 
+def load_custom_model_config() -> dict[str, Any] | None:
+    if not os.path.exists(CUSTOM_MODEL_CONFIG_PATH):
+        return None
+    try:
+        with open(CUSTOM_MODEL_CONFIG_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    repo = str(data.get("repo", "")).strip()
+    filename = str(data.get("file", "")).strip()
+    if not repo or not filename or not filename.lower().endswith(".gguf"):
+        return None
+    size_gb = data.get("size_gb")
+    try:
+        size_gb_val = float(size_gb) if size_gb is not None and str(size_gb).strip() else None
+    except (TypeError, ValueError):
+        size_gb_val = None
+    return {
+        "repo": repo,
+        "file": filename,
+        "size_gb": size_gb_val,
+        "name": str(data.get("name") or Path(filename).stem),
+    }
+
+
+def save_custom_model_config(config: dict[str, Any]) -> None:
+    os.makedirs(os.path.dirname(CUSTOM_MODEL_CONFIG_PATH) or ".", exist_ok=True)
+    with open(CUSTOM_MODEL_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+
+def get_model_config(model_name: str) -> dict[str, Any] | None:
+    if model_name == CUSTOM_MODEL_OPTION:
+        return load_custom_model_config()
+    return AVAILABLE_MODELS.get(model_name)
+
+
+def get_model_size_label(model_name: str) -> str:
+    cfg = get_model_config(model_name)
+    if not cfg:
+        return "Size: unknown"
+    if "description" in cfg and cfg["description"]:
+        return str(cfg["description"])
+    size_gb = cfg.get("size_gb")
+    if isinstance(size_gb, (int, float)):
+        return f"Size: ~{float(size_gb):.2f} GB"
+    return "Size: unknown"
+
+
 def get_local_model_path(model_name: str) -> str:
-    return os.path.join(LOCAL_MODELS_DIR, AVAILABLE_MODELS[model_name]["file"])
+    cfg = get_model_config(model_name)
+    if not cfg:
+        return os.path.join(LOCAL_MODELS_DIR, f"{model_name}.gguf")
+    return os.path.join(LOCAL_MODELS_DIR, str(cfg["file"]))
 
 
 @st.cache_resource
 def load_llm(model_name: str, n_gpu_layers: int) -> LlamaChatModel | None:
+    cfg = get_model_config(model_name)
+    if not cfg:
+        return None
     path = get_local_model_path(model_name)
     if not os.path.exists(path):
         return None
 
     kwargs: dict[str, Any] = {}
-    if "Qwen3.5" in model_name:
+    model_id = f"{cfg.get('repo', '')} {cfg.get('file', '')} {model_name}".lower()
+    if "qwen3.5" in model_id:
         kwargs["chat_template_kwargs"] = {"enable_thinking": False}
 
     llm = Llama(
@@ -294,6 +357,10 @@ def generate_tactical_response(
                                                 "ride_character_first",
                                             ],
                                         },
+                                        "target_date": {
+                                            "type": "string",
+                                            "description": "Analysis date YYYY-MM-DD. Default tomorrow, max 5 days ahead.",
+                                        },
                                     },
                                     "required": ["bike_type", "tire_size", "location_name"],
                                 },
@@ -317,6 +384,9 @@ Reuse mission location unless user explicitly changes it.
 Reuse mission routing preferences unless user explicitly changes them.
 """
 
+    today = date.today()
+    default_date = (today + timedelta(days=1)).isoformat()
+    max_date = (today + timedelta(days=5)).isoformat()
     system_prompt = f"""
 You are BikeScout Tactical AI.
 Return ONLY valid JSON matching the schema.
@@ -327,6 +397,11 @@ Always preserve routing preference context for follow-up requests unless the use
 Distance must be in kilometers.
 Complexity range is 1..5, default 3.
 Use point_to_point only for A to B routes.
+Date rules:
+- Today is {today.isoformat()}. If user does not mention a date, set target_date to {default_date}.
+- Accept only target_date from {default_date} to {max_date} inclusive.
+- If user asks for a date beyond {max_date}, set can_execute=false and explain clearly in briefing that analysis cannot be generated because forecasts beyond 5 days ahead are not reliable.
+- If user mentions "today", use {default_date} as target_date and state it in briefing.
 
 Bike and difficulty normalization rules:
 - Infer bike_type="mtb" when the user only names 29"/29er/27.5"/650b wheels; explicit disciplines win.

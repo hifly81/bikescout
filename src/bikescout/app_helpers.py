@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import date, timedelta
 from typing import Any
 
 import streamlit as st
@@ -116,6 +117,53 @@ def resolve_route_mode(args: dict, user_input: str) -> str:
         return "point_to_point"
 
     return "round_trip"
+
+
+def get_default_analysis_date(today: date | None = None) -> date:
+    base = today or date.today()
+    return base + timedelta(days=1)
+
+
+def get_max_analysis_date(today: date | None = None) -> date:
+    base = today or date.today()
+    return base + timedelta(days=5)
+
+
+def clamp_analysis_date(value: date | str | None, today: date | None = None) -> date:
+    default_date = get_default_analysis_date(today)
+    max_date = get_max_analysis_date(today)
+    if value is None or value == "":
+        return default_date
+    try:
+        d = date.fromisoformat(value) if isinstance(value, str) else value
+    except (TypeError, ValueError):
+        return default_date
+    if d < default_date:
+        return default_date
+    if d > max_date:
+        return max_date
+    return d
+
+
+def parse_analysis_date_or_error(
+    value: date | str | None, today: date | None = None
+) -> tuple[str | None, str | None]:
+    default_date = get_default_analysis_date(today)
+    max_date = get_max_analysis_date(today)
+    if value is None or value == "":
+        return default_date.isoformat(), None
+    try:
+        d = date.fromisoformat(value) if isinstance(value, str) else value
+    except (TypeError, ValueError):
+        return None, (
+            f"Invalid date. Use YYYY-MM-DD between {default_date.isoformat()} and {max_date.isoformat()}."
+        )
+    if d < default_date or d > max_date:
+        return None, (
+            f"Analysis date must be between {default_date.isoformat()} and {max_date.isoformat()} "
+            "(tomorrow up to 5 days ahead). Dates beyond 5 days are not supported because the forecast would not be reliable."
+        )
+    return d.isoformat(), None
 
 
 def normalize_bike_type(raw_bike: str | None) -> tuple[str, bool]:

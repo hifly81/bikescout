@@ -1256,6 +1256,7 @@
                         <tbody>
                         <tr><td><code>payload_version</code></td><td><code>string</code></td><td>-</td><td>BikeScout protocol version.</td></tr>
                         <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Operation status (Success/Error).</td></tr>
+                        <tr><td><code>target_date</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Analysis target date (YYYY-MM-DD) used by weather, mud and planning tools. Default is tomorrow; max 5 days ahead.</td></tr>
                         <tr><td><code>error_message</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Reason why the mission briefing could not be completed.</td></tr>
                         <tr><td><code>info</code></td><td><code>RouteInfo | null</code></td><td><code>null</code></td><td>Structured data regarding the route's morphology and difficulty.</td></tr>
                         <tr><td><code>conditions</code></td><td><code>MissionConditions | null</code></td><td><code>null</code></td><td>Environmental analysis synchronized with the mission time window.</td></tr>
@@ -1466,7 +1467,7 @@
                     <p class="text-slate-300 leading-relaxed">
                         Advanced trail discovery engine. Returns comprehensive route data, technical difficulty assessment, navigation files (GPX), and visual altimetry reports.
                         Supports both <strong>Round Trips</strong> (single point) and <strong>A to B</strong> routing. Synchronizes with weather and soil models to provide
-                        real-time tactical advice. If <code>target_date</code> is omitted, it defaults to the current day.
+                        real-time tactical advice. If <code>target_date</code> is omitted, it defaults to tomorrow. Dates more than 5 days ahead are rejected as unreliable.
                     </p>
                     <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50 mt-4">
                         <p class="text-sm text-slate-300 leading-relaxed">
@@ -1844,6 +1845,12 @@
                                 <td>Elevation chart style: <code>sparkline</code>, <code>filled</code>, or <code>bars</code>.</td>
                             </tr>
                             <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Analysis date (YYYY-MM-DD). Defaults to tomorrow; max 5 days ahead. Rejected if beyond 5 days.</td>
+                            </tr>
+                            <tr>
                                 <td class="py-2 px-3"><code>include_gpx</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>bool</code></td>
                                 <td class="text-blue-400/70 italic text-xs">Default: true</td>
@@ -1890,6 +1897,12 @@
                                 <td class="py-2 px-3 text-blue-300"><code>number | null</code></td>
                                 <td class="text-slate-500">Optional</td>
                                 <td>Measured whole-body sweat rate (ml/h) from a timed weigh-in; replaces the population fluid estimate.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Analysis date (YYYY-MM-DD). Defaults to tomorrow; max 5 days ahead.</td>
                             </tr>
                             </tbody>
                         </table>

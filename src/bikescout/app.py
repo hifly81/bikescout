@@ -20,7 +20,6 @@ import json
 import os
 import random
 import re
-from datetime import date
 from typing import Any, Literal, cast
 
 import streamlit as st
@@ -37,10 +36,13 @@ from bikescout.app_helpers import (
     extract_distance_km_from_text,
     extract_point_to_point,
     extract_prefer_rural_from_text,
+    get_default_analysis_date,
+    get_max_analysis_date,
     init_session_state,
     normalize_bike_type,
     normalize_direction_bias,
     normalize_tire_size,
+    parse_analysis_date_or_error,
     resolve_location_query,
     resolve_profile,
     resolve_route_mode,
@@ -100,14 +102,17 @@ def _run_gonogo_for_request(
     request: dict[str, Any], *, lat: float, lon: float, bike_type: str
 ) -> tuple[dict[str, Any] | None, str | None]:
     duration = ext_cast(request.get("gonogo_duration_hours"), float, 2.0)
-    target_date = request.get("gonogo_target_date") or request.get("target_date")
+    target_date_raw = request.get("target_date") or request.get("gonogo_target_date")
+    target_date, target_date_error = parse_analysis_date_or_error(target_date_raw)
+    if target_date_error:
+        return None, target_date_error
     try:
         result = ride_window_planner(
             lat=float(lat),
             lon=float(lon),
             ride_duration_hours=float(duration),
             surface_type=_gonogo_surface_for_bike(str(bike_type)),
-            target_date=str(target_date) if target_date else None,
+            target_date=target_date,
         )
         data = cast(
             dict[str, Any], result.model_dump() if hasattr(result, "model_dump") else result
@@ -139,16 +144,35 @@ def render_chat_tab(llm: LlamaChatModel | None) -> None:
     )
 
     if not st.session_state["messages"]:
+        examples = {
+            "Gravel": "45 km gravel loop near Girona, Spain with water stops, weather, mud analysis and GPX.",
+            "Road": "90 km road ride from Annecy, France to Albertville, France with weather, nutrition and GPX export.",
+            "MTB": "30 km MTB loop near Moab, USA, technical trails, avoid urban streets, include weather and GPX.",
+            "E-MTB": "50 km e-MTB scenic loop near Innsbruck, Austria with charging stops, weather and altimetry.",
+            "Enduro": "25 km enduro ride near Queenstown, New Zealand with hard climbs, weather, mud analysis and GPX.",
+        }
+        selected_example_type = st.selectbox(
+            "Example mission type",
+            options=list(examples.keys()),
+            index=0,
+            key="chat_example_type",
+        )
+        selected_example = examples[str(selected_example_type)]
         render_empty_state(
             "Start a mission",
-            "Try something like: 45 km gravel loop near Siena with water stops, weather, mud analysis and GPX.",
+            f"Try something like: {selected_example}",
         )
+        if st.button("Use this example", key="use_chat_example"):
+            st.session_state["pending_chat_prompt"] = selected_example
+            st.session_state["pending_chat_hidden"] = False
+            st.rerun()
 
     for message in st.session_state["messages"]:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
     pending_plan_request = st.session_state.get("pending_plan_request")
+    pending_chat_prompt = st.session_state.get("pending_chat_prompt")
     manual_input = st.chat_input("Describe your ride mission...")
 
     if pending_plan_request:
@@ -160,7 +184,12 @@ def render_chat_tab(llm: LlamaChatModel | None) -> None:
         _execute_and_store_request(pending_plan_request)
         return
 
-    if not manual_input:
+    prompt = manual_input
+    if not prompt and pending_chat_prompt and not st.session_state.get("pending_chat_hidden"):
+        prompt = str(pending_chat_prompt)
+        st.session_state["pending_chat_prompt"] = None
+
+    if not prompt:
         return
 
     if llm is None:
@@ -168,9 +197,9 @@ def render_chat_tab(llm: LlamaChatModel | None) -> None:
             st.error("Local model not available. Download a model from the sidebar first.")
         return
 
-    st.session_state["messages"].append({"role": "user", "content": manual_input})
+    st.session_state["messages"].append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(manual_input)
+        st.markdown(prompt)
 
     llm_messages = list(st.session_state["messages"])
 
@@ -180,7 +209,7 @@ def render_chat_tab(llm: LlamaChatModel | None) -> None:
             llm,
             mission_context=st.session_state.get("mission_context"),
         )
-        final_briefing, had_visual_result = process_local_mcp_request(raw_output, manual_input)
+        final_briefing, had_visual_result = process_local_mcp_request(raw_output, prompt)
         clean_briefing = re.sub(r"(?i)TOOL:.*", "", final_briefing, flags=re.DOTALL).strip()
 
         generic_briefings = {
@@ -377,13 +406,44 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
             briefing_text = data.get("briefing", "Analysis complete.")
             can_execute = data.get("can_execute", False)
             tool_data = data.get("tool") or {}
+            args = tool_data.get("args") or {}
+
+            # User-friendly date guard: catch invalid/too-far dates even when model set can_execute=false.
+            raw_target_date = args.get("target_date") or args.get("gonogo_target_date")
+            if raw_target_date:
+                parsed_target_date, target_date_error = parse_analysis_date_or_error(
+                    raw_target_date
+                )
+                if target_date_error:
+                    default_date = get_default_analysis_date().isoformat()
+                    max_date = get_max_analysis_date().isoformat()
+                    status_box.update(label="Date not supported", state="error")
+                    friendly = (
+                        f"Non posso generare l'analisi per la data **{raw_target_date}**. "
+                        f"Le previsioni meteo oltre 5 giorni non sono abbastanza affidabili. "
+                        f"Scegli una data tra **{default_date}** (domani) e **{max_date}**."
+                    )
+                    return friendly, False
+                args["target_date"] = parsed_target_date
 
             if not can_execute or not tool_data:
+                # If model refused due to too-far date in free text, give friendly deterministic message.
+                date_matches = re.findall(r"(20\d{2}-\d{2}-\d{2})", f"{user_input} {briefing_text}")
+                for dm in date_matches:
+                    _, dm_err = parse_analysis_date_or_error(dm)
+                    if dm_err and "beyond 5 days" in dm_err.lower():
+                        default_date = get_default_analysis_date().isoformat()
+                        max_date = get_max_analysis_date().isoformat()
+                        status_box.update(label="Date not supported", state="error")
+                        return (
+                            f"Non posso generare l'analisi per la data **{dm}**. "
+                            f"Le previsioni meteo oltre 5 giorni non sono abbastanza affidabili. "
+                            f"Scegli una data tra **{default_date}** (domani) e **{max_date}**."
+                        ), False
                 status_box.update(label="Completed", state="complete")
                 return briefing_text, False
 
             tool_name = tool_data.get("name")
-            args = tool_data.get("args") or {}
 
             parsed_distance = extract_distance_km_from_text(user_input)
             parsed_direction_bias = extract_direction_bias_from_text(user_input)
@@ -408,6 +468,9 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
 
             if parsed_priority_mode and not args.get("priority_mode"):
                 args["priority_mode"] = parsed_priority_mode
+
+            if not args.get("target_date"):
+                args["target_date"] = get_default_analysis_date().isoformat()
 
             if tool_name != "trail_scout_simple":
                 status_box.update(label="Completed", state="complete")
@@ -521,6 +584,8 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
             if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
                 priority_mode = "balanced"
 
+            target_date = str(args.get("target_date") or get_default_analysis_date().isoformat())
+
             update_mission_context(
                 display_name,
                 geo.lat,
@@ -535,6 +600,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
                     "prefer_rural": prefer_rural,
                     "distance_flex_percent": distance_flex_percent,
                     "priority_mode": priority_mode,
+                    "target_date": target_date,
                 },
                 raw_distance if route_mode != "point_to_point" else 0,
                 route_mode=route_mode,
@@ -548,6 +614,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
                 "longitude": float(cast(Any, args.get("longitude"))),
                 "tire_size": normalized_tire_size,
                 **setup_args,
+                "target_date": target_date,
                 "include_weather": True,
                 "include_mud_analysis": (
                     wants_overlay(
@@ -634,12 +701,11 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
             )
 
             status_box.update(label="Checking ride window...", state="running")
-            gonogo_target = args.get("gonogo_target_date") or args.get("target_date")
             gonogo_duration = ext_cast(args.get("gonogo_duration_hours"), float, 2.0)
             gonogo_result, gonogo_error = _run_gonogo_for_request(
                 {
                     "gonogo_duration_hours": gonogo_duration,
-                    "gonogo_target_date": gonogo_target,
+                    "target_date": target_date,
                 },
                 lat=float(cast(Any, args.get("latitude"))),
                 lon=float(cast(Any, args.get("longitude"))),
@@ -687,7 +753,6 @@ def render_plan_tab() -> None:
         "Guided ride planning",
         "For users who prefer form-driven planning instead of free-form chat.",
     )
-    render_rider_profile_fields()
     rider = st.session_state["rider_profile"]
 
     route_mode = st.radio(
@@ -703,9 +768,14 @@ def render_plan_tab() -> None:
         )
 
     with st.form("guided_plan_form"):
-        top1, top2 = st.columns(2)
+        st.markdown("### Rider setup")
+        st.caption("Defaults for guided planning. In chat, state your details in the message.")
+        render_rider_profile_fields(show_heading=False)
+        rider = st.session_state["rider_profile"]
 
-        with top1:
+        st.markdown("### Bike setup")
+        bike1, bike2 = st.columns(2)
+        with bike1:
             bike_type = cast(
                 str,
                 st.selectbox(
@@ -714,15 +784,7 @@ def render_plan_tab() -> None:
                     key="guided_bike_type",
                 ),
             )
-            complexity = st.slider(
-                "Difficulty",
-                min_value=1,
-                max_value=5,
-                value=3,
-                key="guided_complexity",
-            )
-
-        with top2:
+        with bike2:
             available_tires = ["32", "29", "27.5", "700c", "650b"]
             rider_tire = rider["tire_size"] if rider["tire_size"] in available_tires else "29"
             tire_size = st.selectbox(
@@ -730,14 +792,6 @@ def render_plan_tab() -> None:
                 available_tires,
                 index=available_tires.index(rider_tire),
                 key="guided_tire_size",
-            )
-            goal = cast(
-                str,
-                st.selectbox(
-                    "Ride goal",
-                    ["scenic", "training", "technical", "easy", "family"],
-                    key="guided_goal",
-                ),
             )
 
         rider_defaults = st.session_state.get("rider_profile", {})
@@ -786,14 +840,65 @@ def render_plan_tab() -> None:
                 key="guided_tubeless",
             )
 
-        loc1, loc2 = st.columns(2)
-        with loc1:
+        st.markdown("### Route setup")
+        rs1, rs2 = st.columns(2)
+        with rs1:
+            complexity = st.slider(
+                "Difficulty",
+                min_value=1,
+                max_value=5,
+                value=3,
+                key="guided_complexity",
+            )
             start_location = st.text_input(
                 "Start location",
                 placeholder="e.g. Trento, Italy",
                 key="guided_start_location",
             )
-        with loc2:
+            if route_mode == "Circular / Loop":
+                distance = st.number_input(
+                    "Distance (km)",
+                    min_value=5.0,
+                    max_value=250.0,
+                    value=35.0,
+                    key="guided_distance",
+                )
+            else:
+                st.info("Distance is computed automatically for A → B routes.")
+                distance = None
+            direction_bias = st.multiselect(
+                "Preferred direction",
+                options=["north", "south", "east", "west"],
+                default=[],
+                help="Bias loop generation toward one or more directions relative to the start area.",
+                key="guided_direction_bias",
+            )
+
+        with rs2:
+            distance_flex_percent = st.slider(
+                "Distance flexibility (%)",
+                min_value=0,
+                max_value=30,
+                value=10,
+                help="Allowed tolerance around target distance when the route character matters more than exact mileage.",
+                key="guided_distance_flex_percent",
+            )
+            target_date = st.date_input(
+                "Analysis date",
+                value=get_default_analysis_date(),
+                min_value=get_default_analysis_date(),
+                max_value=get_max_analysis_date(),
+                key="guided_target_date",
+                help="Used for weather, mud and planning tools. Default: tomorrow. Max: 5 days ahead for reliable forecast.",
+            )
+            goal = cast(
+                str,
+                st.selectbox(
+                    "Ride goal",
+                    ["scenic", "training", "technical", "easy", "family"],
+                    key="guided_goal",
+                ),
+            )
             if route_mode == "A → B":
                 destination_location = st.text_input(
                     "Destination",
@@ -802,44 +907,7 @@ def render_plan_tab() -> None:
                 )
             else:
                 destination_location = ""
-
-        if route_mode == "Circular / Loop":
-            distance = st.number_input(
-                "Distance (km)",
-                min_value=5.0,
-                max_value=250.0,
-                value=35.0,
-                key="guided_distance",
-            )
-        else:
-            st.info("Distance is computed automatically for A → B routes.")
-            distance = None
-
-        st.markdown("### Route character")
-
-        rc1, rc2 = st.columns(2)
-        with rc1:
-            direction_bias = st.multiselect(
-                "Preferred direction",
-                options=["north", "south", "east", "west"],
-                default=[],
-                help="Bias loop generation toward one or more directions relative to the start area.",
-                key="guided_direction_bias",
-            )
-            avoid_urban = st.checkbox(
-                "Avoid urban streets",
-                value=False,
-                help="Bias the route away from denser city sections when possible.",
-                key="guided_avoid_urban",
-            )
-
-        with rc2:
-            prefer_rural = st.checkbox(
-                "Prefer countryside / quieter roads",
-                value=False,
-                help="Bias the route toward quieter, lower-density rural roads when possible.",
-                key="guided_prefer_rural",
-            )
+                st.empty()
             priority_mode = st.selectbox(
                 "Priority mode",
                 ["balanced", "distance_first", "ride_character_first"],
@@ -848,14 +916,21 @@ def render_plan_tab() -> None:
                 key="guided_priority_mode",
             )
 
-        distance_flex_percent = st.slider(
-            "Distance flexibility (%)",
-            min_value=0,
-            max_value=30,
-            value=10,
-            help="Allowed tolerance around target distance when the route character matters more than exact mileage.",
-            key="guided_distance_flex_percent",
-        )
+        avoid_col, rural_col = st.columns(2)
+        with avoid_col:
+            avoid_urban = st.checkbox(
+                "Avoid urban streets",
+                value=False,
+                help="Bias the route away from denser city sections when possible.",
+                key="guided_avoid_urban",
+            )
+        with rural_col:
+            prefer_rural = st.checkbox(
+                "Prefer countryside / quieter roads",
+                value=False,
+                help="Bias the route toward quieter, lower-density rural roads when possible.",
+                key="guided_prefer_rural",
+            )
 
         st.markdown("### Options")
         o1, o2, o3 = st.columns(3)
@@ -936,6 +1011,7 @@ def render_plan_tab() -> None:
             prompt += "Include GPX export. "
         if include_altimetry:
             prompt += "Include altimetry. "
+        prompt += f"Target analysis date {target_date.isoformat()}. "
 
         plan_request = {
             "route_mode": "point_to_point" if route_mode == "A → B" else "loop",
@@ -955,6 +1031,7 @@ def render_plan_tab() -> None:
             "prefer_rural": prefer_rural,
             "distance_flex_percent": distance_flex_percent,
             "priority_mode": priority_mode,
+            "target_date": target_date.isoformat(),
             "include_poi": include_poi,
             "include_weather": include_weather,
             "include_mud": include_mud,
@@ -1016,16 +1093,19 @@ def render_gpx_tab() -> None:
                 st.selectbox("Sweat profile", ["low", "standard", "high", "extreme"], index=1),
             )
         with col5:
-            enable_date = st.checkbox("Schedule date/time")
-            if enable_date:
-                target_date = st.date_input("Target date", value=date.today())
-                c_start, c_end = st.columns(2)
-                with c_start:
-                    start_hour = st.number_input("Start hour", min_value=0, max_value=23, value=8)
-                with c_end:
-                    end_hour = st.number_input("End hour", min_value=0, max_value=23, value=14)
-            else:
-                target_date, start_hour, end_hour = None, None, None
+            target_date = st.date_input(
+                "Analysis date",
+                value=get_default_analysis_date(),
+                min_value=get_default_analysis_date(),
+                max_value=get_max_analysis_date(),
+                key="gpx_target_date",
+                help="Default: tomorrow. Max: 5 days ahead for reliable forecast.",
+            )
+            c_start, c_end = st.columns(2)
+            with c_start:
+                start_hour = st.number_input("Start hour", min_value=0, max_value=23, value=8)
+            with c_end:
+                end_hour = st.number_input("End hour", min_value=0, max_value=23, value=14)
 
         report = st.toggle("Generate PDF report", value=False)
         submitted = st.form_submit_button("Run GPX analysis", type="primary")
@@ -1037,7 +1117,7 @@ def render_gpx_tab() -> None:
 
         with st.spinner("Analyzing GPX track..."):
             try:
-                str_target_date = target_date.strftime("%Y-%m-%d") if target_date else None
+                str_target_date = target_date.strftime("%Y-%m-%d")
                 result = analyze_gpx_track(
                     gpx_url=gpx_url,
                     rider_weight_kg=rider_weight_kg,

@@ -83,16 +83,19 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ---
 
-## Why BikeScout?
+## How BikeScout compares
 
-While others products focus on where to go, BikeScout focuses on how you can thrive on that specific ride, right now.
+BikeScout is built for **pre-ride tactical planning and route audit**. It complements route discovery, training logs, and trail databases with deterministic, cycling-specific analysis.
 
-| Platform | What they provide | Why BikeScout is superior |
+| Platform | Typical focus | What BikeScout adds |
 | :--- | :--- | :--- |
-| **Komoot** | Static maps | We add **live risk-context** |
-| **Strava** | History/Social | We add **predictive safety** |
-| **Trailforks** | Databases | We add **personalized intelligence** |
-| **Generic AI** | Theory | We add **real-world telemetry** |
+| **Komoot** | Route discovery and navigation | Weather-aware route planning, TAEL mud-risk heuristics, surface/S-scale context, tire pressure and setup guidance, nutrition planning, and exportable GPX/altimetry artifacts. |
+| **Strava** | Activity tracking, social, and training history | Pre-ride Go/No-Go window planning with forecast-bounded analysis dates (tomorrow to +5 days), plus GPX tactical audit with heuristic climb categorization, performance simulation, and risk alerts. |
+| **Ride with GPS** | Route planning and cue sheets | Terrain truth (distance, ascent, gradient, climb metrics), rider/bike-aware recommendations, POI/logistics overlays, and structured tool outputs. |
+| **Trailforks** | Trail maps and community condition reports | Route-specific planning context: weather window, mud/traction heuristics, surface/difficulty signals, and equipment/nutrition recommendations for the planned ride. |
+| **Generic AI assistants** | General reasoning from text prompts | Grounded MCP tools with typed schemas, a local Streamlit planner/chat GUI, explicit uncertainty/assumption labels, and exportable artifacts (GPX, altimetry, map, race PDF MCP resource). |
+
+> BikeScout is designed to work alongside these tools, not replace their social, navigation, or community-history strengths.
 
 ---
 

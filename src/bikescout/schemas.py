@@ -827,6 +827,10 @@ class FullMissionBriefingResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    target_date: str | None = Field(
+        None,
+        description="Analysis target date in YYYY-MM-DD format used by weather/mud/planning tools.",
+    )
     error_message: str | None = Field(
         None, description="Reason why the mission briefing could not be completed."
     )

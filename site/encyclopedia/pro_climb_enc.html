@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cycling Climb Classification Explained | Pro Climb Scale, Gradient and Effort Analysis</title>
-    <meta name="description" content="Learn how BikeScout classifies cycling climbs using distance, elevation gain, gradient, and bike-specific effort to deliver more realistic climb difficulty analysis.">
+    <title>Cycling Climb Classification Explained | BikeScout Heuristic Climb Categories</title>
+    <meta name="description" content="Learn how BikeScout classifies climbs using distance, elevation gain, average gradient and a transparent heuristic score. Categories are BikeScout estimates, not official UCI race classifications.">
     <meta name="keywords" content="AI, Model Context Protocol, MTB Intelligence, Gravel Scouting, Cycling Geodata, Mud Prediction, Trail Analysis">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://hifly81.github.io/bikescout/encyclopedia/pro_climb_enc.html" />
@@ -106,51 +106,46 @@
 
 <article class="max-w-3xl mx-auto py-20 px-6">
     <header class="mb-12 border-b border-slate-800 pb-12">
-        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">Pro-Climb <br><span class="neon-text">Categorization</span></h1>
-        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Core Concept: Vertical Intensity Analysis</p>
+        <h1 class="text-4xl md:text-6xl font-black uppercase italic text-white leading-none tracking-tighter">Climb <br><span class="neon-text">Categorization</span></h1>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-sm italic">Core Concept: Heuristic Vertical Intensity</p>
     </header>
 
     <div class="article-content">
-        <p>In professional cycling, not all meters climbed are equal. A 500m ascent on a paved road is a different physiological mission compared to 500m on a technical volcanic trail. Pro-Climb Categorization is the engine BikeScout uses to classify ascents into categories (from Cat 4 to the legendary Hors Catégorie), adjusted for bike-specific rolling resistance and terrain intensity.</p>
+        <p>In cycling, not all meters climbed are equal. A 500m ascent on a paved road feels different from 500m on rough off-road terrain. BikeScout classifies significant climbs with a <strong>transparent heuristic score</strong> based on elevation gain, distance and average gradient. These labels are planning aids, not official UCI race classifications.</p>
 
-        <h2>The Effort Multiplier</h2>
-        <p>The core innovation of the Pro-Climb engine is the <code>effort_multiplier</code>. BikeScout recognizes that gravity and rolling resistance impact riders differently based on their equipment:</p>
+        <h2>How BikeScout Detects Climbs</h2>
+        <p>Climb detection starts from the route elevation profile. BikeScout smooths elevation, identifies ascending segments, and keeps climbs that are meaningful enough to affect pacing, nutrition and bike setup. Very small bumps are ignored to avoid noisy micro-categories.</p>
 
-        <div class="highlight-box">
-            <ul class="space-y-4">
-                <li><strong class="neon-text">Road/Gravel (1.0x):</strong> The baseline for sustained, efficient climbing on predictable surfaces.</li>
-                <li><strong class="neon-text">MTB/XC (1.4x):</strong> Accounts for the increased energy cost of off-road traction and bike geometry.</li>
-                <li><strong class="neon-text">Enduro/Tech (1.6x):</strong> The maximum multiplier, reflecting the massive physical demand of punchy, technical climbs on heavy, long-travel machinery.</li>
-            </ul>
-        </div>
-
-        <h2>The Scoring Formula</h2>
-        <p>To assign a category, BikeScout calculates an Adjusted Effort Score. This formula combines the total vertical gain with the steepness of the climb, then applies the multiplier.</p>
+        <h2>The Heuristic Score</h2>
+        <p>BikeScout computes a climb score from ascent and average gradient. The score is used as a practical planning signal:</p>
 
         <div class="formula-card">
-            Scoring_Gradient = min(Avg_Gradient, 18.0) <br>
-            Adjusted_Score = Total_Ascent * (Scoring_Gradient / 10) * Effort_Multiplier
+            Score = (Total_Gain_m * Avg_Gradient_percent) / 10 <br>
+            Category is assigned from score and gain thresholds (HC/Cat 1-4) <br>
+            category_system = "bikescout_heuristic"
         </div>
 
+        <p>For terrain analysis, BikeScout also uses a FIETS-style index in the terrain engine to describe climb difficulty. Different tools can expose different detail levels, but they share the same principle: transparent, deterministic heuristics rather than hidden claims.</p>
+
         <h2>Category Thresholds</h2>
-        <p>Based on the final score, the climb is assigned a rank following the professional standards of grand tours:</p>
+        <p>The race-analysis heuristic uses these planning thresholds:</p>
 
         <ul>
-            <li><strong>Hors Catégorie (HC):</strong> Legendary challenges (Score > 800 or Ascent > 1000m).</li>
-            <li><strong>Category 1:</strong> Brutal ascents requiring elite-level pacing.</li>
-            <li><strong>Category 2:</strong> Hard climbs that test endurance.</li>
-            <li><strong>Category 3:</strong> Challenging hills.</li>
-            <li><strong>Category 4:</strong> Short, intense burners.</li>
+            <li><strong>Hors Catégorie (HC):</strong> Score &ge; 800 or gain &ge; 1000m.</li>
+            <li><strong>Category 1:</strong> Score &ge; 400 or gain &ge; 600m.</li>
+            <li><strong>Category 2:</strong> Score &ge; 200 or gain &ge; 350m.</li>
+            <li><strong>Category 3:</strong> Score &ge; 100 or gain &ge; 150m, with sufficient length.</li>
+            <li><strong>Category 4:</strong> Smaller but still meaningful climbs above the minimum filter.</li>
         </ul>
 
         <h2>Geodesic Precision</h2>
-        <p>Unlike standard apps that use flat-map distances, Pro-Climb relies on Geodesic Accuracy. By using the Haversine formula to measure the true horizontal baseline, BikeScout's gradient calculations (and thus the categorization) remain accurate even on the steepest "walls" where satellite data often fails.</p>
+        <p>Gradient calculations depend on horizontal distance. BikeScout uses geodesic distance over the route geometry, so gradient and climb metrics better reflect real-world effort than flat-map approximations.</p>
 
 
         <div class="mt-16 flex flex-wrap gap-4">
             <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Climbing-Physics</span>
-            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Effort-Multiplier</span>
-            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#King-Of-Mountains</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#Heuristic-Categories</span>
+            <span class="bg-slate-900 border border-slate-700 px-3 py-1 text-[10px] mono uppercase text-slate-400">#BikeScout-Method</span>
         </div>
     </div>
 </article>

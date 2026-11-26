@@ -326,12 +326,35 @@ class TrailScoutService:
             amenities = []
             terrain: dict[str, Any] = {}
 
+            from datetime import date as _date, timedelta as _timedelta
+
+            _today = _date.today()
+            _default = _today + _timedelta(days=1)
+            _max = _today + _timedelta(days=5)
+            if target_date is None or str(target_date).strip() == "":
+                target_date = _default.isoformat()
+            else:
+                try:
+                    _d = _date.fromisoformat(str(target_date).strip())
+                except (TypeError, ValueError):
+                    return {
+                        "status": "Error",
+                        "error_message": f"Invalid target_date '{target_date}'. Use YYYY-MM-DD between {_default.isoformat()} and {_max.isoformat()}.",
+                    }
+                if _d < _default or _d > _max:
+                    return {
+                        "status": "Error",
+                        "error_message": f"Analysis date must be between {_default.isoformat()} and {_max.isoformat()} (tomorrow up to 5 days ahead). Dates beyond 5 days are not supported because the forecast would not be reliable.",
+                    }
+                target_date = _d.isoformat()
+
             response_payload = self._base_response_payload(
                 dist_km=dist_km,
                 ascent_m=ascent_m,
                 dest_latitude=dest_latitude,
                 dest_longitude=dest_longitude,
             )
+            response_payload["target_date"] = target_date
 
             perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
             estimated_hours = perf["estimated_hours"]

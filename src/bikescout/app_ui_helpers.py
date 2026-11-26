@@ -23,14 +23,23 @@ from pathlib import Path
 from typing import Any, cast
 
 import streamlit as st
-from huggingface_hub import hf_hub_download
+from huggingface_hub import HfApi, hf_hub_download
 
 from bikescout.app_helpers import (
     compute_mission_intensity,
     compute_readiness_score,
     ext_cast,
 )
-from bikescout.app_llm import AVAILABLE_MODELS, LOCAL_MODELS_DIR, get_local_model_path
+from bikescout.app_llm import (
+    AVAILABLE_MODELS,
+    CUSTOM_MODEL_OPTION,
+    LOCAL_MODELS_DIR,
+    get_local_model_path,
+    get_model_config,
+    get_model_size_label,
+    load_custom_model_config,
+    save_custom_model_config,
+)
 from bikescout.tools.terrain import CLIMB_PROFILE_MIN_LENGTH_M
 
 
@@ -916,8 +925,8 @@ def _format_weather_metric(value: Any, unit: str, decimals: int) -> str:
     return f"{number:.{decimals}f}{unit}"
 
 
-def render_rider_profile_fields() -> None:
-    """Render rider defaults inside the guided Plan a Ride tab."""
+def render_rider_profile_fields(*, show_heading: bool = True) -> None:
+    """Render rider defaults; can be embedded inside the guided Plan form."""
     profile = st.session_state["rider_profile"]
 
     fitness_options = ["beginner", "intermediate", "pro"]
@@ -929,8 +938,9 @@ def render_rider_profile_fields() -> None:
     if current_gender not in gender_options:
         current_gender = "male"
 
-    st.markdown("### Rider profile")
-    st.caption("Defaults for guided planning. In chat, state your details in the message.")
+    if show_heading:
+        st.markdown("### Rider profile")
+        st.caption("Defaults for guided planning. In chat, state your details in the message.")
     rider_col, weight_col, gender_col, sweat_col = st.columns(4)
     with rider_col:
         profile["fitness_level"] = st.selectbox(
@@ -992,20 +1002,112 @@ def render_sidebar() -> tuple[str, int]:
             os.environ["ORS_API_KEY"] = ors_key
 
         st.subheader("Local model")
-        selected_model_name = cast(str, st.selectbox("Model", list(AVAILABLE_MODELS.keys())))
-        st.caption(AVAILABLE_MODELS[selected_model_name]["description"])
+        model_options = list(AVAILABLE_MODELS.keys()) + [CUSTOM_MODEL_OPTION]
+        selected_model_name = cast(str, st.selectbox("Model", model_options))
+
+        custom_cfg = load_custom_model_config()
+        if selected_model_name == CUSTOM_MODEL_OPTION:
+            with st.expander("Custom GGUF model", expanded=not bool(custom_cfg)):
+                repo = st.text_input(
+                    "Hugging Face repo",
+                    value=str((custom_cfg or {}).get("repo", "")),
+                    placeholder="org/model-GGUF",
+                    key="custom_llm_repo",
+                    help="Repository containing GGUF files, same download flow as built-in models.",
+                )
+                filename = st.text_input(
+                    "GGUF filename",
+                    value=str((custom_cfg or {}).get("file", "")),
+                    placeholder="model-Q4_K_M.gguf",
+                    key="custom_llm_file",
+                )
+
+                repo_clean = repo.strip()
+                file_clean = filename.strip()
+                detected_size_gb: float | None = None
+                size_lookup_error: str | None = None
+                if repo_clean and file_clean and file_clean.lower().endswith(".gguf"):
+                    cache_key = f"{repo_clean}/{file_clean}"
+                    cache = st.session_state.setdefault("custom_llm_size_cache", {})
+                    if cache_key in cache:
+                        cached = cache[cache_key]
+                        if isinstance(cached, (int, float)):
+                            detected_size_gb = float(cached)
+                        elif isinstance(cached, str):
+                            size_lookup_error = cached
+                    else:
+                        try:
+                            info = HfApi().model_info(repo_clean, files_metadata=True)
+                            match = next(
+                                (s for s in (info.siblings or []) if s.rfilename == file_clean),
+                                None,
+                            )
+                            size_bytes = getattr(match, "size", None) if match else None
+                            if isinstance(size_bytes, (int, float)) and size_bytes > 0:
+                                detected_size_gb = float(size_bytes) / (1024**3)
+                                cache[cache_key] = detected_size_gb
+                            else:
+                                size_lookup_error = (
+                                    "Could not detect file size from Hugging Face metadata."
+                                )
+                                cache[cache_key] = size_lookup_error
+                        except Exception as e:
+                            size_lookup_error = f"Size lookup failed: {type(e).__name__}"
+                            cache[cache_key] = size_lookup_error
+
+                if detected_size_gb is not None:
+                    st.caption(f"Detected model size: ~{detected_size_gb:.2f} GB")
+                elif size_lookup_error:
+                    st.caption(size_lookup_error)
+
+                if st.button("Save custom model", use_container_width=True, key="save_custom_llm"):
+                    if not repo_clean or not file_clean:
+                        st.error("Provide both Hugging Face repo and GGUF filename.")
+                    elif not file_clean.lower().endswith(".gguf"):
+                        st.error("GGUF filename must end with .gguf.")
+                    else:
+                        save_custom_model_config(
+                            {
+                                "repo": repo_clean,
+                                "file": file_clean,
+                                "size_gb": detected_size_gb,
+                                "name": Path(file_clean).stem,
+                            }
+                        )
+                        st.success("Custom model saved.")
+                        st.rerun()
+            custom_cfg = load_custom_model_config()
+            if custom_cfg:
+                st.caption(f"{custom_cfg['repo']} / {custom_cfg['file']}")
+                size_gb = custom_cfg.get("size_gb")
+                if isinstance(size_gb, (int, float)):
+                    st.caption(f"Size: ~{float(size_gb):.2f} GB")
+                else:
+                    st.caption("Size: unknown (will be detected on next lookup)")
+            else:
+                st.info("Configure a custom GGUF model to download and use it.")
+        else:
+            st.caption(get_model_size_label(selected_model_name))
 
         gpu_enabled = st.toggle("GPU acceleration", value=True)
         n_layers = -1 if gpu_enabled else 0
 
+        model_cfg = get_model_config(selected_model_name)
         model_path = get_local_model_path(selected_model_name)
-        if not os.path.exists(model_path):
-            if st.button(f"Download {selected_model_name}", use_container_width=True):
+        if selected_model_name == CUSTOM_MODEL_OPTION and not model_cfg:
+            st.warning("A local model is required to use the chat planner.")
+        elif model_cfg and not os.path.exists(model_path):
+            label = (
+                selected_model_name
+                if selected_model_name != CUSTOM_MODEL_OPTION
+                else str(model_cfg.get("name", "custom model"))
+            )
+            if st.button(f"Download {label}", use_container_width=True):
                 with st.status("Downloading local model...", expanded=True):
                     os.makedirs(LOCAL_MODELS_DIR, exist_ok=True)
                     hf_hub_download(
-                        repo_id=AVAILABLE_MODELS[selected_model_name]["repo"],
-                        filename=AVAILABLE_MODELS[selected_model_name]["file"],
+                        repo_id=str(model_cfg["repo"]),
+                        filename=str(model_cfg["file"]),
                         local_dir=LOCAL_MODELS_DIR,
                     )
                     st.success("Model downloaded. Reloading...")
@@ -1249,6 +1351,9 @@ def render_route_results(res_data: dict) -> None:
     distance_km = info.get("distance_km", "N/A")
     ascent_m = info.get("ascent_m", "N/A")
     difficulty = info.get("difficulty", "N/A")
+    target_date = res_data.get("target_date") or (
+        (conditions.get("weather_meta") or {}).get("date_analyzed")
+    )
 
     weather_data = (conditions.get("weather") or []) if conditions else []
     safety_advice = conditions.get("safety_advice", {}) if conditions else {}
@@ -1266,6 +1371,7 @@ def render_route_results(res_data: dict) -> None:
                     <div class="bs-hud-kicker">TACTICAL MISSION OVERVIEW</div>
                     <div class="bs-hud-title">{route_type}</div>
                 </div>
+                {f'<div class="bs-hud-chip"><span>Analysis date</span><strong>{html.escape(str(target_date))}</strong></div>' if target_date else ""}
             </div>
             <div class="bs-hud-grid">
                 <div class="bs-hud-chip">

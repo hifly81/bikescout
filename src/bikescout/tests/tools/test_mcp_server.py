@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from typing import Any, cast
 from unittest.mock import patch
 
@@ -295,6 +297,7 @@ class TestMcpServer:
         assert response.track_metrics["distance_km"] == 50.5
         assert response.mode == "ROAD"
 
+        expected_target_date = (date.today() + timedelta(days=1)).isoformat()
         m_analyze.assert_called_once_with(
             gpx_url="https://tour.com/stage1.gpx",
             rider_weight_kg=75,
@@ -304,7 +307,7 @@ class TestMcpServer:
             bike_weight_kg=8.5,
             pro_intensity=1.3,
             activity_type="road",
-            target_date=None,
+            target_date=expected_target_date,
             start_hour=None,
             end_hour=None,
             report=True,

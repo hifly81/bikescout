@@ -58,7 +58,34 @@ load_dotenv()
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 ORS_API_KEY = os.getenv("ORS_API_KEY")
 
+ANALYSIS_DEFAULT_DAYS_AHEAD = 1
+ANALYSIS_MAX_DAYS_AHEAD = 5
+
 ResponseT = TypeVar("ResponseT", bound=BaseModel)
+
+
+def _resolve_target_date(target_date: str | None) -> tuple[str | None, str | None]:
+    """Resolve analysis date: default tomorrow, max 5 days ahead."""
+    from datetime import date, timedelta
+
+    today = date.today()
+    default_date = today + timedelta(days=ANALYSIS_DEFAULT_DAYS_AHEAD)
+    max_date = today + timedelta(days=ANALYSIS_MAX_DAYS_AHEAD)
+    if target_date is None or str(target_date).strip() == "":
+        return default_date.isoformat(), None
+    try:
+        d = date.fromisoformat(str(target_date).strip())
+    except (TypeError, ValueError):
+        return None, (
+            f"Invalid target_date '{target_date}'. Use YYYY-MM-DD between "
+            f"{default_date.isoformat()} and {max_date.isoformat()}."
+        )
+    if d < default_date or d > max_date:
+        return None, (
+            f"Analysis date must be between {default_date.isoformat()} and {max_date.isoformat()} "
+            "(tomorrow up to 5 days ahead). Dates beyond 5 days are not supported because the forecast would not be reliable."
+        )
+    return d.isoformat(), None
 
 
 def _error_reason(data: dict[str, Any]) -> str:
@@ -266,6 +293,10 @@ def trail_scout(
         )
 
     try:
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _error_mission_response(reason=target_date_error, tool_name="trail_scout")
+
         data = get_complete_trail_scout(
             ORS_API_KEY,
             latitude,
@@ -276,7 +307,7 @@ def trail_scout(
             dest_latitude,
             dest_longitude,
             style,
-            target_date,
+            resolved_target_date,
             include_gpx,
             include_map,
             include_poi,
@@ -336,6 +367,7 @@ def trail_scout_simple(
     include_mud_analysis: bool = False,
     include_nutrition_plan: bool = False,
     sweat_rate_ml_per_hour: float | None = None,
+    target_date: str | None = None,
 ) -> FullMissionBriefingResponse:
     """
     Simplified tactical scout for cycling routes.
@@ -348,6 +380,7 @@ def trail_scout_simple(
     - DO NOT re-invoke the tool or attempt to refine the 'total_length_km' if the
       returned route falls within this 10% tolerance window.
     - Example: For a 25km request, any result between 22.5km and 27.5km is optimal.
+    Date policy: if target_date is omitted, analysis defaults to tomorrow; dates more than 5 days ahead are rejected as unreliable.
 
     Args:
         latitude: Latitude of the starting point.
@@ -385,6 +418,7 @@ def trail_scout_simple(
         priority_mode: Optimization strategy between exact distance and ride character.
         sweat_rate_ml_per_hour: Optional measured whole-body sweat rate (ml/h) from a
             timed weigh-in; overrides the population fluid estimate in the nutrition plan.
+        target_date: Optional analysis date (YYYY-MM-DD). Defaults to tomorrow; max 5 days ahead.
         dest_latitude: Optional. Latitude of the finish line (for A-to-B missions).
         dest_longitude: Optional. Longitude of the finish line (for A-to-B missions).
         style: Visual style for the elevation profile graphic.
@@ -458,6 +492,10 @@ def trail_scout_simple(
             priority_mode=priority_mode,
         )
 
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _error_mission_response(reason=target_date_error)
+
         response = trail_scout(
             latitude=latitude,
             longitude=longitude,
@@ -474,6 +512,7 @@ def trail_scout_simple(
             include_weather=include_weather,
             include_mud_analysis=include_mud_analysis,
             include_nutrition_plan=include_nutrition_plan,
+            target_date=resolved_target_date,
         )
         return response
 
@@ -506,7 +545,14 @@ def check_trail_weather(
         - safety_advice: Worst-hour briefing, or an explicit [UNAVAILABLE] verdict.
     """
     try:
-        data = get_weather_forecast(lat, lon, target_date, target_hour)
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                TacticalForecastResponse,
+                tool_name="check_trail_weather",
+                data={"status": "Error", "error_message": target_date_error},
+            )
+        data = get_weather_forecast(lat, lon, resolved_target_date, target_hour)
         if data.get("status") == "Error":
             return _tool_error_response(
                 TacticalForecastResponse, tool_name="check_trail_weather", data=data
@@ -548,7 +594,16 @@ def ride_window_planner(
     """
 
     try:
-        data = calculate_ride_windows(lat, lon, ride_duration_hours, surface_type, target_date)
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                StrategicPlannerResponse,
+                tool_name="ride_window_planner",
+                data={"status": "Error", "message": target_date_error},
+            )
+        data = calculate_ride_windows(
+            lat, lon, ride_duration_hours, surface_type, resolved_target_date
+        )
         if data.get("status") == "Error":
             return _tool_error_response(
                 StrategicPlannerResponse, tool_name="ride_window_planner", data=data
@@ -653,9 +708,15 @@ def hydration_scout(
         error_message explains rejected inputs.
     """
     try:
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                HydrationScoutResponse,
+                tool_name="hydration_scout",
+                data={"status": "Error", "error_message": target_date_error},
+            )
         # 1. Fetch weather context using the updated forecast engine
-        # This now supports both real-time and future dates
-        weather_data = get_weather_forecast(lat, lon, target_date)
+        weather_data = get_weather_forecast(lat, lon, resolved_target_date)
         if weather_data.get("status") == "Error":
             return _tool_error_response(
                 HydrationScoutResponse, tool_name="hydration_scout", data=weather_data
@@ -683,7 +744,9 @@ def hydration_scout(
             )
 
         context = WeatherContext(
-            date_referenced=weather_data.get("metadata", {}).get("date_analyzed", target_date),
+            date_referenced=weather_data.get("metadata", {}).get(
+                "date_analyzed", resolved_target_date
+            ),
             max_temp_detected=f"{max_temp}°C",
             temperature_basis=temperature_basis,
             is_future_event=weather_data.get("metadata", {}).get("is_future_planning", False),
@@ -749,6 +812,13 @@ def analyze_gpx_track(
     """
 
     try:
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                GpxRaceAuditResponse,
+                tool_name="analyze_gpx_track",
+                data={"status": "Error", "error_message": target_date_error},
+            )
         data = analyze_track(
             gpx_url=gpx_url,
             rider_weight_kg=rider_weight_kg,
@@ -758,7 +828,7 @@ def analyze_gpx_track(
             bike_weight_kg=bike_weight_kg,
             pro_intensity=pro_intensity,
             activity_type=activity_type,
-            target_date=target_date,
+            target_date=resolved_target_date,
             start_hour=start_hour,
             end_hour=end_hour,
             report=report,

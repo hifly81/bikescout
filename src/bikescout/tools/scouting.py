@@ -425,7 +425,16 @@ class TrailScoutService:
                     response_payload["conditions"]["weather_error"] = f"Technical bypass: {e!s}"
 
             if include_mud_analysis:
-                mud_analysis = self.mud_analyzer(latitude, longitude, dominant_surface, target_date)
+                avg_slope_pct = terrain.get("avg_gradient")
+                max_slope_pct = terrain.get("max_gradient")
+                mud_analysis = self.mud_analyzer(
+                    latitude,
+                    longitude,
+                    dominant_surface,
+                    target_date,
+                    avg_slope_pct=avg_slope_pct,
+                    max_gradient_pct=max_slope_pct,
+                )
                 if mud_analysis.get("status") == "Success":
                     response_payload["conditions"]["mud_risk"] = mud_analysis
 

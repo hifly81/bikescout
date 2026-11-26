@@ -1597,61 +1597,66 @@ def render_route_results(res_data: dict) -> None:
             "Mud & environmental risk", "Trail rideability, traction, and preservation signals."
         )
 
-        tactical_mud = mud_data.get("tactical_analysis", {}) or {}
-        env_context = mud_data.get("environmental_context", {}) or {}
+        if str(mud_data.get("status", "")).lower() == "error":
+            st.error(mud_data.get("message", "Mud analysis unavailable."))
+            if mud_data.get("next_step"):
+                st.info(f"**Next step:** {mud_data['next_step']}")
+        else:
+            tactical_mud = mud_data.get("tactical_analysis", {}) or {}
+            env_context = mud_data.get("environmental_context", {}) or {}
 
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            metric_card(
-                "Mud risk",
-                str(tactical_mud.get("mud_risk_score", "Unknown")),
-                "🟤",
-                "#8b5cf6",
-                "Overall terrain softness",
-            )
-        with m2:
-            metric_card(
-                "Dry time ETA",
-                str(tactical_mud.get("dry_time_eta", "N/A")),
-                "⏳",
-                "#f59e0b",
-                "Estimated recovery window",
-            )
-        with m3:
-            metric_card(
-                "Rain 72h",
-                f"{env_context.get('total_rain_72h_mm', 'N/A')} mm",
-                "🌧️",
-                "#38bdf8",
-                "Recent accumulated rainfall",
-            )
+            m1, m2, m3 = st.columns(3)
+            with m1:
+                metric_card(
+                    "Mud risk",
+                    str(tactical_mud.get("mud_risk_score", "Unknown")),
+                    "🟤",
+                    "#8b5cf6",
+                    "Overall terrain softness",
+                )
+            with m2:
+                metric_card(
+                    "Dry time ETA",
+                    str(tactical_mud.get("dry_time_eta", "N/A")),
+                    "⏳",
+                    "#f59e0b",
+                    "Estimated recovery window",
+                )
+            with m3:
+                metric_card(
+                    "Rain 72h",
+                    f"{env_context.get('total_rain_72h_mm', 'N/A')} mm",
+                    "🌧️",
+                    "#38bdf8",
+                    "Recent accumulated rainfall",
+                )
 
-        traction = tactical_mud.get("traction_risk", {}) or {}
-        damage = tactical_mud.get("trail_damage_risk", {}) or {}
+            traction = tactical_mud.get("traction_risk", {}) or {}
+            damage = tactical_mud.get("trail_damage_risk", {}) or {}
 
-        b1, b2 = st.columns(2)
-        with b1:
-            st.markdown(
-                f"""
-                <div class="bs-risk-box">
-                    <div class="bs-risk-title">Traction analysis</div>
-                    <div class="bs-risk-value">{traction.get("level", "N/A")}</div>
-                    <div class="bs-risk-copy">{traction.get("advice", "No advice available.")}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with b2:
-            st.markdown(
-                f"""
-                <div class="bs-risk-box">
-                    <div class="bs-risk-title">Trail integrity</div>
-                    <div class="bs-risk-value">{damage.get("level", "N/A")}</div>
-                    <div class="bs-risk-copy">{damage.get("advice", "No advice available.")}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            b1, b2 = st.columns(2)
+            with b1:
+                st.markdown(
+                    f"""
+                    <div class="bs-risk-box">
+                        <div class="bs-risk-title">Traction analysis</div>
+                        <div class="bs-risk-value">{traction.get("level", "N/A")}</div>
+                        <div class="bs-risk-copy">{traction.get("advice", "No advice available.")}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with b2:
+                st.markdown(
+                    f"""
+                    <div class="bs-risk-box">
+                        <div class="bs-risk-title">Trail integrity</div>
+                        <div class="bs-risk-value">{damage.get("level", "N/A")}</div>
+                        <div class="bs-risk-copy">{damage.get("advice", "No advice available.")}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
     pois = logistics.get("nearby_amenities", {}) if logistics else {}
     if pois:

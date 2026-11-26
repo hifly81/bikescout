@@ -797,7 +797,7 @@ def make_service(session):
             "status": "Success",
             "amenities": [{"name": "Water", "location": {"lat": 45.1, "lon": 10.1}}],
         },
-        mud_analyzer=lambda latitude, longitude, dominant_surface, target_date=None: {
+        mud_analyzer=lambda latitude, longitude, dominant_surface, target_date=None, avg_slope_pct=None, soil_drainage_class=None, max_gradient_pct=None: {
             "status": "Success" if dominant_surface == "Gravel" else "Error",
             "mud_risk": "medium",
         },

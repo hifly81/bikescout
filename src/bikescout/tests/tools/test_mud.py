@@ -340,6 +340,8 @@ def test_get_mud_risk_analysis_handles_missing_hourly_data(fixed_now):
 
     assert result["status"] == "Error"
     assert "No hourly weather data returned" in result["message"]
+    assert "not treated as dry" in result["message"]
+    assert result["next_step"]
     assert result["tactical_analysis"] is None
 
 
@@ -356,6 +358,7 @@ def test_get_mud_risk_analysis_rejects_invalid_coords(fixed_now):
 
     assert result["status"] == "Error"
     assert "lat must be between -90 and 90" in result["message"]
+    assert result["next_step"]
 
 
 def test_get_mud_risk_analysis_rejects_inconsistent_hourly_arrays(fixed_now):

@@ -260,9 +260,12 @@ class MudIntelligence(BaseModel):
 class MudTactical(BaseModel):
     surface_type: str = Field(..., description="Primary soil/surface type analyzed")
     mud_risk_numeric: float = Field(
-        ..., description="Raw TAEL® moisture index in mm (heuristic reservoir value)"
+        ...,
+        description="Raw TAEL® moisture index in mm (heuristic reservoir value, not ground truth)",
     )
-    mud_risk_score: str = Field(..., description="Qualitative mud risk label")
+    mud_risk_score: str = Field(
+        ..., description="Qualitative mud risk label from heuristic thresholds"
+    )
     traction_risk: dict[str, str] = Field(..., description="Grip assessment and tire advice")
     trail_damage_risk: dict[str, str] = Field(
         ..., description="Risk of leaving deep ruts or damaging terrain"
@@ -274,12 +277,16 @@ class MudTactical(BaseModel):
 
 class MudRiskAnalysis(BaseModel):
     status: str = Field(..., description="Mud analysis status")
-    metadata: dict[str, Any] = Field(..., description="Model version and predictive flags")
-    environmental_context: dict[str, Any] = Field(
-        ..., description="Soil moisture and 72h rain accumulation"
+    message: str | None = Field(None, description="Error message when status is Error")
+    next_step: str | None = Field(None, description="Actionable next step when status is Error")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Model version, confidence, basis and predictive flags"
     )
-    tactical_analysis: MudTactical = Field(
-        ..., description="Direct riding implications of ground conditions"
+    environmental_context: dict[str, Any] = Field(
+        default_factory=dict, description="Soil moisture and 72h rain accumulation"
+    )
+    tactical_analysis: MudTactical | None = Field(
+        None, description="Direct riding implications of ground conditions"
     )
 
 

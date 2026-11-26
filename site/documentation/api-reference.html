@@ -301,8 +301,8 @@
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
                         <tr><td><code>surface_type</code></td><td><code>string</code></td><td>-</td><td>Normalized TAEL soil key for the dominant route surface. Display labels are mapped to soil types: <code>Paved</code>/<code>Concrete</code> become <code>asphalt</code>, <code>Unpaved</code>/<code>Unmapped/Mixed</code> become <code>dirt</code>.</td></tr>
-                        <tr><td><code>mud_risk_numeric</code></td><td><code>float</code></td><td>-</td><td>Raw TAEL™ moisture index in mm (heuristic reservoir value; higher means wetter). Not a 1–100 score.</td></tr>
-                        <tr><td><code>mud_risk_score</code></td><td><code>string</code></td><td>-</td><td>Qualitative risk label derived from the moisture index (Low, Medium, High, Extreme).</td></tr>
+                        <tr><td><code>mud_risk_numeric</code></td><td><code>float</code></td><td>-</td><td>Raw TAEL™ moisture index in mm (heuristic reservoir value; higher means wetter). Not a 1–100 score and not ground truth.</td></tr>
+                        <tr><td><code>mud_risk_score</code></td><td><code>string</code></td><td>-</td><td>Qualitative risk label from heuristic thresholds (configurable in model config; default Low&lt;4, Medium&lt;12, High&lt;20, Extreme&gt;=20 mm).</td></tr>
                         <tr><td><code>traction_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Surface-aware grip assessment. On <code>asphalt</code>/<code>concrete</code> the level is capped at <code>Medium</code> and reports wet-tarmac or aquaplaning advice instead of mud packing.</td></tr>
                         <tr><td><code>trail_damage_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Risk of trail degradation, including probability of rut formation and erosion.</td></tr>
                         <tr><td><code>dry_time_eta</code></td><td><code>string</code></td><td>-</td><td>Estimated time until the trail surface is considered 'ready' or 'optimal' for riding.</td></tr>
@@ -322,30 +322,12 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr>
-                            <td><code>status</code></td>
-                            <td><code>string</code></td>
-                            <td>-</td>
-                            <td>The operational status of the soil saturation predictive model.</td>
-                        </tr>
-                        <tr>
-                            <td><code>metadata</code></td>
-                            <td><code>object</code></td>
-                            <td>-</td>
-                            <td>Technical metadata containing model version, weights, and predictive flags.</td>
-                        </tr>
-                        <tr>
-                            <td><code>environmental_context</code></td>
-                            <td><code>object</code></td>
-                            <td>-</td>
-                            <td>Environmental data including current soil moisture and 72-hour cumulative rainfall.</td>
-                        </tr>
-                        <tr>
-                            <td><code>tactical_analysis</code></td>
-                            <td><code>MudTactical</code></td>
-                            <td>-</td>
-                            <td>The granular tactical breakdown of how ground conditions will affect the ride.</td>
-                        </tr>
+                        <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Analysis status identifier (<code>Success</code> or <code>Error</code>).</td></tr>
+                        <tr><td><code>message</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Error details when status is Error.</td></tr>
+                        <tr><td><code>next_step</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Actionable next step when status is Error.</td></tr>
+                        <tr><td><code>metadata</code></td><td><code>object</code></td><td><code>{}</code></td><td>Model version, confidence, basis, limitations, thresholds_mm and predictive flags.</td></tr>
+                        <tr><td><code>environmental_context</code></td><td><code>object</code></td><td><code>{}</code></td><td>Soil moisture, 72h rainfall, and heuristic terrain/drainage context (avg_slope_pct, max_slope_pct, soil_drainage_class, drainage_proxy, drainage_factor). <code>drainage_proxy</code> is inferred from surface+slope and is not soil ground truth.</td></tr>
+                        <tr><td><code>tactical_analysis</code></td><td><code>MudTactical | null</code></td><td><code>null</code></td><td>Granular mud/traction/trail-damage assessment; null on Error.</td></tr>
                         </tbody>
                     </table>
                 </div>

@@ -33,9 +33,15 @@ FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 MODEL_BASIS = (
     "TAEL heuristic reservoir model (exponential decay, seasonal bias, PET-like "
-    "drying). Coefficients are not empirically calibrated; no soil/DEM/slope data."
+    "drying). Coefficients are not empirically calibrated; no soil/DEM ground-truth data."
 )
 MODEL_CONFIDENCE = "low"
+MODEL_LIMITATIONS = [
+    "Coefficients are heuristic and not calibrated against field measurements.",
+    "No real soil composition, DEM, drainage, or vegetation dataset is used.",
+    "Drainage/slope signals can be inferred heuristically from route/surface; they are proxies, not ground truth.",
+    "Output is a moisture index in mm, not a 1-100 score and not ground truth.",
+]
 
 # Display categories from the surface analyzer are mapped to TAEL soil keys.
 MUD_SURFACE_ALIASES = {
@@ -72,6 +78,10 @@ class MudAnalysisConfig:
     default_surface_type: str = "dirt"
     request_timeout_seconds: float = 10.0
     model_name: str = "TAEL® v3.2"
+    # Heuristic moisture-label thresholds (mm). Not calibrated ground truth.
+    threshold_low_max_mm: float = 4.0
+    threshold_medium_max_mm: float = 12.0
+    threshold_high_max_mm: float = 20.0
 
 
 class MudAnalysisError(ValueError):
@@ -110,6 +120,9 @@ class MudAnalysisService:
         lon: float,
         surface_type: str = "dirt",
         target_date: str | None = None,
+        avg_slope_pct: float | None = None,
+        soil_drainage_class: str | None = None,
+        max_gradient_pct: float | None = None,
     ) -> dict[str, Any]:
         try:
             lat, lon = self._validate_coords(lat, lon)
@@ -142,13 +155,25 @@ class MudAnalysisService:
             required = [times, precips, temps, winds, clouds]
             if not times or any(len(series) == 0 for series in required):
                 raise MudAnalysisError(
-                    "No hourly weather data returned from provider for mud assessment."
+                    "No hourly weather data returned from provider for mud assessment. "
+                    "Cannot assess mud risk safely (missing data is not treated as dry)."
                 )
             lengths = {len(series) for series in required}
             if len(lengths) != 1:
-                raise MudAnalysisError("Inconsistent hourly weather arrays returned from provider.")
+                raise MudAnalysisError(
+                    "Inconsistent hourly weather arrays returned from provider; cannot assess mud risk safely."
+                )
 
             base_k = self._base_drainage_coefficient(normalized_surface_type)
+            slope_pct = self._sanitize_slope_pct(avg_slope_pct)
+            max_slope_pct = self._sanitize_slope_pct(max_gradient_pct)
+            drainage_input = self._normalize_drainage_class(soil_drainage_class)
+            inferred_drainage, drainage_source = self._resolve_drainage_class(
+                normalized_surface_type, slope_pct, max_slope_pct, drainage_input
+            )
+            terrain_drainage_factor = self._terrain_drainage_factor(slope_pct, max_slope_pct)
+            soil_drainage_factor = self._soil_drainage_factor(inferred_drainage)
+            effective_k = base_k * terrain_drainage_factor * soil_drainage_factor
 
             M = _get_seasonal_saturation_bias(reference_date, lat)
             pet_hours = 0
@@ -187,7 +212,7 @@ class MudAnalysisService:
                 if time_diff <= (24 * 3600):
                     recent_dt_sum += Dt
 
-                current_k = base_k
+                current_k = effective_k
                 if normalized_surface_type == "clay" and M > 12.0:
                     current_k *= 0.3
 
@@ -195,7 +220,7 @@ class MudAnalysisService:
 
             eta_hours = self._dry_time_eta(
                 moisture=M,
-                base_k=base_k,
+                base_k=effective_k,
                 avg_recent_dt=max(0.1, (recent_dt_sum / 24.0)),
                 surface_type=normalized_surface_type,
             )
@@ -206,6 +231,12 @@ class MudAnalysisService:
             )
             damage_risk, damage_advice = self._damage_risk(M)
             global_label = self._global_mud_label(M)
+            confidence, confidence_reason = self._model_confidence(
+                slope_pct=slope_pct,
+                max_slope_pct=max_slope_pct,
+                drainage_class=inferred_drainage,
+                drainage_source=drainage_source,
+            )
 
             return {
                 "status": "Success",
@@ -214,13 +245,30 @@ class MudAnalysisService:
                     "timezone": tz_name,
                     "is_predictive": is_predictive,
                     "model": self.config.model_name,
-                    "model_confidence": MODEL_CONFIDENCE,
+                    "model_confidence": confidence,
+                    "model_confidence_reason": confidence_reason,
                     "model_basis": MODEL_BASIS,
+                    "model_limitations": list(MODEL_LIMITATIONS),
+                    "thresholds_mm": {
+                        "low_max": self.config.threshold_low_max_mm,
+                        "medium_max": self.config.threshold_medium_max_mm,
+                        "high_max": self.config.threshold_high_max_mm,
+                    },
                 },
                 "environmental_context": {
                     "total_rain_72h_mm": round(total_raw_rain, 1),
                     "integrated_pet_hours": pet_hours,
                     "reservoir_moisture_mm": round(M, 2),
+                    "avg_slope_pct": slope_pct,
+                    "max_slope_pct": max_slope_pct,
+                    "soil_drainage_class": inferred_drainage,
+                    "drainage_proxy": {
+                        "value": inferred_drainage,
+                        "source": drainage_source,
+                        "is_inferred": drainage_source != "provided",
+                        "basis": "Heuristic proxy from surface type and route slope; not soil ground truth.",
+                    },
+                    "drainage_factor": round(effective_k / base_k, 3) if base_k else 1.0,
                 },
                 "tactical_analysis": {
                     "surface_type": normalized_surface_type,
@@ -236,18 +284,21 @@ class MudAnalysisService:
             return {
                 "status": "Error",
                 "message": str(e),
+                "next_step": "Provide valid coordinates/date and retry when hourly weather data is available.",
                 "tactical_analysis": None,
             }
         except requests.exceptions.RequestException as e:
             return {
                 "status": "Error",
-                "message": f"Mud weather provider error: {e}. Retry later or verify coordinates/date.",
+                "message": f"Mud weather provider error: {e}.",
+                "next_step": "Retry later or verify coordinates/date and network connectivity.",
                 "tactical_analysis": None,
             }
         except Exception as e:
             return {
                 "status": "Error",
                 "message": f"Unexpected mud analysis error: {e}",
+                "next_step": "Retry with valid inputs; if it persists, inspect logs/provider availability.",
                 "tactical_analysis": None,
             }
 
@@ -291,6 +342,130 @@ class MudAnalysisService:
         if not isinstance(surface_type, str) or not surface_type.strip():
             return "dirt"
         return MUD_SURFACE_ALIASES.get(surface_type.strip().lower(), "dirt")
+
+    @staticmethod
+    def _sanitize_slope_pct(value: Any) -> float | None:
+        try:
+            slope = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(slope):
+            return None
+        return max(0.0, min(60.0, abs(slope)))
+
+    @staticmethod
+    def _normalize_drainage_class(value: Any) -> str | None:
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().lower().replace(" ", "_").replace("-", "_")
+        mapping = {
+            "poor": "poor",
+            "slow": "poor",
+            "moderate": "moderate",
+            "medium": "moderate",
+            "good": "good",
+            "fast": "good",
+            "very_good": "very_good",
+            "excellent": "very_good",
+        }
+        return mapping.get(normalized)
+
+    @staticmethod
+    def _terrain_drainage_factor(
+        slope_pct: float | None, max_slope_pct: float | None = None
+    ) -> float:
+        """Heuristic slope adjustment: steeper slopes shed water faster."""
+        if slope_pct is None and max_slope_pct is None:
+            return 1.0
+        avg = slope_pct if slope_pct is not None else 0.0
+        peak = max_slope_pct if max_slope_pct is not None else avg
+        composite = (avg * 0.7) + (peak * 0.3)
+        return max(0.7, min(1.8, 1.0 + (composite / 40.0)))
+
+    @staticmethod
+    def _soil_drainage_factor(drainage_class: str | None) -> float:
+        """Heuristic soil-drainage adjustment; unknown keeps neutral factor."""
+        factors = {
+            "poor": 0.75,
+            "moderate": 1.0,
+            "good": 1.25,
+            "very_good": 1.45,
+        }
+        if drainage_class is None:
+            return 1.0
+        return factors.get(drainage_class, 1.0)
+
+    @classmethod
+    def _infer_drainage_class(
+        cls, surface_type: str, slope_pct: float | None, max_slope_pct: float | None
+    ) -> str:
+        """Infer drainage proxy from surface and route slope; not soil data."""
+        surface = (surface_type or "dirt").lower()
+        avg = slope_pct if slope_pct is not None else 0.0
+        peak = max_slope_pct if max_slope_pct is not None else avg
+        steep = avg >= 8.0 or peak >= 15.0
+        flat = avg <= 2.0 and peak <= 5.0
+
+        base = {
+            "asphalt": "very_good",
+            "gravel": "good",
+            "sand": "good",
+            "grass": "moderate",
+            "dirt": "moderate",
+            "earth": "moderate",
+            "clay": "poor",
+        }.get(surface, "moderate")
+
+        order = ["poor", "moderate", "good", "very_good"]
+        idx = order.index(base)
+        if steep and idx < len(order) - 1:
+            idx += 1
+        if flat and idx > 0 and surface in {"clay", "earth", "dirt", "grass"}:
+            idx -= 1
+        return order[idx]
+
+    @classmethod
+    def _resolve_drainage_class(
+        cls,
+        surface_type: str,
+        slope_pct: float | None,
+        max_slope_pct: float | None,
+        drainage_input: str | None,
+    ) -> tuple[str, str]:
+        if drainage_input is not None:
+            return drainage_input, "provided"
+        inferred = cls._infer_drainage_class(surface_type, slope_pct, max_slope_pct)
+        if slope_pct is None and max_slope_pct is None:
+            return inferred, "inferred_from_surface"
+        return inferred, "inferred_from_surface_and_slope"
+
+    @staticmethod
+    def _model_confidence(
+        slope_pct: float | None,
+        max_slope_pct: float | None,
+        drainage_class: str | None,
+        drainage_source: str,
+    ) -> tuple[str, str]:
+        has_slope = slope_pct is not None or max_slope_pct is not None
+        if drainage_source == "provided" and has_slope:
+            return (
+                "low-medium",
+                "Heuristic model with route slope and provided drainage hint; no field calibration.",
+            )
+        if drainage_source.startswith("inferred") and has_slope:
+            return (
+                "low",
+                "Heuristic model with inferred drainage proxy from surface+slope; not soil ground truth.",
+            )
+        if drainage_source.startswith("inferred"):
+            return (
+                "low",
+                "Heuristic model with drainage proxy inferred from surface only; no soil/DEM calibration.",
+            )
+        return (
+            "low",
+            "Heuristic model using weather+surface only; no soil/DEM/slope calibration.",
+        )
 
     @staticmethod
     def _coerce_float(value: Any, fallback: float) -> float:
@@ -352,21 +527,19 @@ class MudAnalysisService:
             return "Medium", "Greasy top layer. Watch off-cambers."
         return "High", "Zero traction. Tires will pack instantly."
 
-    @staticmethod
-    def _damage_risk(moisture: float) -> tuple[str, str]:
-        if moisture < 4.0:
+    def _damage_risk(self, moisture: float) -> tuple[str, str]:
+        if moisture < self.config.threshold_low_max_mm:
             return "Low", "Trail structure is solid."
-        if moisture < 15.0:
+        if moisture < self.config.threshold_high_max_mm - 5.0:
             return "Medium", "Sub-surface is soft. Rutting possible."
         return "Extreme", "DO NOT RIDE. Structural damage likely."
 
-    @staticmethod
-    def _global_mud_label(moisture: float) -> str:
-        if moisture < 4.0:
+    def _global_mud_label(self, moisture: float) -> str:
+        if moisture < self.config.threshold_low_max_mm:
             return "Low"
-        if moisture < 12.0:
+        if moisture < self.config.threshold_medium_max_mm:
             return "Medium"
-        if moisture < 20.0:
+        if moisture < self.config.threshold_high_max_mm:
             return "High"
         return "Extreme"
 
@@ -417,10 +590,16 @@ def get_mud_risk_analysis(
     lon: float,
     surface_type: str = "dirt",
     target_date: str | None = None,
+    avg_slope_pct: float | None = None,
+    soil_drainage_class: str | None = None,
+    max_gradient_pct: float | None = None,
 ) -> dict[str, Any]:
     return service.get_mud_risk_analysis(
         lat=lat,
         lon=lon,
         surface_type=surface_type,
         target_date=target_date,
+        avg_slope_pct=avg_slope_pct,
+        soil_drainage_class=soil_drainage_class,
+        max_gradient_pct=max_gradient_pct,
     )

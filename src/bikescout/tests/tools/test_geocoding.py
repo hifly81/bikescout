@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, cast
 
 import pytest
@@ -23,6 +24,7 @@ import requests
 
 import bikescout.tools.geocoding as geocoding_module
 from bikescout.tools.geocoding import (
+    NOMINATIM_USER_AGENT,
     GeocodingConfig,
     GeocodingError,
     GeoEngine,
@@ -89,7 +91,7 @@ def config():
         max_results=5,
         default_language="en",
         max_retries=3,
-        user_agent="BikeScout_Tactical_Engine/2.0",
+        user_agent=NOMINATIM_USER_AGENT,
     )
 
 
@@ -106,7 +108,11 @@ def test_nominatim_provider_success(config):
     assert call["params"]["q"] == "Verona"
     assert call["params"]["limit"] == 5
     assert call["headers"]["Accept-Language"] == "it"
-    assert call["headers"]["User-Agent"] == "BikeScout_Tactical_Engine/2.0"
+    assert call["headers"]["User-Agent"] == NOMINATIM_USER_AGENT
+
+
+def test_default_user_agent_includes_contact_url():
+    assert "github.com/hifly81/bikescout" in GeocodingConfig().user_agent
 
 
 def test_nominatim_provider_rejects_empty_query(config):
@@ -273,7 +279,7 @@ def test_build_success_result_success(config):
 def test_build_success_result_raises_for_invalid_lat_lon(config):
     engine = GeoEngine(provider=FakeProvider(results=[]), config=config)
 
-    with pytest.raises(GeocodingError, match="missing valid lat/lon"):
+    with pytest.raises(GeocodingError, match="invalid latitude"):
         engine._build_success_result({"lat": "bad", "lon": "10.0"})
 
 
@@ -374,7 +380,9 @@ def test_get_coordinates_retries_and_then_returns_max_retries(config):
 
     result = engine.get_coordinates("Verona", retries=3)
 
-    assert result == {"status": "Error", "message": "Max retries exceeded for geocoding service."}
+    assert result["status"] == "Error"
+    assert "temporary failure" in result["message"]
+    assert "after 3 attempt(s)" in result["message"]
     assert provider.calls == [("Verona", "en"), ("Verona", "en"), ("Verona", "en")]
     assert sleeps == [1, 1.1, 2, 1.1]
 
@@ -396,11 +404,11 @@ def test_get_coordinates_retries_on_unexpected_exception_and_returns_error(confi
     result = engine.get_coordinates("Verona", retries=2)
 
     assert result["status"] == "Error"
-    assert result["message"] == "Unexpected geocoding failure: boom"
+    assert result["message"] == "Unexpected geocoding failure after 2 attempt(s): boom"
     assert sleeps == [1, 1.1]
 
 
-def test_get_coordinates_returns_max_retries_when_best_match_has_invalid_lat_lon(config):
+def test_get_coordinates_rejects_invalid_coordinates_without_retrying(config):
     provider = FakeProvider(
         results=[
             {
@@ -424,10 +432,208 @@ def test_get_coordinates_returns_max_retries_when_best_match_has_invalid_lat_lon
 
     result = engine.get_coordinates("Broken", retries=2)
 
-    assert result == {"status": "Error", "message": "Max retries exceeded for geocoding service."}
-    assert len(sleeps) == 2
-    assert 1 in sleeps
-    assert 1.1 in sleeps
+    assert result["status"] == "Error"
+    assert "invalid latitude" in result["message"]
+    assert provider.calls == [("Broken", "en")]
+    assert sleeps == []
+
+
+class FakeClock:
+    def __init__(self, now: float = 100.0):
+        self.now = now
+
+    def time(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+def _valid_result(display_name: str = "Verona") -> dict[str, Any]:
+    return {
+        "lat": "45.4384",
+        "lon": "10.9916",
+        "display_name": display_name,
+        "class": "place",
+        "type": "city",
+        "importance": 0.7,
+    }
+
+
+def test_get_coordinates_reuses_cached_result(config):
+    provider = FakeProvider(results=[_valid_result()])
+    clock = FakeClock()
+    engine = GeoEngine(
+        provider=provider, config=config, sleep_func=clock.sleep, time_func=clock.time
+    )
+
+    first = engine.get_coordinates("Verona", lang="it")
+    second = engine.get_coordinates("Verona", lang="it")
+
+    assert first == second
+    assert provider.calls == [("Verona", "it")]
+
+
+def test_cache_key_ignores_case_and_surrounding_whitespace(config):
+    provider = FakeProvider(results=[_valid_result()])
+    engine = GeoEngine(
+        provider=provider,
+        config=config,
+        sleep_func=lambda _: None,
+        time_func=lambda: 100.0,
+    )
+
+    engine.get_coordinates("Verona", lang="it")
+    engine.get_coordinates("  verona  ", lang="IT")
+
+    assert provider.calls == [("Verona", "it")]
+
+
+def test_cache_expires_after_ttl(config):
+    provider = FakeProvider(results=[_valid_result()])
+    clock = FakeClock()
+    short_ttl = GeocodingConfig(cache_ttl_seconds=10.0)
+    engine = GeoEngine(
+        provider=provider, config=short_ttl, sleep_func=clock.sleep, time_func=clock.time
+    )
+
+    engine.get_coordinates("Verona")
+    clock.now += 11.0
+    engine.get_coordinates("Verona")
+
+    assert len(provider.calls) == 2
+
+
+def test_cache_evicts_oldest_entry_when_full(config):
+    provider = FakeProvider(results=[_valid_result()])
+    small_cache = GeocodingConfig(cache_max_entries=1)
+    engine = GeoEngine(
+        provider=provider,
+        config=small_cache,
+        sleep_func=lambda _: None,
+        time_func=lambda: 100.0,
+    )
+
+    engine.get_coordinates("Verona")
+    engine.get_coordinates("Rome")
+    engine.get_coordinates("Verona")
+
+    assert len(engine._cache) == 1
+    assert len(provider.calls) == 3
+
+
+def test_error_responses_are_not_cached(config):
+    class FlakyProvider(GeocodingProvider):
+        def __init__(self):
+            self.calls = 0
+
+        def geocode(self, query: str, lang: str):
+            self.calls += 1
+            if self.calls == 1:
+                raise GeocodingError("temporary outage")
+            return [_valid_result()]
+
+    provider = FlakyProvider()
+    engine = GeoEngine(
+        provider=provider,
+        config=config,
+        sleep_func=lambda _: None,
+        time_func=lambda: 100.0,
+    )
+
+    first = engine.get_coordinates("Verona", retries=1)
+    second = engine.get_coordinates("Verona", retries=1)
+
+    assert first["status"] == "Error"
+    assert second["status"] == "Success"
+    assert provider.calls == 2
+
+
+def test_get_coordinates_exposes_diagnostic_alternatives(config, caplog):
+    results = [
+        _valid_result("Verona"),
+        {
+            "lat": "45.1",
+            "lon": "10.1",
+            "display_name": "Verona Alta",
+            "class": "place",
+            "type": "town",
+            "importance": 0.68,
+        },
+        {
+            "lat": "bad",
+            "lon": "10.1",
+            "display_name": "Broken",
+            "class": "place",
+            "type": "town",
+            "importance": 0.6,
+        },
+    ]
+    provider = FakeProvider(results=results)
+    engine = GeoEngine(
+        provider=provider,
+        config=config,
+        sleep_func=lambda _: None,
+        time_func=lambda: 100.0,
+    )
+
+    with caplog.at_level(logging.WARNING, logger="bikescout.tools.geocoding"):
+        result = engine.get_coordinates("Verona")
+
+    assert result["status"] == "Success"
+    assert result["lat"] == 45.4384
+    assert [alt["display_name"] for alt in result["alternatives"]] == ["Verona Alta"]
+    assert "Ambiguous geocoding result" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("lat", "lon", "expected"),
+    [
+        ("91", "10", "latitude"),
+        ("45", "-181", "longitude"),
+        ("nan", "10", "latitude"),
+        ("45", "inf", "longitude"),
+        (True, "10", "latitude"),
+    ],
+)
+def test_get_coordinates_rejects_out_of_range_coordinates(config, lat, lon, expected):
+    provider = FakeProvider(
+        results=[
+            {
+                "lat": lat,
+                "lon": lon,
+                "display_name": "Broken",
+                "class": "place",
+                "type": "town",
+                "importance": 0.5,
+            }
+        ]
+    )
+    slept = []
+    engine = GeoEngine(
+        provider=provider,
+        config=config,
+        sleep_func=lambda seconds: slept.append(seconds),
+        time_func=lambda: 100.0,
+    )
+
+    result = engine.get_coordinates("Broken", retries=2)
+
+    assert result["status"] == "Error"
+    assert expected in result["message"]
+    assert len(provider.calls) == 1
+    assert slept == []
+
+
+def test_build_success_result_normalizes_optional_fields(config):
+    engine = GeoEngine(provider=FakeProvider(results=[]), config=config)
+
+    result = engine._build_success_result({"lat": "45.0", "lon": "10.0", "importance": "bad"})
+
+    assert result["importance"] == 0.0
+    assert result["display_name"] == ""
+    assert result["class"] == ""
+    assert result["type"] == ""
 
 
 def test_module_level_wrapper(monkeypatch):

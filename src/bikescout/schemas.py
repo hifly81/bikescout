@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 BIKESCOUT_PROTOCOL_VERSION_MSG = "BikeScout protocol version"
 BIKESCOUT_PROTOCOL_OPERATION_MSG = "Operation status (Success/Error)"
@@ -617,8 +617,7 @@ class GeocodingResponse(BaseModel):
     )
     importance: float = Field(..., description="Relevance score of the result")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TacticalForecastResponse(BaseModel):

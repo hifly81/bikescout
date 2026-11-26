@@ -793,7 +793,7 @@ def make_service(session):
             },
             "surface_breakdown": [{"type": "Gravel", "percentage": "70%"}],
         },
-        poi_scout=lambda api_key, latitude, longitude, total_length_km: {
+        poi_scout=lambda api_key, latitude, longitude, total_length_km, route_geometry=None: {
             "status": "Success",
             "amenities": [{"name": "Water", "location": {"lat": 45.1, "lon": 10.1}}],
         },

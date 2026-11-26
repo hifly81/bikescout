@@ -1667,6 +1667,11 @@ def render_route_results(res_data: dict) -> None:
                         p_type = poi.get("type", "Amenity")
                         p_dist = poi.get("distance_m", 0)
                         icon, border_color = get_poi_style(p_type)
+                        opening_hours = poi.get("opening_hours")
+                        potability = poi.get("potability")
+                        drinking_water = poi.get("drinking_water")
+                        route_km = poi.get("route_km")
+                        route_total_km = info.get("distance_km")
 
                         if isinstance(p_dist, (int, float)):
                             dist_str = (
@@ -1674,6 +1679,26 @@ def render_route_results(res_data: dict) -> None:
                             )
                         else:
                             dist_str = "N/A"
+                        route_str = None
+                        if isinstance(route_km, (int, float)):
+                            if isinstance(route_total_km, (int, float)) and route_total_km > 0:
+                                route_str = f"km {route_km:.1f} / {route_total_km:.1f}"
+                            else:
+                                route_str = f"km {route_km:.1f}"
+                        extra = []
+                        if route_str:
+                            extra.append(f"At {route_str}")
+                        if opening_hours:
+                            extra.append(f"Hours: {opening_hours}")
+                        if potability:
+                            extra.append(f"Water: {potability.replace('_', ' ')}")
+                        elif drinking_water:
+                            extra.append(f"Drinking water: {drinking_water}")
+                        extra_html = (
+                            f"<div style='font-size:0.72rem;color:#93a4b8;margin-top:4px;'>{' · '.join(extra)}</div>"
+                            if extra
+                            else ""
+                        )
 
                         link = None
                         p_loc = poi.get("location")
@@ -1685,23 +1710,23 @@ def render_route_results(res_data: dict) -> None:
                                     f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
                                 )
 
-                        st.markdown(
-                            f"""
-                            <div class="bs-poi-card" style="--poi-accent:{border_color};">
-                                <div class="bs-poi-head">
-                                    <div>
-                                        <div class="bs-poi-title">{icon} {p_name}</div>
-                                        <div class="bs-poi-type">{p_type}</div>
-                                    </div>
-                                </div>
-                                <div class="bs-poi-distance">Distance: {dist_str}</div>
-                                <div class="bs-poi-actions">
-                                    {"<a href='" + link + "' target='_blank'>Open in Maps ↗</a>" if link else "No coordinates available"}
-                                </div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
+                        action_html = (
+                            f'<a href="{link}" target="_blank">Open in Maps ↗</a>'
+                            if link
+                            else "No coordinates available"
                         )
+                        card_html = (
+                            f'<div class="bs-poi-card" style="--poi-accent:{border_color};">'
+                            f'<div class="bs-poi-head"><div>'
+                            f'<div class="bs-poi-title">{icon} {p_name}</div>'
+                            f'<div class="bs-poi-type">{p_type}</div>'
+                            f"</div></div>"
+                            f'<div class="bs-poi-distance">{dist_str} from route</div>'
+                            f"{extra_html}"
+                            f'<div class="bs-poi-actions">{action_html}</div>'
+                            f"</div>"
+                        )
+                        st.markdown(card_html, unsafe_allow_html=True)
 
     nutrition = logistics.get("nutrition_plan", {}) if logistics else {}
     if nutrition:

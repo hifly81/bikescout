@@ -634,9 +634,28 @@ class Amenity(BaseModel):
         description="The name of the point of interest (e.g., 'Water Fountain', 'Bike Shop').",
     )
     type: str = Field(..., description="The category of the amenity for tactical filtering.")
-    distance_m: int = Field(..., description="The geodesic distance from the route path in meters.")
+    distance_m: int = Field(
+        ..., description="Distance from the sampled route/start point in meters."
+    )
+    route_km: float | None = Field(
+        None,
+        description="Approximate route progress in km where this POI was found; null when unknown.",
+    )
     location: dict[str, float] = Field(
         ..., description="The exact GPS coordinates (lat/lon) of the amenity."
+    )
+    opening_hours: str | None = Field(
+        None, description="OSM opening_hours tag when available; null if unknown"
+    )
+    drinking_water: str | None = Field(
+        None, description="OSM drinking_water tag when available; null if unknown"
+    )
+    water_source: str | None = Field(
+        None, description="OSM water source/fountain tag when available"
+    )
+    potability: str | None = Field(
+        None,
+        description="Potability hint for water POIs: potable_tagged, not_potable_tagged, unknown_verify, or null",
     )
 
 

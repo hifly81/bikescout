@@ -451,7 +451,15 @@ class TrailScoutService:
 
             if include_poi:
                 try:
-                    poi_res = self.poi_scout(api_key, latitude, longitude, mission.total_length_km)
+                    poi_res = self.poi_scout(
+                        api_key,
+                        latitude,
+                        longitude,
+                        mission.total_length_km,
+                        route_geometry=data.get("features", [{}])[0]
+                        .get("geometry", {})
+                        .get("coordinates"),
+                    )
                     amenities = (
                         poi_res.get("amenities", []) if poi_res.get("status") == "Success" else []
                     )

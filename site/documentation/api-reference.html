@@ -861,8 +861,13 @@
                         <tbody>
                         <tr><td><code>name</code></td><td><code>string</code></td><td>-</td><td>The name of the point of interest (e.g., 'Water Fountain', 'Bike Shop').</td></tr>
                         <tr><td><code>type</code></td><td><code>string</code></td><td>-</td><td>The category of the amenity for tactical filtering.</td></tr>
-                        <tr><td><code>distance_m</code></td><td><code>int</code></td><td>-</td><td>The geodesic distance from the route path in meters.</td></tr>
+                        <tr><td><code>distance_m</code></td><td><code>int</code></td><td>-</td><td>Distance from the sampled route/start point in meters.</td></tr>
+                        <tr><td><code>route_km</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Approximate route progress in km where the POI was found (e.g. km 23 of 40); null when unknown.</td></tr>
                         <tr><td><code>location</code></td><td><code>dict[string, float]</code></td><td>-</td><td>The exact GPS coordinates (lat/lon) of the amenity.</td></tr>
+                        <tr><td><code>opening_hours</code></td><td><code>string | null</code></td><td><code>null</code></td><td>OSM opening_hours tag when available; null if unknown.</td></tr>
+                        <tr><td><code>drinking_water</code></td><td><code>string | null</code></td><td><code>null</code></td><td>OSM drinking_water tag when available; null if unknown.</td></tr>
+                        <tr><td><code>water_source</code></td><td><code>string | null</code></td><td><code>null</code></td><td>OSM water source/fountain tag when available.</td></tr>
+                        <tr><td><code>potability</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Potability hint for water POIs: <code>potable_tagged</code>, <code>not_potable_tagged</code>, <code>unknown_verify</code>, or null.</td></tr>
                         </tbody>
                     </table>
                 </div>

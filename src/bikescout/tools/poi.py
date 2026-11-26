@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 from dataclasses import dataclass
 from math import asin, cos, radians, sin, sqrt
 from typing import Any
@@ -39,6 +38,8 @@ class PoiScoutConfig:
     max_buffer_m: int = 2000
     result_limit: int = 20
     target_categories: tuple[int, ...] = (162, 372, 371, 331, 332)
+    route_sample_spacing_m: int = 2000
+    max_route_samples: int = 15
 
 
 class PoiScoutService:
@@ -47,12 +48,10 @@ class PoiScoutService:
         config: PoiScoutConfig | None = None,
         session: requests.sessions.Session | None = None,
         logger: logging.Logger | None = None,
-        stderr=None,
     ) -> None:
         self.config = config or PoiScoutConfig()
         self.session = session or requests
         self.logger = logger or logging.getLogger(__name__)
-        self.stderr = stderr if stderr is not None else sys.stderr
 
     def get_poi_scout(
         self,
@@ -60,53 +59,76 @@ class PoiScoutService:
         lat: float,
         lon: float,
         total_length_km: float,
+        route_geometry: list[list[float]] | None = None,
     ) -> dict[str, Any]:
         try:
             self._validate_inputs(api_key, lat, lon, total_length_km)
 
             safe_buffer = self._compute_safe_buffer_m(total_length_km)
             headers = self._build_headers(api_key)
-            body = self._build_request_body(lat, lon, safe_buffer)
+            sample_points = self._sample_route_points(lat, lon, route_geometry)
+            route_search = len(sample_points) > 1
 
-            response = self.session.post(
-                self.config.ors_pois_url,
-                json=body,
-                headers=headers,
-                timeout=self.config.request_timeout_seconds,
-            )
-
-            if not response.ok:
-                print(
-                    f"ORS API Error: {response.status_code} - {response.text}",
-                    file=self.stderr,
+            raw_amenities: list[dict[str, Any]] = []
+            for point in sample_points:
+                body = self._build_request_body(point["lat"], point["lon"], safe_buffer)
+                response = self.session.post(
+                    self.config.ors_pois_url,
+                    json=body,
+                    headers=headers,
+                    timeout=self.config.request_timeout_seconds,
                 )
-                return {
-                    "status": "Error",
-                    "message": f"ORS API error {response.status_code}",
-                }
 
-            try:
-                data = response.json()
-            except ValueError as exc:
-                raise PoiScoutError("ORS returned invalid JSON.") from exc
+                if not response.ok:
+                    self.logger.warning(
+                        "ORS POI error: %s - %s", response.status_code, response.text
+                    )
+                    return {
+                        "status": "Error",
+                        "message": f"ORS POI API error {response.status_code}. Retry later or verify ORS_API_KEY.",
+                    }
 
-            amenities = self._extract_amenities(data)
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise PoiScoutError("ORS returned invalid JSON.") from exc
+
+                raw_amenities.extend(self._extract_amenities(data, point))
+
+            amenities = self._dedupe_amenities(raw_amenities)
 
             return {
                 "status": "Success",
-                "search_km": f"{safe_buffer}m",
+                "search_km": round(safe_buffer / 1000.0, 3),
+                "search_radius_m": safe_buffer,
+                "search_strategy": "route_sampled" if route_search else "start_radius",
+                "sample_points": len(sample_points),
                 "total_found": len(amenities),
-                "amenities": sorted(amenities, key=lambda x: x["distance_m"]),
+                "amenities": sorted(
+                    amenities,
+                    key=lambda x: (
+                        x.get("route_km") is None,
+                        float(x["route_km"])
+                        if isinstance(x.get("route_km"), (int, float))
+                        else 10**9,
+                        x.get("distance_m", 10**9),
+                    ),
+                ),
             }
 
         except PoiScoutError as exc:
             return {"status": "Error", "message": str(exc)}
+        except requests.exceptions.RequestException as exc:
+            self.logger.warning("POI provider request failed", exc_info=exc)
+            return {
+                "status": "Error",
+                "message": f"POI provider error: {exc}. Retry later or verify connectivity.",
+            }
         except Exception as exc:
-            print(f"POI Engine Critical Exception: {str(exc)}", file=self.stderr)
             self.logger.exception("Unexpected POI scout failure")
             return {
                 "status": "Error",
-                "message": f"Internal Engine failure: {str(exc)}",
+                "message": f"Internal POI engine failure: {str(exc)}",
             }
 
     def _validate_inputs(
@@ -132,8 +154,60 @@ class PoiScoutService:
             raise PoiScoutError("total_length_km must be non-negative.")
 
     def _compute_safe_buffer_m(self, total_length_km: float) -> int:
-        meters = int(float(total_length_km) * 1000)
-        return min(max(meters, self.config.min_buffer_m), self.config.max_buffer_m)
+        # Buffer is a local search radius around sampled points, not the full route length.
+        meters = int(max(float(total_length_km) * 100.0, self.config.min_buffer_m))
+        return min(max(meters, 500), self.config.max_buffer_m)
+
+    def _sample_route_points(
+        self, lat: float, lon: float, route_geometry: list[list[float]] | None
+    ) -> list[dict[str, float]]:
+        if not route_geometry:
+            return [{"lat": float(lat), "lon": float(lon), "route_km": 0.0}]
+
+        coords: list[tuple[float, float]] = []
+        for point in route_geometry:
+            if not isinstance(point, (list, tuple)) or len(point) < 2:
+                continue
+            try:
+                plon, plat = float(point[0]), float(point[1])
+            except (TypeError, ValueError):
+                continue
+            if not (-90.0 <= plat <= 90.0 and -180.0 <= plon <= 180.0):
+                continue
+            coords.append((plat, plon))
+        if len(coords) < 2:
+            return [{"lat": float(lat), "lon": float(lon), "route_km": 0.0}]
+
+        samples: list[dict[str, float]] = [
+            {"lat": coords[0][0], "lon": coords[0][1], "route_km": 0.0}
+        ]
+        acc = 0.0
+        total_m = 0.0
+        last = coords[0]
+        spacing = max(500, int(self.config.route_sample_spacing_m))
+        for cur in coords[1:]:
+            step = self.haversine_distance(last[0], last[1], cur[0], cur[1])
+            acc += step
+            total_m += step
+            if acc >= spacing:
+                samples.append(
+                    {"lat": cur[0], "lon": cur[1], "route_km": round(total_m / 1000.0, 2)}
+                )
+                acc = 0.0
+            last = cur
+        end_km = round(total_m / 1000.0, 2)
+        if (
+            not samples
+            or samples[-1]["lat"] != coords[-1][0]
+            or samples[-1]["lon"] != coords[-1][1]
+        ):
+            samples.append({"lat": coords[-1][0], "lon": coords[-1][1], "route_km": end_km})
+
+        max_samples = max(2, int(self.config.max_route_samples))
+        if len(samples) > max_samples:
+            idxs = [round(i * (len(samples) - 1) / (max_samples - 1)) for i in range(max_samples)]
+            samples = [samples[i] for i in idxs]
+        return samples
 
     def _build_headers(self, api_key: str) -> dict[str, str]:
         return {
@@ -159,7 +233,9 @@ class PoiScoutService:
             "sortby": "distance",
         }
 
-    def _extract_amenities(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+    def _extract_amenities(
+        self, data: dict[str, Any], sample_point: dict[str, float] | None = None
+    ) -> list[dict[str, Any]]:
         if not isinstance(data, dict):
             raise PoiScoutError("ORS returned unexpected payload format.")
 
@@ -205,17 +281,94 @@ class PoiScoutService:
             name = (
                 osm_tags.get("name") or osm_tags.get("amenity") or osm_tags.get("operator") or label
             )
+            opening_hours = osm_tags.get("opening_hours")
+            drinking_water = osm_tags.get("drinking_water")
+            water_source = osm_tags.get("water_source") or osm_tags.get("fountain")
+            potability = self._potability_hint(label, osm_tags)
 
+            route_km = (sample_point or {}).get("route_km")
             all_amenities.append(
                 {
                     "name": name,
                     "type": label,
                     "distance_m": distance_m,
                     "location": {"lat": lat, "lon": lon},
+                    "opening_hours": str(opening_hours) if opening_hours else None,
+                    "drinking_water": str(drinking_water) if drinking_water else None,
+                    "water_source": str(water_source) if water_source else None,
+                    "potability": potability,
+                    "route_km": round(float(route_km), 2)
+                    if isinstance(route_km, (int, float))
+                    else None,
+                    "sample_lat": (sample_point or {}).get("lat"),
+                    "sample_lon": (sample_point or {}).get("lon"),
                 }
             )
 
         return all_amenities
+
+    @staticmethod
+    def _potability_hint(label: str, osm_tags: dict[str, Any]) -> str | None:
+        if label != "Water Fountain":
+            return None
+        drinking_water = str(osm_tags.get("drinking_water", "")).lower()
+        if drinking_water in {"yes", "potable"}:
+            return "potable_tagged"
+        if drinking_water in {"no"}:
+            return "not_potable_tagged"
+        return "unknown_verify"
+
+    def _dedupe_amenities(self, amenities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        deduped: list[dict[str, Any]] = []
+        for amenity in amenities:
+            loc = amenity.get("location") or {}
+            lat = loc.get("lat")
+            lon = loc.get("lon")
+            if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+                deduped.append(amenity)
+                continue
+
+            match_idx = None
+            for idx, prev in enumerate(deduped):
+                prev_loc = prev.get("location") or {}
+                plat = prev_loc.get("lat")
+                plon = prev_loc.get("lon")
+                if not isinstance(plat, (int, float)) or not isinstance(plon, (int, float)):
+                    continue
+                if prev.get("type") != amenity.get("type"):
+                    continue
+                dist_m = self.haversine_distance(float(lat), float(lon), float(plat), float(plon))
+                same_name = (
+                    str(prev.get("name", "")).strip().lower()
+                    == str(amenity.get("name", "")).strip().lower()
+                )
+                threshold = 100.0 if same_name else 20.0
+                if dist_m <= threshold:
+                    match_idx = idx
+                    break
+
+            if match_idx is None:
+                deduped.append(amenity)
+                continue
+
+            prev = deduped[match_idx]
+            prev_dist = prev.get("distance_m", 10**9)
+            cur_dist = amenity.get("distance_m", 10**9)
+            better = dict(prev)
+            if cur_dist < prev_dist:
+                better["distance_m"] = cur_dist
+                better["location"] = amenity.get("location", prev.get("location"))
+            for field in ("opening_hours", "drinking_water", "water_source", "potability", "name"):
+                if not better.get(field) and amenity.get(field):
+                    better[field] = amenity[field]
+            if better.get("route_km") is None and amenity.get("route_km") is not None:
+                better["route_km"] = amenity["route_km"]
+            deduped[match_idx] = better
+
+        for amenity in deduped:
+            amenity.pop("sample_lat", None)
+            amenity.pop("sample_lon", None)
+        return deduped
 
     def _label_from_category_ids(self, category_ids: Any) -> str:
         if isinstance(category_ids, dict):
@@ -246,8 +399,14 @@ class PoiScoutService:
 service = PoiScoutService()
 
 
-def get_poi_scout(api_key: str, lat: float, lon: float, total_length_km: float) -> dict[str, Any]:
-    return service.get_poi_scout(api_key, lat, lon, total_length_km)
+def get_poi_scout(
+    api_key: str,
+    lat: float,
+    lon: float,
+    total_length_km: float,
+    route_geometry: list[list[float]] | None = None,
+) -> dict[str, Any]:
+    return service.get_poi_scout(api_key, lat, lon, total_length_km, route_geometry=route_geometry)
 
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

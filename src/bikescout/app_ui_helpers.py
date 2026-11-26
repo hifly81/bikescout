@@ -30,11 +30,6 @@ from bikescout.app_helpers import (
     ext_cast,
 )
 from bikescout.app_llm import AVAILABLE_MODELS, LOCAL_MODELS_DIR, get_local_model_path
-from bikescout.tools.bike_setup import (
-    default_casing_type,
-    default_rim_internal_width_mm,
-    default_tire_width_mm,
-)
 from bikescout.tools.terrain import CLIMB_PROFILE_MIN_LENGTH_M
 
 
@@ -900,27 +895,30 @@ def render_weather_tiles_native(weather_data) -> None:
                 )
 
 
-@st.dialog("Rider profile", icon=":material/person:", width="medium")
-def _render_rider_profile_dialog() -> None:
-    """Render the editable rider defaults inside a modal dialog."""
+def render_rider_profile_fields() -> None:
+    """Render rider defaults inside the guided Plan a Ride tab."""
     profile = st.session_state["rider_profile"]
 
-    st.caption("Personal defaults used across planning, fueling, and route recommendations.")
-    st.caption("Changes apply immediately.")
+    fitness_options = ["beginner", "intermediate", "pro"]
+    current_fitness = profile.get("fitness_level", "intermediate")
+    if current_fitness not in fitness_options:
+        current_fitness = "intermediate"
+    gender_options = ["male", "female"]
+    current_gender = profile.get("gender", "male")
+    if current_gender not in gender_options:
+        current_gender = "male"
 
-    rider_col, bike_col = st.columns(2)
+    st.markdown("#### Rider profile")
+    st.caption("Defaults for guided planning. In chat, state your details in the message.")
+    rider_col, weight_col, gender_col = st.columns(3)
     with rider_col:
-        st.subheader("Rider")
-        fitness_options = ["beginner", "intermediate", "pro"]
-        current_fitness = profile.get("fitness_level", "intermediate")
-        if current_fitness not in fitness_options:
-            current_fitness = "intermediate"
         profile["fitness_level"] = st.selectbox(
             "Fitness level",
             fitness_options,
             index=fitness_options.index(current_fitness),
             key="rider_profile_fitness_level",
         )
+    with weight_col:
         profile["weight_kg"] = st.number_input(
             "Weight (kg)",
             min_value=40.0,
@@ -928,10 +926,7 @@ def _render_rider_profile_dialog() -> None:
             value=ext_cast(profile.get("weight_kg"), float, 75.0),
             key="rider_profile_weight",
         )
-        gender_options = ["male", "female"]
-        current_gender = profile.get("gender", "male")
-        if current_gender not in gender_options:
-            current_gender = "male"
+    with gender_col:
         profile["gender"] = st.selectbox(
             "Gender",
             gender_options,
@@ -939,94 +934,7 @@ def _render_rider_profile_dialog() -> None:
             key="rider_profile_gender",
         )
 
-    with bike_col:
-        st.subheader("Default bike")
-        bike_options = ["mtb", "road", "gravel", "e-mtb", "enduro"]
-        current_bike = profile.get("bike_type", "mtb")
-        if current_bike not in bike_options:
-            current_bike = "mtb"
-        profile["bike_type"] = st.selectbox(
-            "Default bike",
-            bike_options,
-            index=bike_options.index(current_bike),
-            key="rider_profile_bike_type",
-        )
-
-        available_tires = ["32", "29", "27.5", "700c", "650b"]
-        current_tire = profile.get("tire_size", "29")
-        if current_tire not in available_tires:
-            current_tire = "29"
-        profile["tire_size"] = st.selectbox(
-            "Default tire size",
-            available_tires,
-            index=available_tires.index(current_tire),
-            key="rider_profile_tire_size",
-        )
-
-    st.divider()
-    st.subheader("Tire setup")
-    default_width = default_tire_width_mm(str(profile.get("bike_type", "mtb")))
-    default_rim = default_rim_internal_width_mm(str(profile.get("bike_type", "mtb")))
-    setup1, setup2, setup3, setup4 = st.columns(4)
-    with setup1:
-        profile["tire_width_mm"] = st.number_input(
-            "Tire width (mm)",
-            min_value=18,
-            max_value=75,
-            value=int(profile.get("tire_width_mm") or default_width),
-            key="rider_profile_tire_width_mm",
-        )
-    with setup2:
-        profile["rim_internal_width_mm"] = st.number_input(
-            "Rim internal (mm)",
-            min_value=10,
-            max_value=45,
-            value=int(profile.get("rim_internal_width_mm") or default_rim),
-            key="rider_profile_rim_internal_width_mm",
-        )
-    with setup3:
-        casing_options = ["xc", "trail", "enduro", "dh"]
-        current_casing = profile.get("casing_type") or default_casing_type(
-            str(profile.get("bike_type", "mtb"))
-        )
-        if current_casing not in casing_options:
-            current_casing = "trail"
-        profile["casing_type"] = st.selectbox(
-            "Casing",
-            casing_options,
-            index=casing_options.index(current_casing),
-            key="rider_profile_casing_type",
-        )
-    with setup4:
-        profile["tubeless"] = st.checkbox(
-            "Tubeless setup",
-            value=bool(profile.get("tubeless", True)),
-            key="rider_profile_tubeless",
-        )
-
     st.session_state["rider_profile"] = profile
-    if st.button("Done", key="rider_profile_done", type="primary", use_container_width=True):
-        st.rerun()
-
-
-def render_rider_profile_launcher() -> None:
-    """Render the sidebar launcher for the rider profile modal."""
-    profile = st.session_state["rider_profile"]
-    weight_kg = ext_cast(profile.get("weight_kg"), float, 75.0)
-    summary = (
-        f"{profile.get('bike_type', 'mtb')} · {profile.get('tire_size', '29')} · {weight_kg:.0f} kg"
-    )
-
-    if st.button(
-        "Rider profile",
-        key="rider_profile_launcher",
-        icon=":material/person:",
-        help="Edit rider defaults",
-        use_container_width=True,
-    ):
-        _render_rider_profile_dialog()
-
-    st.caption(summary)
 
 
 def render_sidebar() -> tuple[str, int]:
@@ -1040,8 +948,6 @@ def render_sidebar() -> tuple[str, int]:
             unsafe_allow_html=True,
         )
         st.caption("AI for tactical cycling intelligence")
-
-        render_rider_profile_launcher()
 
         st.subheader("Routing & API")
         ors_key = st.text_input(
@@ -1169,9 +1075,7 @@ def _climb_chart_path(res_data: dict, number: int) -> str | None:
 
 
 @st.dialog("Climb profile", icon=":material/show_chart:", width="medium")
-def _render_climb_profile_dialog(
-    number: int, climb: dict[str, Any], chart_path: str, selection_signature: tuple[str, int]
-) -> None:
+def _render_climb_profile_dialog(number: int, climb: dict[str, Any], chart_path: str) -> None:
     """Show the elevation profile generated for a single long climb."""
     start = _format_terrain_value(_climb_start_elevation(climb))
     summit = _format_terrain_value(climb.get("summit_elevation_m"))
@@ -1185,10 +1089,6 @@ def _render_climb_profile_dialog(
     st.caption(f"Climb {number} · {str(climb.get('category', 'N/A'))}")
     st.caption(f"{start} m → {summit} m · {length_km} · {gain} m gained")
     st.image(chart_path, caption="Elevation profile", width="stretch")
-    if st.button("Done", key="climb_profile_done", type="primary", width="stretch"):
-        st.session_state["climb_profile_handled_selection"] = selection_signature
-        st.session_state["climb_list_table"] = _empty_dataframe_selection()
-        st.rerun()
 
 
 @st.fragment
@@ -1426,7 +1326,7 @@ def render_route_results(res_data: dict) -> None:
                             and float(climb["length_m"]) >= CLIMB_PROFILE_MIN_LENGTH_M
                         )
                         if chart_path and os.path.exists(chart_path) and is_long_climb:
-                            _render_climb_profile_dialog(number, climb, chart_path, signature)
+                            _render_climb_profile_dialog(number, climb, chart_path)
                         else:
                             st.caption(
                                 "An elevation profile is available only for climbs of at least 1.00 km."

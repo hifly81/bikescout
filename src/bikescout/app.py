@@ -60,6 +60,7 @@ from bikescout.app_ui_helpers import (
     metric_card,
     render_empty_state,
     render_route_results,
+    render_rider_profile_fields,
     reset_climb_profile_state,
     render_sidebar,
     section_intro,
@@ -603,6 +604,7 @@ def render_plan_tab() -> None:
         "Guided ride planning",
         "For users who prefer form-driven planning instead of free-form chat.",
     )
+    render_rider_profile_fields()
     rider = st.session_state["rider_profile"]
 
     route_mode = st.radio(

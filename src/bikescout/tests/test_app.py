@@ -61,32 +61,35 @@ class TestAppScript:
         assert not at.exception
         assert any("GPX tactical audit" in m.value for m in at.markdown)
 
-    def test_rider_profile_launcher_is_in_sidebar(self, app_test):
-        launcher = app_test.sidebar.button(key="rider_profile_launcher")
-        assert launcher.label == "Rider profile"
-        assert not any(expander.label == "Open rider settings" for expander in app_test.expander)
+    def test_rider_profile_fields_are_in_plan_tab(self, app_test):
+        assert not any(button.key == "rider_profile_launcher" for button in app_test.sidebar.button)
+        assert app_test.selectbox(key="rider_profile_fitness_level").value == "intermediate"
+        assert app_test.number_input(key="rider_profile_weight").value == 75.0
+        assert app_test.selectbox(key="rider_profile_gender").value == "male"
 
-    def test_rider_profile_modal_edits_defaults(self, tmp_path, monkeypatch):
+    def test_rider_profile_fields_absent_in_chat_tab(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         at = AppTest.from_file(str(APP_PATH))
-        at.session_state["rider_profile_bike_type"] = "gravel"
+        at.session_state["workspace_tab_selector"] = "Chat Planner"
+        at.run()
+
+        assert not at.exception
+        assert not any(button.key == "rider_profile_launcher" for button in at.sidebar.button)
+        assert not any(box.key == "rider_profile_fitness_level" for box in at.selectbox)
+
+    def test_rider_profile_fields_edit_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        at = AppTest.from_file(str(APP_PATH))
+        at.session_state["rider_profile_fitness_level"] = "pro"
         at.session_state["rider_profile_weight"] = 82.0
         at.run()
-        assert not at.exception
-
-        at.sidebar.button(key="rider_profile_launcher").click().run()
 
         assert not at.exception
-        assert at.selectbox(key="rider_profile_bike_type").value == "gravel"
+        assert at.selectbox(key="rider_profile_fitness_level").value == "pro"
         assert at.number_input(key="rider_profile_weight").value == 82.0
-        assert at.session_state["rider_profile"]["bike_type"] == "gravel"
+        assert at.session_state["rider_profile"]["fitness_level"] == "pro"
         assert at.session_state["rider_profile"]["weight_kg"] == 82.0
-        assert any("Changes apply immediately." in c.value for c in at.caption)
-
-        at.button(key="rider_profile_done").click().run()
-
-        assert not at.exception
-        assert not any(box.key == "rider_profile_bike_type" for box in at.selectbox)
+        assert not any(button.key == "rider_profile_done" for button in at.button)
 
 
 FAKE_MISSION_RESULT = {
@@ -278,7 +281,7 @@ st.session_state["climb_list_table"] = {{"selection": {{"rows": [], "columns": [
 if "dialog_shown" not in st.session_state:
     st.session_state["dialog_shown"] = True
     from bikescout.app_ui_helpers import _render_climb_profile_dialog
-    _render_climb_profile_dialog(1, {climb!r}, {str(climb_path)!r}, ("", 1))
+    _render_climb_profile_dialog(1, {climb!r}, {str(climb_path)!r})
 """
         at = AppTest.from_string(script)
         at.run()
@@ -287,13 +290,9 @@ if "dialog_shown" not in st.session_state:
         captions = [caption.value for caption in at.caption]
         assert any("Climb 1" in value for value in captions)
         assert any("1000.0 m → 1120.0 m · 1.80 km · 120.0 m gained" in value for value in captions)
-        assert at.button(key="climb_profile_done")
-
-        at.button(key="climb_profile_done").click().run()
-        assert not at.exception
         assert not any(button.key == "climb_profile_done" for button in at.button)
 
-    def test_selected_climb_dialog_does_not_reopen_after_done(self, tmp_path):
+    def test_selected_climb_dialog_does_not_reopen_on_rerun(self, tmp_path):
         (tmp_path / "bs_altimetry_fixed.png").write_bytes(PNG_1PX)
         (tmp_path / "bs_altimetry_fixed_climb_1.png").write_bytes(PNG_1PX)
         result = deepcopy(FAKE_MISSION_RESULT)
@@ -308,9 +307,10 @@ render_route_results({result!r})
         at.run()
 
         assert not at.exception
-        assert at.button(key="climb_profile_done")
+        assert any("Climb 1" in caption.value for caption in at.caption)
+        assert not any(button.key == "climb_profile_done" for button in at.button)
 
-        at.button(key="climb_profile_done").click().run()
+        at.run()
 
         assert not at.exception
-        assert not any(button.key == "climb_profile_done" for button in at.button)
+        assert not any("Climb 1" in caption.value for caption in at.caption)

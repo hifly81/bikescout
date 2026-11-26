@@ -230,8 +230,8 @@
                         <tr><td><code>coordinates</code></td><td><code>list[list[float]]</code></td><td><code>...</code></td><td>
                             A list of GPS points in GeoJSON format. Each sub-list represents a coordinate triplet:
                             <code>[longitude, latitude, elevation]</code>. This sequence is processed by the offline Terrain
-                            Truth Engine to cap implausible steps, smooth elevation, detect climbs and compute geodesic
-                            distances.
+                            Truth Engine to cap implausible steps, smooth elevation, detect climbs and compute Haversine
+                            geodesic distances.
                         </td>
                         </tr>
                         </tbody>
@@ -460,7 +460,8 @@
                         <tr><td><code>profile_length_m</code></td><td><code>float</code></td><td>-</td><td>Ground length of the analyzed elevation profile in meters.</td></tr>
                         <tr><td><code>climbs</code></td><td><code>list[ClimbDetail]</code></td><td>-</td><td>Geometry-detected significant climbs sorted along the route. This is the single canonical climb list.</td></tr>
                         <tr><td><code>climb_category</code></td><td><code>string</code></td><td>-</td><td>Hardest FIETS-derived category on the route, or <code>Flat / Rolling</code>.</td></tr>
-                        <tr><td><code>data_confidence</code></td><td><code>float</code></td><td>-</td><td>Heuristic confidence in the elevation-derived metrics from 0.0 to 1.0.</td></tr>
+                        <tr><td><code>data_confidence</code></td><td><code>float</code></td><td>-</td><td>Heuristic confidence in elevation-derived metrics from 0.0 to 1.0 (density + step stability).</td></tr>
+                        <tr><td><code>data_confidence_basis</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Explains that <code>data_confidence</code> is a heuristic, not a statistical confidence interval or DEM vertical-error bound.</td></tr>
                         <tr><td><code>technical_difficulty</code></td><td><code>TechnicalDifficulty</code></td><td>-</td><td>Technical grade and its provenance.</td></tr>
                         <tr><td><code>profile_points</code></td><td><code>int</code></td><td>-</td><td>Number of usable elevation samples in the route geometry.</td></tr>
                         <tr><td><code>noise_floor_m</code></td><td><code>float</code></td><td>-</td><td>Adaptive hysteresis threshold used for climb segmentation in meters.</td></tr>

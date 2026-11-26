@@ -26,21 +26,25 @@ import numpy as np
 
 @dataclass(frozen=True)
 class TerrainConfig:
-    """Tunable parameters for the offline elevation-processing pipeline."""
+    """Tunable parameters for the offline elevation-processing pipeline.
 
-    smoothing_window: int = 5
-    base_noise_floor_m: float = 0.5
-    short_segment_threshold_m: float = 5.0
-    jitter_noise_multiplier: float = 0.1
-    max_noise_floor_m: float = 2.0
-    max_step_up_m: float = 25.0
-    max_step_down_m: float = 25.0
-    min_ascent_gain_m: float = 3.0
-    min_ascent_gradient_percent: float = 1.5
-    min_climb_gain_m: float = 10.0
-    min_climb_gradient_percent: float = 3.0
-    min_climb_length_m: float = 100.0
-    min_profile_points: int = 4
+    Values are documented heuristic defaults, not empirically calibrated
+    constants. They are exposed for tests and controlled tuning.
+    """
+
+    smoothing_window: int = 5  # odd moving-average window over elevation samples
+    base_noise_floor_m: float = 0.5  # minimum hysteresis for dense DEM profiles
+    short_segment_threshold_m: float = 5.0  # spacing below which jitter is amplified
+    jitter_noise_multiplier: float = 0.1  # extra noise floor per meter below threshold
+    max_noise_floor_m: float = 2.0  # cap adaptive hysteresis
+    max_step_up_m: float = 25.0  # reject implausible DEM/bridge spikes upward
+    max_step_down_m: float = 25.0  # reject implausible DEM/tunnel spikes downward
+    min_ascent_gain_m: float = 3.0  # minimum gain counted toward total ascent
+    min_ascent_gradient_percent: float = 1.5  # minimum grade for ascent accounting
+    min_climb_gain_m: float = 10.0  # minimum gain for a named climb segment
+    min_climb_gradient_percent: float = 3.0  # minimum average grade for climb
+    min_climb_length_m: float = 100.0  # minimum length for climb segmentation
+    min_profile_points: int = 4  # minimum samples for meaningful terrain analysis
 
 
 # Minimum climb length with a dedicated altimetry chart in the local planner.
@@ -79,9 +83,16 @@ _FIETS_CATEGORIES: tuple[tuple[float, str], ...] = (
 )
 
 
+_EARTH_RADIUS_M = 6371000.0
+
+
 def segment_distances_m(geometry: list[Any]) -> list[float]:
     """
     Compute ground distances between consecutive GeoJSON coordinates.
+
+    Uses the Haversine formula on WGS84 mean spherical radius. This is more
+    accurate than equirectangular approximation for non-trivial routes and
+    matches the public documentation claim.
 
     Args:
         geometry: Coordinate triplets in [lon, lat, elevation] order.
@@ -98,10 +109,15 @@ def segment_distances_m(geometry: list[Any]) -> list[float]:
             continue
 
         deg_to_rad = math.pi / 180.0
-        lat1_rad, lat2_rad = lat1 * deg_to_rad, lat2 * deg_to_rad
-        delta_lon = (lon2 - lon1) * deg_to_rad * math.cos((lat1_rad + lat2_rad) / 2.0)
+        lat1_rad = lat1 * deg_to_rad
+        lat2_rad = lat2 * deg_to_rad
         delta_lat = (lat2 - lat1) * deg_to_rad
-        distances.append(math.hypot(delta_lon, delta_lat) * 6371000.0)
+        delta_lon = (lon2 - lon1) * deg_to_rad
+        a = (
+            math.sin(delta_lat / 2.0) ** 2
+            + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2.0) ** 2
+        )
+        distances.append(2.0 * _EARTH_RADIUS_M * math.asin(math.sqrt(min(1.0, a))))
     return distances
 
 
@@ -373,7 +389,11 @@ def infer_technical_difficulty(
 def _data_confidence(
     sample_count: int, distances: list[float], capped_steps: int, config: TerrainConfig
 ) -> float:
-    """Score how trustworthy the derived terrain metrics are (0.0 to 1.0)."""
+    """Score how trustworthy the derived terrain metrics are (0.0 to 1.0).
+
+    Heuristic score, not a statistical confidence interval. It combines
+    sample density and step-stability; it does not measure DEM absolute error.
+    """
     if sample_count < config.min_profile_points:
         return 0.0
     positive = [distance for distance in distances if distance > 0]
@@ -381,6 +401,12 @@ def _data_confidence(
     density_score = max(0.0, 1.0 - max(0.0, median_spacing - 10.0) / 90.0)
     stability_score = max(0.0, 1.0 - capped_steps / max(1, sample_count - 1))
     return round(min(1.0, (density_score + stability_score) / 2.0), 2)
+
+
+CONFIDENCE_BASIS = (
+    "Heuristic score from sample density and step stability; not a statistical "
+    "confidence interval or DEM vertical-error bound."
+)
 
 
 class TerrainService:
@@ -425,6 +451,7 @@ class TerrainService:
                 "climb_profile_coordinates": [],
                 "climb_category": "Flat / Rolling",
                 "data_confidence": 0.0,
+                "data_confidence_basis": CONFIDENCE_BASIS,
                 "technical_difficulty": technical,
                 "profile_points": sample_count,
                 "noise_floor_m": self.config.base_noise_floor_m,
@@ -526,6 +553,7 @@ class TerrainService:
             "climb_profile_coordinates": climb_profile_coordinates,
             "climb_category": climb_category,
             "data_confidence": _data_confidence(sample_count, distances, capped_steps, self.config),
+            "data_confidence_basis": CONFIDENCE_BASIS,
             "technical_difficulty": technical,
             "profile_points": sample_count,
             "noise_floor_m": noise_floor,

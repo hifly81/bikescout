@@ -318,7 +318,11 @@ class TerrainAnalysis(BaseModel):
     climbs: list[ClimbDetail] = Field(..., description="Detected climbs sorted along the route")
     climb_category: str = Field(..., description="Hardest detected climb category")
     data_confidence: float = Field(
-        ..., description="Confidence in the elevation data from 0.0 to 1.0"
+        ..., description="Heuristic confidence in elevation-derived metrics from 0.0 to 1.0"
+    )
+    data_confidence_basis: str | None = Field(
+        None,
+        description="How data_confidence is computed; heuristic, not a statistical interval or DEM error bound",
     )
     technical_difficulty: TechnicalDifficulty = Field(
         ..., description="Technical grade and its provenance"

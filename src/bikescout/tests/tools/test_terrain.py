@@ -31,10 +31,13 @@ from bikescout.tools.terrain import (
 )
 
 
-def geometry_from_elevations(elevations: list[float], step: float = 0.00045) -> list[list[float]]:
-    """Build GeoJSON-like coordinates with roughly 60 m between samples."""
+def geometry_from_elevations(elevations: list[float], step_m: float = 60.0) -> list[list[float]]:
+    """Build GeoJSON-like coordinates with approximately `step_m` meters between samples."""
+    lat = 45.0
+    meters_per_deg_lon = 111320.0 * __import__("math").cos(__import__("math").radians(lat))
+    step = step_m / meters_per_deg_lon
     return [
-        [10.0 + index * step, 45.0, float(elevation)] for index, elevation in enumerate(elevations)
+        [10.0 + index * step, lat, float(elevation)] for index, elevation in enumerate(elevations)
     ]
 
 
@@ -57,16 +60,23 @@ def two_climb_geometry() -> list[list[float]]:
     return geometry_from_elevations(elevations)
 
 
+def test_segment_distances_use_haversine() -> None:
+    # 1 degree longitude at equator is ~111.195 km with Haversine
+    distance = segment_distances_m([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])[0]
+    assert distance == pytest.approx(111195.0, rel=0.001)
+
+
 def test_segment_distances_and_short_profile() -> None:
     geometry = geometry_from_elevations([100.0, 101.0])
     distances = segment_distances_m(geometry)
 
     assert len(distances) == 1
-    assert distances[0] > 0
+    assert distances[0] == pytest.approx(60.0, rel=0.01)
 
     result = analyze_terrain_profile(geometry)
     assert result["total_ascent_m"] == 0.0
     assert result["data_confidence"] == 0.0
+    assert result["data_confidence_basis"]
     assert result["climbs"] == []
     assert result["climb_profile_coordinates"] == []
     assert "climb_list" not in result
@@ -77,7 +87,7 @@ def test_exposes_profile_coordinates_only_for_long_climbs() -> None:
     elevations = [100.0 + index * 10.0 for index in range(20)]
     elevations += [300.0 - index * 10.0 for index in range(20)]
 
-    result = analyze_terrain_profile(geometry_from_elevations(elevations, step=0.0009))
+    result = analyze_terrain_profile(geometry_from_elevations(elevations, step_m=120.0))
 
     assert len(result["climbs"]) == 1
     climb = result["climbs"][0]

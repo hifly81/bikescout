@@ -439,22 +439,60 @@ class EmtbTactical(BaseModel):
 
 class WeatherSnapshot(BaseModel):
     time: str = Field(..., description="Local time of the forecast snapshot")
-    temp: str = Field(..., description="Ambient temperature")
-    app_temp: str = Field(..., description="Apparent (feels-like) temperature")
-    rain_prob: str = Field(..., description="Probability of precipitation in percentage")
-    rain_mm: str = Field(..., description="Expected rainfall in millimeters")
-    wind: str = Field(..., description="Average wind speed")
-    gusts: str = Field(..., description="Maximum wind gust speed")
+    temp: float = Field(..., description="Ambient temperature in Celsius")
+    app_temp: float = Field(..., description="Apparent (feels-like) temperature in Celsius")
+    rain_prob: int = Field(..., description="Probability of precipitation in percentage")
+    rain_mm: float = Field(..., description="Expected rainfall in millimeters")
+    wind: float = Field(..., description="Average wind speed in km/h")
+    gusts: float = Field(..., description="Maximum wind gust speed in km/h")
+    wind_direction: int = Field(..., description="Wind bearing in degrees from north")
+    weather_code: int | None = Field(None, description="WMO weather code reported by the provider")
+    condition: str | None = Field(None, description="Plain-language description of the WMO code")
+
+
+class ReferenceConditions(BaseModel):
+    """Verified conditions at the reference hour, plus window aggregates."""
+
+    temp_actual: float = Field(..., description="Air temperature at the reference hour in Celsius")
+    temp_apparent: float = Field(
+        ..., description="Apparent temperature at the reference hour in Celsius"
+    )
+    rain_probability: int = Field(
+        ..., description="Precipitation probability at the reference hour"
+    )
+    precipitation_mm: float = Field(
+        ..., description="Rainfall at the reference hour in millimeters"
+    )
+    wind_speed: float = Field(..., description="Wind speed at the reference hour in km/h")
+    wind_gusts: float = Field(..., description="Wind gusts at the reference hour in km/h")
+    wind_direction: int = Field(..., description="Wind bearing at the reference hour in degrees")
+    reference_hour_local: str = Field(..., description="Local reference hour in HH:MM format")
+    temp_max: float = Field(..., description="Highest forecast temperature of the analyzed day")
+    weather_code: int | None = Field(None, description="WMO weather code at the reference hour")
+    condition: str | None = Field(None, description="Description of the reference WMO code")
+    temp: float | None = Field(None, description="Mean temperature after ride-window filtering")
+    wind_dir_degrees: int | None = Field(
+        None, description="Circular mean bearing after ride-window filtering"
+    )
+    wind_direction_ambiguous: bool = Field(
+        False, description="True when opposing wind directions make the mean bearing undefined"
+    )
+    reference_hour: str | None = Field(None, description="Label of the filtered ride window")
 
 
 class SafetyAdvice(BaseModel):
     status: str = Field(
-        ..., description="Visual alert status indicator (e.g., 🔵 [WATCH], 🔴 [DANGER])"
+        ..., description="Visual alert status indicator (e.g. [GO], [WATCH], [UNAVAILABLE])"
     )
     message: str = Field(..., description="Human-readable safety assessment")
-    wind_risk_score: float = Field(..., description="Numeric risk index for crosswinds and gusts")
-    gear_advice: str = Field(
-        ..., description="Recommended clothing and equipment for these conditions"
+    wind_risk_score: float | None = Field(
+        None, description="Numeric risk index from the worst hour, null when data is unavailable"
+    )
+    gear_advice: str | None = Field(
+        None, description="Recommended clothing and equipment, null when data is unavailable"
+    )
+    condition_at_peak_risk: str | None = Field(
+        None, description="Descriptive condition at the peak-risk hour"
     )
 
 
@@ -652,13 +690,15 @@ class TacticalForecastResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    error_message: str | None = Field(
+        None, description="Reason reported when the weather service returns Error"
+    )
     metadata: dict[str, Any] = Field(..., description="Location and timezone metadata")
     tactical_forecast: list[WeatherSnapshot] = Field(
-        ..., description="Hourly weather breakdown for the race duration"
+        ..., description="Hourly weather breakdown for the analyzed day"
     )
-    # FIXME change to real obj
-    reference_conditions: dict[str, Any] = Field(
-        ..., description="Aggregated weather data used for performance adjustments"
+    reference_conditions: ReferenceConditions = Field(
+        ..., description="Verified reference-hour conditions and window aggregates"
     )
     safety_advice: SafetyAdvice = Field(
         ..., description="Strategic safety briefing based on weather risks"

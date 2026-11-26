@@ -841,16 +841,20 @@ class TrailScoutService:
 
     @staticmethod
     def _weather_snapshot_list(weather_report):
+        """Convert the numeric weather payload into public WeatherSnapshot values."""
         weather_list = []
         for entry in weather_report.get("tactical_forecast", []):
             snapshot = {
                 "time": str(entry.get("hour", entry.get("time", "N/A"))),
-                "temp": f"{entry.get('temp', 'N/A')}°C",
-                "app_temp": f"{entry.get('app_temp', entry.get('temp', 'N/A'))}°C",
-                "rain_prob": f"{entry.get('rain_prob', '0')}%",
-                "rain_mm": f"{entry.get('rain_mm', '0.0')} mm",
-                "wind": f"{entry.get('wind', '0')} km/h",
-                "gusts": f"{entry.get('gusts', '0')} km/h",
+                "temp": entry.get("temp"),
+                "app_temp": entry.get("app_temp", entry.get("temp")),
+                "rain_prob": entry.get("rain_prob", 0),
+                "rain_mm": entry.get("rain_mm", 0.0),
+                "wind": entry.get("wind", 0.0),
+                "gusts": entry.get("gusts", 0.0),
+                "wind_direction": entry.get("wind_direction", 0),
+                "weather_code": entry.get("weather_code"),
+                "condition": entry.get("condition"),
             }
             weather_list.append(snapshot)
         return weather_list

@@ -730,6 +730,9 @@ def test_weather_snapshot_list():
                 "rain_mm": 0.0,
                 "wind": 12,
                 "gusts": 20,
+                "wind_direction": 180,
+                "weather_code": 1,
+                "condition": "Mainly clear",
             },
             {"hour": "10:00", "temp": 21},
         ]
@@ -738,6 +741,8 @@ def test_weather_snapshot_list():
     result = TrailScoutService._weather_snapshot_list(weather_report)
 
     assert result[0]["time"] == "09:00"
+    assert result[0]["wind_direction"] == 180
+    assert result[0]["condition"] == "Mainly clear"
     assert result[1]["time"] == "10:00"
 
 

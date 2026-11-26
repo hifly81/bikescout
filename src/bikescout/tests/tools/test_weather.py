@@ -26,10 +26,13 @@ import requests
 import bikescout.tools.weather as weather_module
 from bikescout.tools.weather import (
     WeatherConfig,
+    WeatherDataError,
     WeatherService,
     apply_weather_windowing,
+    describe_weather_code,
     get_safety_advice,
     get_weather_forecast,
+    unavailable_safety_advice,
 )
 
 
@@ -182,10 +185,28 @@ def test_worst_case_safety_advice_uses_peak_wind_hour(service):
     assert advice["gear_advice"].startswith("Spring/Fall")
 
 
-def test_worst_case_safety_advice_empty_forecast_is_safe(service):
+def test_worst_case_safety_advice_empty_forecast_is_unavailable(service):
     advice = service._worst_case_safety_advice([])
 
-    assert advice["status"] == "[GO]"
+    assert advice["status"] == "[UNAVAILABLE]"
+    assert "Safety assessment unavailable" in advice["message"]
+    assert advice["wind_risk_score"] is None
+    assert advice["gear_advice"] is None
+
+
+def test_unavailable_safety_advice_never_claims_safe_conditions():
+    advice = unavailable_safety_advice("provider returned no hourly data")
+
+    assert advice["status"] == "[UNAVAILABLE]"
+    assert "provider returned no hourly data" in advice["message"]
+
+
+def test_describe_weather_code_maps_wmo_and_preserves_missing():
+    assert describe_weather_code(95) == (95, "Thunderstorm")
+    assert describe_weather_code(999) == (999, "Unclassified weather code")
+    assert describe_weather_code(None) == (None, None)
+    with pytest.raises(WeatherDataError):
+        describe_weather_code("bad")
 
 
 def test_reference_index_found(service):
@@ -194,10 +215,12 @@ def test_reference_index_found(service):
     assert service._reference_index(hourly, target) == 1
 
 
-def test_reference_index_fallback(service):
+def test_reference_index_missing_hour_is_rejected(service):
     hourly = {"time": ["2026-06-03T08:00"]}
     target = datetime(2026, 6, 3, 9, 0, 0)
-    assert service._reference_index(hourly, target) == 0
+
+    with pytest.raises(WeatherDataError, match="Target hour 09:00"):
+        service._reference_index(hourly, target)
 
 
 def test_forecast_summary(service):
@@ -217,18 +240,20 @@ def test_forecast_summary(service):
     assert result == [
         {
             "time": "09:00",
-            "temp": "20",
-            "app_temp": "19",
-            "rain_prob": "30",
-            "rain_mm": "0.5",
-            "wind": "12",
-            "gusts": "20",
-            "wind_direction": "180",
+            "temp": 20,
+            "app_temp": 19,
+            "rain_prob": 30,
+            "rain_mm": 0.5,
+            "wind": 12,
+            "gusts": 20,
+            "wind_direction": 180,
+            "weather_code": None,
+            "condition": None,
         }
     ]
 
 
-def test_forecast_summary_uses_shortest_length(service):
+def test_forecast_summary_rejects_mismatched_series(service):
     hourly = {
         "time": ["2026-06-03T09:00", "2026-06-03T10:00"],
         "temperature_2m": [20],
@@ -239,8 +264,28 @@ def test_forecast_summary_uses_shortest_length(service):
         "windgusts_10m": [20],
         "winddirection_10m": [180],
     }
+
+    with pytest.raises(WeatherDataError, match="temperature_2m has 1 values"):
+        service._forecast_summary(hourly)
+
+
+def test_forecast_summary_uses_weather_code(service):
+    hourly = {
+        "time": ["2026-06-03T09:00"],
+        "temperature_2m": [20],
+        "apparent_temperature": [19],
+        "precipitation_probability": [30],
+        "precipitation": [0.5],
+        "windspeed_10m": [12],
+        "windgusts_10m": [20],
+        "winddirection_10m": [180],
+        "weathercode": [95],
+    }
+
     result = service._forecast_summary(hourly)
-    assert len(result) == 1
+
+    assert result[0]["weather_code"] == 95
+    assert result[0]["condition"] == "Thunderstorm"
 
 
 def test_coerce_float(service):
@@ -250,9 +295,10 @@ def test_coerce_float(service):
 
 def test_normalize_target_hour(service):
     assert service._normalize_target_hour(9) == 9
-    assert service._normalize_target_hour(-1) == 0
-    assert service._normalize_target_hour(30) == 23
-    assert service._normalize_target_hour("bad") == 9
+    assert service._normalize_target_hour("23") == 23
+    for invalid in (-1, 24, "bad"):
+        with pytest.raises(WeatherDataError):
+            service._normalize_target_hour(invalid)
 
 
 def test_get_weather_forecast_success(service, fixed_now):
@@ -282,9 +328,43 @@ def test_get_weather_forecast_success(service, fixed_now):
     assert result["status"] == "Success"
     assert result["metadata"]["local_timezone"] == "UTC"
     assert result["metadata"]["target_time_local"] == "09:00"
+    assert result["metadata"]["analysis_scope"] == "full_day"
     assert result["reference_conditions"]["temp_actual"] == 20
     assert result["reference_conditions"]["temp_max"] == 22
+    assert result["reference_conditions"]["weather_code"] == 1
+    assert result["reference_conditions"]["condition"] == "Mainly clear"
+    assert result["tactical_forecast"][0]["temp"] == 20
+    assert result["tactical_forecast"][0]["condition"] == "Mainly clear"
+    assert result["safety_advice"]["condition_at_peak_risk"] == "Partly cloudy"
     assert session.calls[0]["url"] == weather_module.OPEN_METEO_URL
+
+
+def test_get_weather_forecast_passes_target_hour(service, fixed_now):
+    payload = {
+        "hourly": {
+            "time": ["2026-06-03T14:00"],
+            "temperature_2m": [25],
+            "apparent_temperature": [24],
+            "precipitation_probability": [5],
+            "precipitation": [0.0],
+            "windspeed_10m": [8],
+            "windgusts_10m": [12],
+            "winddirection_10m": [90],
+            "weathercode": [0],
+        }
+    }
+    session = FakeSession(response=FakeResponse(payload=payload))
+    service = WeatherService(
+        config=WeatherConfig(),
+        requests_session=session,
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        now_func=fixed_now,
+    )
+
+    result = service.get_weather_forecast(45.0, 10.0, None, 14)
+
+    assert result["status"] == "Success"
+    assert result["reference_conditions"]["reference_hour_local"] == "14:00"
 
 
 def test_get_weather_forecast_safety_advice_scans_whole_window(service, fixed_now):
@@ -356,7 +436,8 @@ def test_get_weather_forecast_no_hourly_data(service, fixed_now):
 
     result = service.get_weather_forecast(45.0, 10.0, None, 9)
 
-    assert result == {"status": "Error", "message": "No hourly data returned from provider."}
+    assert result["status"] == "Error"
+    assert "No hourly data returned from provider" in result["message"]
 
 
 def test_get_weather_forecast_request_exception(service, fixed_now):
@@ -385,10 +466,10 @@ def test_get_weather_forecast_unexpected_exception(service, fixed_now):
     result = service.get_weather_forecast(45.0, 10.0, None, 9)
 
     assert result["status"] == "Error"
-    assert "Unexpected Weather Engine Error" in result["message"]
+    assert "Weather data validation error" in result["message"]
 
 
-def test_get_weather_forecast_reference_index_fallback_to_zero(service, fixed_now):
+def test_get_weather_forecast_missing_reference_hour_is_error(service, fixed_now):
     payload = {
         "hourly": {
             "time": ["2026-06-03T08:00"],
@@ -412,8 +493,22 @@ def test_get_weather_forecast_reference_index_fallback_to_zero(service, fixed_no
 
     result = service.get_weather_forecast(45.0, 10.0, None, 9)
 
-    assert result["status"] == "Success"
-    assert result["reference_conditions"]["temp_actual"] == 20
+    assert result["status"] == "Error"
+    assert "Target hour 09:00 is not present" in result["message"]
+
+
+def test_get_weather_forecast_rejects_invalid_coordinates(service, fixed_now):
+    service = WeatherService(
+        config=WeatherConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload={})),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        now_func=fixed_now,
+    )
+
+    result = service.get_weather_forecast(95.0, 10.0, None, 9)
+
+    assert result["status"] == "Error"
+    assert "latitude must be between" in result["message"]
 
 
 def test_get_weather_forecast_empty_temperature_max(service, fixed_now):
@@ -440,7 +535,8 @@ def test_get_weather_forecast_empty_temperature_max(service, fixed_now):
 
     result = service.get_weather_forecast(45.0, 10.0, None, 9)
 
-    assert result["status"] == "Error" or result["reference_conditions"]["temp_max"] == "N/A"
+    assert result["status"] == "Error"
+    assert "temperature_2m" in result["message"]
 
 
 def test_apply_weather_windowing_updates_reference_conditions():
@@ -459,6 +555,7 @@ def test_apply_weather_windowing_updates_reference_conditions():
     assert result["reference_conditions"]["temp"] == 21.0
     assert result["reference_conditions"]["wind_speed"] == 13.0
     assert result["reference_conditions"]["wind_dir_degrees"] == 195
+    assert result["reference_conditions"]["wind_direction_ambiguous"] is False
     assert result["reference_conditions"]["reference_hour"] == "Calculated window 09-10"
 
 
@@ -516,6 +613,20 @@ def test_apply_weather_windowing_creates_reference_conditions_if_missing():
     assert result["reference_conditions"]["temp"] == 20.0
 
 
+def test_apply_weather_windowing_empty_window_returns_unavailable():
+    weather_data = {
+        "tactical_forecast": [
+            {"time": "08:00", "temp": "18", "wind": "10", "wind_direction": "180"},
+        ],
+        "reference_conditions": {},
+    }
+
+    result = apply_weather_windowing(weather_data, 9, 10)
+
+    assert result["tactical_forecast"] == []
+    assert result["safety_advice"]["status"] == "[UNAVAILABLE]"
+
+
 def test_apply_weather_windowing_skips_bad_rows():
     weather_data = {
         "tactical_forecast": [
@@ -531,6 +642,16 @@ def test_apply_weather_windowing_skips_bad_rows():
 
     assert len(result["tactical_forecast"]) == 2
     assert result["reference_conditions"]["temp"] == 22.0
+
+
+def test_circular_mean_degrees_handles_wraparound_and_ambiguity():
+    mean, ambiguous = WeatherService._circular_mean_degrees([359.0, 1.0])
+    assert mean == 0
+    assert ambiguous is False
+
+    mean, ambiguous = WeatherService._circular_mean_degrees([0.0, 180.0])
+    assert mean is None
+    assert ambiguous is True
 
 
 def test_module_level_wrapper(monkeypatch):

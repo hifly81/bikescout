@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import math
 import zoneinfo
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -26,10 +27,88 @@ from timezonefinder import TimezoneFinder
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
+REQUIRED_HOURLY_FIELDS = (
+    "time",
+    "temperature_2m",
+    "apparent_temperature",
+    "precipitation_probability",
+    "precipitation",
+    "windspeed_10m",
+    "windgusts_10m",
+    "winddirection_10m",
+)
+
+# WMO weather interpretation codes used by Open-Meteo.
+WEATHER_CODE_DESCRIPTIONS = {
+    0: "Clear sky",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Fog",
+    48: "Depositing rime fog",
+    51: "Light drizzle",
+    53: "Moderate drizzle",
+    55: "Dense drizzle",
+    56: "Light freezing drizzle",
+    57: "Dense freezing drizzle",
+    61: "Slight rain",
+    63: "Moderate rain",
+    65: "Heavy rain",
+    66: "Light freezing rain",
+    67: "Heavy freezing rain",
+    71: "Slight snow fall",
+    73: "Moderate snow fall",
+    75: "Heavy snow fall",
+    77: "Snow grains",
+    80: "Slight rain showers",
+    81: "Moderate rain showers",
+    82: "Violent rain showers",
+    85: "Slight snow showers",
+    86: "Heavy snow showers",
+    95: "Thunderstorm",
+    96: "Thunderstorm with slight hail",
+    99: "Thunderstorm with heavy hail",
+}
+
+
+class WeatherDataError(ValueError):
+    """Raised when provider data is missing, inconsistent or out of range."""
+
+
+def describe_weather_code(code: Any) -> tuple[int | None, str | None]:
+    """Map a WMO code to a numeric code and its plain-language description.
+
+    Args:
+        code: Raw weather code returned by the provider.
+
+    Returns:
+        A ``(code, description)`` pair. Both values are ``None`` when the
+        provider omitted the code, so clients never see an invented condition.
+    """
+    if code is None:
+        return None, None
+    try:
+        numeric = int(code)
+    except (TypeError, ValueError) as exc:
+        raise WeatherDataError(f"Invalid weather code: {code!r}") from exc
+    description = WEATHER_CODE_DESCRIPTIONS.get(numeric, "Unclassified weather code")
+    return numeric, description
+
 
 def get_safety_advice(
-    app_temp: float, rain_prob: int, rain_mm: float, wind_speed: float, wind_gusts: float
-) -> dict:
+    app_temp: float,
+    rain_prob: int,
+    rain_mm: float,
+    wind_speed: float,
+    wind_gusts: float,
+    condition: str | None = None,
+) -> dict[str, Any]:
+    """Build a cycling safety briefing from the verified worst-case values.
+
+    ``condition`` is descriptive context only; it never weakens or replaces a
+    threshold crossing. Callers that cannot supply verified data must use
+    ``unavailable_safety_advice`` instead of this function.
+    """
     wind_risk_score = (wind_speed * 0.4) + (wind_gusts * 0.6)
 
     if rain_mm > 10.0 or wind_risk_score > 55:
@@ -47,7 +126,7 @@ def get_safety_advice(
         )
     else:
         status_label = "[GO]"
-        status_msg = "Ideal conditions: Low wind, dry, and safe."
+        status_msg = "No threshold exceedance in the available forecast; verify conditions locally."
 
     if app_temp < 5:
         gear = "Deep Winter (Heavy thermal layers, insulated gloves, overshoes, skull cap)"
@@ -63,6 +142,18 @@ def get_safety_advice(
         "message": status_msg,
         "wind_risk_score": round(wind_risk_score, 1),
         "gear_advice": gear,
+        "condition_at_peak_risk": condition,
+    }
+
+
+def unavailable_safety_advice(reason: str) -> dict[str, Any]:
+    """Return an explicit no-data verdict; never imply that conditions are safe."""
+    return {
+        "status": "[UNAVAILABLE]",
+        "message": f"Safety assessment unavailable: {reason}",
+        "wind_risk_score": None,
+        "gear_advice": None,
+        "condition_at_peak_risk": None,
     }
 
 
@@ -88,16 +179,21 @@ class WeatherService:
     def get_weather_forecast(
         self, lat: float, lon: float, target_date: str | None = None, target_hour: int = 9
     ) -> Dict[str, Any]:
+        """Fetch the full requested day and derive a worst-case cycling briefing.
+
+        ``target_hour`` anchors the reference conditions; the safety verdict
+        always scans every hourly slot returned for the day.
+        """
         try:
-            lat = self._coerce_float(lat, 0.0)
-            lon = self._coerce_float(lon, 0.0)
-            target_hour = self._normalize_target_hour(target_hour)
+            latitude = self._require_coordinate(lat, -90.0, 90.0, "latitude")
+            longitude = self._require_coordinate(lon, -180.0, 180.0, "longitude")
+            reference_hour = self._normalize_target_hour(target_hour)
 
-            tz_name = self._resolve_timezone_name(lat, lon)
+            tz_name = self._resolve_timezone_name(latitude, longitude)
             local_tz = zoneinfo.ZoneInfo(tz_name)
-            target_dt_local = self._target_datetime(local_tz, target_date, target_hour)
+            target_dt_local = self._target_datetime(local_tz, target_date, reference_hour)
 
-            params = self._build_forecast_params(lat, lon, tz_name, target_dt_local)
+            params = self._build_forecast_params(latitude, longitude, tz_name, target_dt_local)
 
             response = self.requests_session.get(
                 self.config.open_meteo_url,
@@ -107,23 +203,13 @@ class WeatherService:
             response.raise_for_status()
             data = response.json()
 
-            if "hourly" not in data:
-                return {"status": "Error", "message": "No hourly data returned from provider."}
-
-            hourly = data["hourly"]
+            hourly = self._normalize_hourly(data.get("hourly"))
             ref_idx = self._reference_index(hourly, target_dt_local)
-
             forecast_summary = self._forecast_summary(hourly)
 
-            curr_app_temp = hourly["apparent_temperature"][ref_idx]
-            curr_rain_prob = hourly["precipitation_probability"][ref_idx]
-            curr_rain_mm = hourly["precipitation"][ref_idx]
-            curr_wind = hourly["windspeed_10m"][ref_idx]
-            curr_gusts = hourly["windgusts_10m"][ref_idx]
-            curr_wind_dir = hourly["winddirection_10m"][ref_idx]
-
-            hourly_temps = hourly.get("temperature_2m", [])
-            max_temp_value = max(hourly_temps) if hourly_temps else "N/A"
+            weather_code, condition = describe_weather_code(
+                hourly["weathercode"][ref_idx] if hourly["weathercode"] else None
+            )
 
             return {
                 "status": "Success",
@@ -131,25 +217,35 @@ class WeatherService:
                     "date_analyzed": target_dt_local.date().isoformat(),
                     "local_timezone": tz_name,
                     "target_time_local": target_dt_local.strftime("%H:%M"),
-                    "location": {"lat": lat, "lon": lon},
+                    "location": {"lat": latitude, "lon": longitude},
+                    "analysis_scope": "full_day",
+                    "forecast_window": {
+                        "start": hourly["time"][0],
+                        "end": hourly["time"][-1],
+                    },
+                    "forecast_source": "Open-Meteo",
                 },
                 "tactical_forecast": forecast_summary,
                 "reference_conditions": {
                     "temp_actual": hourly["temperature_2m"][ref_idx],
-                    "temp_apparent": curr_app_temp,
-                    "rain_probability": curr_rain_prob,
-                    "precipitation_mm": curr_rain_mm,
-                    "wind_speed": curr_wind,
-                    "wind_gusts": curr_gusts,
-                    "wind_direction": curr_wind_dir,
-                    "reference_hour_local": f"{target_hour}:00",
-                    "temp_max": max_temp_value,
+                    "temp_apparent": hourly["apparent_temperature"][ref_idx],
+                    "rain_probability": hourly["precipitation_probability"][ref_idx],
+                    "precipitation_mm": hourly["precipitation"][ref_idx],
+                    "wind_speed": hourly["windspeed_10m"][ref_idx],
+                    "wind_gusts": hourly["windgusts_10m"][ref_idx],
+                    "wind_direction": hourly["winddirection_10m"][ref_idx],
+                    "reference_hour_local": f"{reference_hour:02d}:00",
+                    "temp_max": max(hourly["temperature_2m"]),
+                    "weather_code": weather_code,
+                    "condition": condition,
                 },
                 "safety_advice": self._worst_case_safety_advice(forecast_summary),
             }
 
         except requests.exceptions.RequestException as e:
             return {"status": "Error", "message": f"Weather API Connection Error: {str(e)}"}
+        except WeatherDataError as e:
+            return {"status": "Error", "message": f"Weather data validation error: {e}"}
         except Exception as e:
             return {"status": "Error", "message": f"Unexpected Weather Engine Error: {str(e)}"}
 
@@ -192,56 +288,112 @@ class WeatherService:
         }
 
     @staticmethod
-    def _reference_index(hourly: dict, target_dt_local: datetime) -> int:
+    def _require_coordinate(value: Any, minimum: float, maximum: float, name: str) -> float:
+        try:
+            coordinate = float(value)
+        except (TypeError, ValueError) as exc:
+            raise WeatherDataError(
+                f"{name} must be a number between {minimum} and {maximum}"
+            ) from exc
+        if not math.isfinite(coordinate) or not minimum <= coordinate <= maximum:
+            raise WeatherDataError(f"{name} must be between {minimum} and {maximum}")
+        return coordinate
+
+    @staticmethod
+    def _require_float(value: Any, field: str, index: int) -> float:
+        try:
+            number = float(value)
+        except (TypeError, ValueError) as exc:
+            raise WeatherDataError(f"{field}[{index}] must be numeric") from exc
+        if not math.isfinite(number):
+            raise WeatherDataError(f"{field}[{index}] must be finite")
+        return number
+
+    @classmethod
+    def _normalize_hourly(cls, hourly: Any) -> dict[str, list[Any]]:
+        """Validate provider arrays and return numeric, length-aligned series."""
+        if not isinstance(hourly, dict):
+            raise WeatherDataError("No hourly data returned from provider.")
+
+        for field in REQUIRED_HOURLY_FIELDS:
+            values = hourly.get(field)
+            if not isinstance(values, list) or not values:
+                raise WeatherDataError(f"Hourly field {field} is missing or empty.")
+
+        times = hourly["time"]
+        expected_length = len(times)
+        normalized: dict[str, list[Any]] = {"time": [str(value) for value in times]}
+
+        for field in REQUIRED_HOURLY_FIELDS[1:]:
+            values = hourly[field]
+            if len(values) != expected_length:
+                raise WeatherDataError(
+                    f"Hourly field {field} has {len(values)} values; expected {expected_length}."
+                )
+            normalized[field] = [
+                cls._require_float(value, field, index) for index, value in enumerate(values)
+            ]
+
+        for index, direction in enumerate(normalized["winddirection_10m"]):
+            if not 0 <= direction <= 360:
+                raise WeatherDataError(
+                    f"winddirection_10m[{index}] must be between 0 and 360 degrees."
+                )
+
+        raw_codes = hourly.get("weathercode") or [None] * expected_length
+        if len(raw_codes) != expected_length:
+            raise WeatherDataError(
+                f"Hourly field weathercode has {len(raw_codes)} values; expected {expected_length}."
+            )
+        normalized["weathercode"] = [describe_weather_code(value)[0] for value in raw_codes]
+        return normalized
+
+    @staticmethod
+    def _reference_index(hourly: dict[str, list[Any]], target_dt_local: datetime) -> int:
         target_local_str = target_dt_local.strftime("%Y-%m-%dT%H:00")
         try:
             return hourly["time"].index(target_local_str)
-        except (ValueError, KeyError):
-            return 0
+        except ValueError as exc:
+            raise WeatherDataError(
+                f"Target hour {target_dt_local.strftime('%H:%M')} is not present in provider data."
+            ) from exc
 
     @staticmethod
-    def _forecast_summary(hourly: dict) -> list[dict[str, str]]:
-        forecast_summary = []
+    def _forecast_summary(hourly: dict[str, Any]) -> list[dict[str, Any]]:
+        """Build numeric hourly snapshots from validated provider series."""
+        normalized = WeatherService._normalize_hourly(hourly)
+        times = normalized["time"]
+        codes = normalized["weathercode"]
 
-        times = hourly.get("time", [])
-        max_len = min(
-            len(times),
-            len(hourly.get("temperature_2m", [])),
-            len(hourly.get("apparent_temperature", [])),
-            len(hourly.get("precipitation_probability", [])),
-            len(hourly.get("precipitation", [])),
-            len(hourly.get("windspeed_10m", [])),
-            len(hourly.get("windgusts_10m", [])),
-            len(hourly.get("winddirection_10m", [])),
-        )
-
-        for i in range(max_len):
-            dt_naive = datetime.fromisoformat(times[i])
-            local_time_str = dt_naive.strftime("%H:%M")
-
+        forecast_summary: list[dict[str, Any]] = []
+        for index, raw_time in enumerate(times):
+            dt_naive = datetime.fromisoformat(raw_time)
+            code, condition = describe_weather_code(codes[index])
             forecast_summary.append(
                 {
-                    "time": local_time_str,
-                    "temp": f"{hourly['temperature_2m'][i]}",
-                    "app_temp": f"{hourly['apparent_temperature'][i]}",
-                    "rain_prob": f"{hourly['precipitation_probability'][i]}",
-                    "rain_mm": f"{hourly['precipitation'][i]}",
-                    "wind": f"{hourly['windspeed_10m'][i]}",
-                    "gusts": f"{hourly['windgusts_10m'][i]}",
-                    "wind_direction": f"{hourly['winddirection_10m'][i]}",
+                    "time": dt_naive.strftime("%H:%M"),
+                    "temp": normalized["temperature_2m"][index],
+                    "app_temp": normalized["apparent_temperature"][index],
+                    "rain_prob": int(round(normalized["precipitation_probability"][index])),
+                    "rain_mm": normalized["precipitation"][index],
+                    "wind": normalized["windspeed_10m"][index],
+                    "gusts": normalized["windgusts_10m"][index],
+                    "wind_direction": int(round(normalized["winddirection_10m"][index])),
+                    "weather_code": code,
+                    "condition": condition,
                 }
             )
 
         return forecast_summary
 
     @staticmethod
-    def _worst_case_safety_advice(forecast: list[dict[str, str]]) -> dict[str, Any]:
-        """
-        Build the safety briefing from the worst point of the forecast window.
+    def _worst_case_safety_advice(forecast: list[dict[str, Any]]) -> dict[str, Any]:
+        """Build the safety briefing from the worst point of the forecast window.
 
         Peak wind and gusts are taken from the same hour to avoid combining
-        unrelated readings. Rain is the maximum of the window, and clothing
-        advice uses the coldest apparent temperature of the window.
+        unrelated readings. Rain is the maximum of the window, clothing
+        advice uses the coldest apparent temperature, and the WMO condition of
+        the peak-risk hour is reported as context.
 
         Args:
             forecast: Hourly snapshots produced by _forecast_summary.
@@ -249,13 +401,12 @@ class WeatherService:
             A SafetyAdvice dictionary for the whole mission window.
         """
         if not forecast:
-            return get_safety_advice(
-                app_temp=20.0, rain_prob=0, rain_mm=0.0, wind_speed=0.0, wind_gusts=0.0
-            )
+            return unavailable_safety_advice("the forecast window contains no hourly data")
 
         peak_risk = -1.0
         peak_wind = 0.0
         peak_gusts = 0.0
+        peak_condition: str | None = None
         coldest_app_temp: float | None = None
         max_rain_prob = 0.0
         max_rain_mm = 0.0
@@ -272,6 +423,7 @@ class WeatherService:
                 peak_risk = risk
                 peak_wind = wind
                 peak_gusts = gusts
+                peak_condition = entry.get("condition")
 
             coldest_app_temp = (
                 app_temp if coldest_app_temp is None else min(coldest_app_temp, app_temp)
@@ -285,6 +437,7 @@ class WeatherService:
             rain_mm=max_rain_mm,
             wind_speed=peak_wind,
             wind_gusts=peak_gusts,
+            condition=peak_condition,
         )
 
     @staticmethod
@@ -298,9 +451,29 @@ class WeatherService:
     def _normalize_target_hour(target_hour: Any) -> int:
         try:
             hour = int(target_hour)
-        except (TypeError, ValueError):
-            return 9
-        return max(0, min(hour, 23))
+        except (TypeError, ValueError) as exc:
+            raise WeatherDataError("target_hour must be an integer between 0 and 23") from exc
+        if not 0 <= hour <= 23:
+            raise WeatherDataError("target_hour must be between 0 and 23")
+        return hour
+
+    @staticmethod
+    def _circular_mean_degrees(
+        directions: list[float],
+    ) -> tuple[int | None, bool]:
+        """Return the circular mean bearing and whether it is undefined.
+
+        Opposing directions produce a zero-length resultant; in that case no
+        bearing is reported instead of inventing an arithmetic midpoint.
+        """
+        if not directions:
+            return None, False
+        x_component = sum(math.cos(math.radians(value)) for value in directions)
+        y_component = sum(math.sin(math.radians(value)) for value in directions)
+        if math.hypot(x_component, y_component) < 1e-9:
+            return None, True
+        mean = math.degrees(math.atan2(y_component, x_component)) % 360
+        return int(round(mean)) % 360, False
 
 
 service = WeatherService()
@@ -318,6 +491,7 @@ def get_weather_forecast(
 
 
 def apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
+    """Restrict the forecast to a ride window and recompute its safety verdict."""
     filtered_forecast = []
     window_temps, window_winds, window_dirs = [], [], []
 
@@ -342,16 +516,17 @@ def apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
             continue
 
     if window_temps:
+        mean_direction, ambiguous = WeatherService._circular_mean_degrees(window_dirs)
         weather_data["reference_conditions"].update(
             {
                 "temp": round(sum(window_temps) / len(window_temps), 1),
                 "wind_speed": round(sum(window_winds) / len(window_winds), 1),
-                "wind_dir_degrees": int(sum(window_dirs) / len(window_dirs)),
+                "wind_dir_degrees": mean_direction,
+                "wind_direction_ambiguous": ambiguous,
                 "reference_hour": f"Calculated window {start:02d}-{end:02d}",
             }
         )
 
     weather_data["tactical_forecast"] = filtered_forecast
-    if filtered_forecast:
-        weather_data["safety_advice"] = WeatherService._worst_case_safety_advice(filtered_forecast)
+    weather_data["safety_advice"] = WeatherService._worst_case_safety_advice(filtered_forecast)
     return weather_data

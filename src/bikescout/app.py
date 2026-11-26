@@ -1009,11 +1009,22 @@ def render_gpx_tab() -> None:
                 weather = planning.get("weather_forecast", {})
                 if weather:
                     with st.expander("Weather forecast", expanded=True):
-                        advice = weather.get("safety_advice", {})
+                        advice = weather.get("safety_advice", {}) or {}
                         if advice:
                             st.info(
                                 f"**{advice.get('status', 'Safety')}** — {advice.get('message', '')}"
                             )
+                        reference = weather.get("reference_conditions", {}) or {}
+                        condition = reference.get("condition")
+                        if condition:
+                            st.caption(
+                                f"Reference conditions at "
+                                f"{reference.get('reference_hour_local', 'the selected hour')}: "
+                                f"{condition}."
+                            )
+                        peak_condition = advice.get("condition_at_peak_risk")
+                        if peak_condition:
+                            st.caption(f"Peak-risk hour: {peak_condition}.")
 
                 climbs = res_data.get("climb_analysis", [])
                 if climbs:

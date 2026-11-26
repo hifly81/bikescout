@@ -874,10 +874,11 @@ def render_weather_tiles_native(weather_data) -> None:
         for idx, w in enumerate(row):
             with cols[idx]:
                 time_label = str(w.get("time", "Time"))
-                temp_raw = str(w.get("temp", "N/A"))
-                app_raw = str(w.get("app_temp", "N/A"))
-                rain_raw = str(w.get("rain_prob", "N/A"))
-                wind_raw = str(w.get("wind", w.get("wind_speed", "N/A")))
+                temp_raw = _format_weather_metric(w.get("temp"), "°C", 1)
+                app_raw = _format_weather_metric(w.get("app_temp"), "°C", 1)
+                rain_raw = _format_weather_metric(w.get("rain_prob"), "%", 0)
+                wind_raw = _format_weather_metric(w.get("wind", w.get("wind_speed")), " km/h", 1)
+                condition = str(w.get("condition") or "")
 
                 st.markdown(
                     f"""
@@ -887,12 +888,21 @@ def render_weather_tiles_native(weather_data) -> None:
                         <div class="bs-risk-copy">
                             Apparent: {app_raw}<br/>
                             Rain: {rain_raw}<br/>
-                            Wind: {wind_raw}
+                            Wind: {wind_raw}<br/>
+                            {condition}
                         </div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
+
+
+def _format_weather_metric(value: Any, unit: str, decimals: int) -> str:
+    """Format a numeric forecast value with its metric unit, or N/A when absent."""
+    number = ext_cast(value, float, None)
+    if number is None:
+        return "N/A"
+    return f"{number:.{decimals}f}{unit}"
 
 
 def render_rider_profile_fields() -> None:
@@ -1495,7 +1505,7 @@ def render_route_results(res_data: dict) -> None:
     if weather_data:
         section_intro(
             "Weather & safety",
-            "Short-term tactical conditions for confidence, pacing, and kit planning.",
+            "Full-day tactical conditions for confidence, pacing, and kit planning.",
         )
 
         with st.expander("Forecast details", expanded=True):
@@ -1503,10 +1513,8 @@ def render_route_results(res_data: dict) -> None:
             max_rain = None
 
             for w in weather_data:
-                temp_raw = str(w.get("temp", "N/A"))
-                rain_raw = str(w.get("rain_prob", "N/A"))
-                peak_temp = max(peak_temp or -999, ext_cast(temp_raw, float, -999))
-                max_rain = max(max_rain or -999, ext_cast(rain_raw, float, -999))
+                peak_temp = max(peak_temp or -999, ext_cast(w.get("temp"), float, -999))
+                max_rain = max(max_rain or -999, ext_cast(w.get("rain_prob"), float, -999))
 
             t1, t2, t3 = st.columns(3)
 
@@ -1529,10 +1537,10 @@ def render_route_results(res_data: dict) -> None:
             with t3:
                 metric_card(
                     "Wind risk",
-                    f"{safety_advice.get('wind_risk_score', 'N/A')}/10",
+                    f"{safety_advice.get('wind_risk_score', 'N/A')}/100",
                     "💨",
                     "#f59e0b",
-                    "Wind exposure indicator",
+                    "Wind exposure index from the worst forecast hour",
                 )
 
             render_weather_tiles_native(weather_data)

@@ -243,13 +243,16 @@
                     <table>
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
-                        <tr><td><code>time</code></td><td><code>string</code></td><td>-</td><td>Local time of the forecast snapshot in ISO or HH:MM format.</td></tr>
-                        <tr><td><code>temp</code></td><td><code>string</code></td><td>-</td><td>Ambient air temperature (e.g., "15.3°C").</td></tr>
-                        <tr><td><code>app_temp</code></td><td><code>string</code></td><td>-</td><td>Apparent (feels-like) temperature considering humidity and wind chill.</td></tr>
-                        <tr><td><code>rain_prob</code></td><td><code>string</code></td><td>-</td><td>Probability of precipitation expressed as a percentage (e.g., "15%").</td></tr>
-                        <tr><td><code>rain_mm</code></td><td><code>string</code></td><td>-</td><td>Expected rainfall volume measured in millimeters.</td></tr>
-                        <tr><td><code>wind</code></td><td><code>string</code></td><td>-</td><td>Average sustained wind speed for the snapshot period.</td></tr>
-                        <tr><td><code>gusts</code></td><td><code>string</code></td><td>-</td><td>Maximum predicted wind gust speed.</td></tr>
+                        <tr><td><code>time</code></td><td><code>string</code></td><td>-</td><td>Local time of the forecast snapshot in HH:MM format.</td></tr>
+                        <tr><td><code>temp</code></td><td><code>float</code></td><td>-</td><td>Ambient air temperature in °C.</td></tr>
+                        <tr><td><code>app_temp</code></td><td><code>float</code></td><td>-</td><td>Apparent (feels-like) temperature in °C.</td></tr>
+                        <tr><td><code>rain_prob</code></td><td><code>int</code></td><td>-</td><td>Probability of precipitation as a percentage.</td></tr>
+                        <tr><td><code>rain_mm</code></td><td><code>float</code></td><td>-</td><td>Expected rainfall volume in millimeters.</td></tr>
+                        <tr><td><code>wind</code></td><td><code>float</code></td><td>-</td><td>Average sustained wind speed in km/h.</td></tr>
+                        <tr><td><code>gusts</code></td><td><code>float</code></td><td>-</td><td>Maximum predicted wind gust speed in km/h.</td></tr>
+                        <tr><td><code>wind_direction</code></td><td><code>int</code></td><td>-</td><td>Wind bearing in degrees clockwise from north.</td></tr>
+                        <tr><td><code>weather_code</code></td><td><code>int | null</code></td><td><code>null</code></td><td>WMO weather interpretation code reported by Open-Meteo.</td></tr>
+                        <tr><td><code>condition</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Plain-language description of the WMO code.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -259,10 +262,35 @@
                     <table>
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
-                        <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Visual alert status indicator (e.g., 🟡 [WATCH], 🔴 [DANGER]).</td></tr>
-                        <tr><td><code>message</code></td><td><code>string</code></td><td>-</td><td>Human-readable safety assessment for the mission ride window (09:00-19:00), using peak rain and the worst wind/gust hour rather than only the reference hour.</td></tr>
-                        <tr><td><code>wind_risk_score</code></td><td><code>float</code></td><td>-</td><td>Wind index computed as <code>0.4 × wind + 0.6 × gusts</code> from the worst hour of the mission ride window (09:00-19:00); above 55 the advice becomes <code>[NOT RECOMMENDED]</code>.</td></tr>
-                        <tr><td><code>gear_advice</code></td><td><code>string</code></td><td>-</td><td>Recommended clothing layers and mechanical equipment for the conditions.</td></tr>
+                        <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Verdict indicator: <code>[GO]</code>, <code>[WATCH]</code>, <code>[CAUTION]</code>, <code>[NOT RECOMMENDED]</code> or <code>[UNAVAILABLE]</code>.</td></tr>
+                        <tr><td><code>message</code></td><td><code>string</code></td><td>-</td><td>Human-readable assessment from the worst hourly slot of the analyzed day. Never reports "ideal conditions" when forecast data is missing.</td></tr>
+                        <tr><td><code>wind_risk_score</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Wind index computed as <code>0.4 × wind + 0.6 × gusts</code> from the worst hour; above 55 the advice becomes <code>[NOT RECOMMENDED]</code>. Null when data is unavailable.</td></tr>
+                        <tr><td><code>gear_advice</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Recommended clothing layers for the coldest apparent temperature. Null when data is unavailable.</td></tr>
+                        <tr><td><code>condition_at_peak_risk</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Descriptive WMO condition at the peak-risk hour; context only, never used to override a threshold.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">ReferenceConditions</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+                        <tbody>
+                        <tr><td><code>temp_actual</code></td><td><code>float</code></td><td>-</td><td>Air temperature in °C at the requested reference hour.</td></tr>
+                        <tr><td><code>temp_apparent</code></td><td><code>float</code></td><td>-</td><td>Apparent temperature in °C at the reference hour.</td></tr>
+                        <tr><td><code>rain_probability</code></td><td><code>int</code></td><td>-</td><td>Precipitation probability at the reference hour.</td></tr>
+                        <tr><td><code>precipitation_mm</code></td><td><code>float</code></td><td>-</td><td>Rainfall in millimeters at the reference hour.</td></tr>
+                        <tr><td><code>wind_speed</code></td><td><code>float</code></td><td>-</td><td>Wind speed in km/h at the reference hour.</td></tr>
+                        <tr><td><code>wind_gusts</code></td><td><code>float</code></td><td>-</td><td>Wind gusts in km/h at the reference hour.</td></tr>
+                        <tr><td><code>wind_direction</code></td><td><code>int</code></td><td>-</td><td>Wind bearing in degrees at the reference hour.</td></tr>
+                        <tr><td><code>reference_hour_local</code></td><td><code>string</code></td><td>-</td><td>Local reference hour in HH:MM format.</td></tr>
+                        <tr><td><code>temp_max</code></td><td><code>float</code></td><td>-</td><td>Highest forecast temperature of the analyzed day.</td></tr>
+                        <tr><td><code>weather_code</code></td><td><code>int | null</code></td><td><code>null</code></td><td>WMO code at the reference hour.</td></tr>
+                        <tr><td><code>condition</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Description of the reference WMO code.</td></tr>
+                        <tr><td><code>temp</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Mean temperature after ride-window filtering.</td></tr>
+                        <tr><td><code>wind_dir_degrees</code></td><td><code>int | null</code></td><td><code>null</code></td><td>Circular mean wind bearing after ride-window filtering, not an arithmetic midpoint.</td></tr>
+                        <tr><td><code>wind_direction_ambiguous</code></td><td><code>boolean</code></td><td><code>false</code></td><td>True when opposing directions make the circular mean undefined.</td></tr>
+                        <tr><td><code>reference_hour</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Label of the filtered ride window.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1117,22 +1145,28 @@
                             <td>Current status of the weather service provider and data availability.</td>
                         </tr>
                         <tr>
+                            <td><code>error_message</code></td>
+                            <td><code>string | null</code></td>
+                            <td><code>null</code></td>
+                            <td>Diagnostic reason returned when the weather service reports Error, including invalid coordinates, hour or provider payload.</td>
+                        </tr>
+                        <tr>
                             <td><code>metadata</code></td>
                             <td><code>object</code></td>
                             <td>-</td>
-                            <td>Contextual location data, elevation of source, and timezone metadata.</td>
+                            <td>Location, timezone, Open-Meteo source, analyzed scope and first/last hourly timestamps.</td>
                         </tr>
                         <tr>
                             <td><code>tactical_forecast</code></td>
                             <td><code>list[WeatherSnapshot]</code></td>
                             <td>-</td>
-                            <td>Hourly weather breakdown specifically windowed for the mission or race duration.</td>
+                            <td>Numeric hourly breakdown for the requested day, including WMO codes and descriptions.</td>
                         </tr>
                         <tr>
                             <td><code>reference_conditions</code></td>
-                            <td><code>object</code></td>
+                            <td><code>ReferenceConditions</code></td>
                             <td>-</td>
-                            <td>Aggregated weather metrics used as baselines for performance and physiological adjustments.</td>
+                            <td>Validated reference-hour values plus any ride-window aggregates.</td>
                         </tr>
                         <tr>
                             <td><code>safety_advice</code></td>
@@ -1886,10 +1920,10 @@
                 <div>
                     <h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Description</h4>
                     <p class="text-slate-300 leading-relaxed">
-                        Advanced cycling-specific weather assistant designed for both real-time decisions and long-term event planning.
-                        It provides hyper-localized analysis of temperature, precipitation risk, and wind dynamics.
-                        <strong>Smart Window:</strong> If <code>target_date</code> is provided, it analyzes the full event window (ideal for races);
-                        otherwise, it focuses on the immediate 4-hour tactical window.
+                        Cycling-specific weather assistant for real-time decisions and event planning.
+                        It provides local analysis of temperature, precipitation, wind and WMO conditions for the whole requested day.
+                        <strong>Analysis scope:</strong> the safety advice always scans every hourly slot of that day; <code>target_hour</code> only sets the reference conditions.
+                        Missing or inconsistent provider data returns an explicit Error instead of a [GO] verdict.
                     </p>
                 </div>
 
@@ -1923,7 +1957,13 @@
                                 <td class="py-2 px-3"><code>target_date</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
                                 <td class="text-slate-500">Optional</td>
-                                <td>The date of the event (YYYY-MM-DD). Defaults to the current tactical window.</td>
+                                <td>Event date (YYYY-MM-DD). Defaults to today; the full day is analyzed.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_hour</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int</code></td>
+                                <td class="text-slate-500">Optional, default <code>9</code></td>
+                                <td>Reference hour (0-23) for headline conditions; must exist in the provider payload.</td>
                             </tr>
                             </tbody>
                         </table>
@@ -1938,10 +1978,11 @@
                     </div>
                     <ul class="space-y-2 text-sm text-slate-300">
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>status:</strong> Confirmation of the API operation and data freshness.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>metadata:</strong> Contextual data including timezone synchronization and resolved location coordinates.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_forecast:</strong> A granular hourly breakdown of temperature, rain probability (%), and wind speed/direction.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>reference_conditions:</strong> Aggregated key metrics (Min/Max/Avg) for the selected analysis window.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>safety_advice:</strong> Mission-critical briefing covering worst-hour wind risk and peak rain within the 09:00-19:00 ride window, plus thermal stress alerts and suggested gear/clothing.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>error_message:</strong> Diagnostic reason when status is Error; absent on success.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>metadata:</strong> Contextual data including timezone, resolved coordinates, source and analyzed hourly range.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_forecast:</strong> Numeric hourly breakdown of temperature, rain probability, wind bearing and WMO condition.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>reference_conditions:</strong> Verified reference-hour values and mean bearing after ride-window filtering.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>safety_advice:</strong> Worst-hour wind risk and peak rain across the whole day, or an explicit [UNAVAILABLE] verdict when data is missing.</li>
                     </ul>
                 </div>
             </div>

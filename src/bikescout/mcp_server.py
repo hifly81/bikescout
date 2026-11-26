@@ -481,31 +481,30 @@ def trail_scout_simple(
 
 @mcp.tool()
 def check_trail_weather(
-    lat: float, lon: float, target_date: str | None = None
+    lat: float, lon: float, target_date: str | None = None, target_hour: int = 9
 ) -> TacticalForecastResponse:
-    """
-    Advanced cycling-specific weather assistant for real-time and future planning.
-    Provides temperature, rain risk, and wind speed analysis.
+    """Cycling-specific weather briefing for a full forecast day.
 
-    If target_date is provided, it analyzes the forecast for that specific day
-    (ideal for race planning like Tour de France stages or MTB World Cup).
-    If target_date is None, it defaults to the current 4-hour window.
+    The safety advice always scans every hourly slot of the requested day.
+    ``target_hour`` only anchors the reference conditions; it does not narrow
+    the safety analysis. If ``target_date`` is omitted, today is analyzed.
 
     Args:
         lat: Latitude of the trail area.
         lon: Longitude of the trail area.
         target_date: Optional. The date of the event in YYYY-MM-DD format.
+        target_hour: Reference hour (0-23) used for the headline conditions.
     Returns:
         A TacticalForecastResponse containing:
         - status: API operation status.
-        - metadata: Contextual data (date, timezone, location).
-        - tactical_forecast: Hourly breakdown of temp, rain probability, and wind.
-        - reference_conditions: Aggregated metrics for the analysis window.
-        - safety_advice: Crucial briefing on wind risk scores and recommended gear.
+        - error_message: Diagnostic reason when status is Error.
+        - metadata: Contextual data (date, timezone, location, analysis scope).
+        - tactical_forecast: Numeric hourly breakdown including WMO condition.
+        - reference_conditions: Verified reference-hour values and window aggregates.
+        - safety_advice: Worst-hour briefing, or an explicit [UNAVAILABLE] verdict.
     """
-    # Now passing the optional target_date to the underlying weather engine
     try:
-        data = get_weather_forecast(lat, lon, target_date)
+        data = get_weather_forecast(lat, lon, target_date, target_hour)
         if data.get("status") == "Error":
             return _tool_error_response(
                 TacticalForecastResponse, tool_name="check_trail_weather", data=data

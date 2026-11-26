@@ -188,9 +188,9 @@ class TestMcpServer:
     def test_hydration_scout_flow(self, m_nut, m_weather):
         m_weather.return_value = {
             "tactical_forecast": [
-                {"time": "09:00", "temp": "22.0°C"},
-                {"time": "10:00", "temp": "28.0°C"},
-                {"time": "18:00", "temp": "34.0°C"},
+                {"time": "09:00", "temp": 22.0},
+                {"time": "10:00", "temp": 28.0},
+                {"time": "18:00", "temp": 34.0},
             ],
             "metadata": {"date_analyzed": "2026-06-15", "target_time_local": "09:00"},
             "reference_conditions": {"temp": 22.0},
@@ -235,9 +235,9 @@ class TestMcpServer:
         weather = {
             "metadata": {"target_time_local": "09:00"},
             "tactical_forecast": [
-                {"time": "09:00", "temp": "21.0°C"},
-                {"time": "10:00", "temp": "25.5°C"},
-                {"time": "17:00", "temp": "36.0°C"},
+                {"time": "09:00", "temp": 21.0},
+                {"time": "10:00", "temp": 25.5},
+                {"time": "17:00", "temp": 36.0},
             ],
             "reference_conditions": {"temp": 21.0},
         }
@@ -246,7 +246,7 @@ class TestMcpServer:
     def test_ride_window_temperature_falls_back_to_reference(self):
         weather = {
             "metadata": {},
-            "tactical_forecast": [{"temp": "30.0°C"}],
+            "tactical_forecast": [{"temp": 30.0}],
             "reference_conditions": {"temp": 18.0},
         }
         assert _ride_window_temperature(weather, 2.0) == (18.0, "reference_fallback")
@@ -256,7 +256,7 @@ class TestMcpServer:
     @patch("bikescout.mcp_server.get_nutrition_plan")
     def test_hydration_scout_exposes_input_error(self, m_nut, m_weather):
         m_weather.return_value = {
-            "tactical_forecast": [{"time": "09:00", "temp": "22.0°C"}],
+            "tactical_forecast": [{"time": "09:00", "temp": 22.0}],
             "metadata": {"date_analyzed": "2026-06-15", "target_time_local": "09:00"},
         }
         m_nut.return_value = {

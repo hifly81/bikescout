@@ -67,6 +67,12 @@ def calculate_ride_windows(
         END_ALLOWED = sunset_h
 
         weather_data = get_weather_forecast(lat, lon, target_date)
+        if weather_data.get("status") == "Error":
+            reason = weather_data.get("message") or "unknown weather provider error"
+            return {
+                "status": "Error",
+                "message": f"Weather forecast unavailable: {reason}",
+            }
         mud_risk_data = get_mud_risk_analysis(lat, lon, surface_type)
 
         raw_forecasts = weather_data.get("tactical_forecast", [])

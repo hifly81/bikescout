@@ -413,11 +413,15 @@ def compute_readiness_score(
         badges.append("Moderate mud")
 
     safety = (conditions or {}).get("safety_advice") or {}
-    wind_risk = ext_cast(safety.get("wind_risk_score"), int, 0)
-    if wind_risk >= 8:
+    safety_status = str(safety.get("status", "")).upper()
+    if "UNAVAILABLE" in safety_status:
+        score -= 20
+        badges.append("Weather unavailable")
+    wind_risk = ext_cast(safety.get("wind_risk_score"), float, 0.0)
+    if wind_risk >= 55:
         score -= 15
         badges.append("Strong wind")
-    elif wind_risk >= 5:
+    elif wind_risk >= 35:
         score -= 7
         badges.append("Wind caution")
 

@@ -926,6 +926,65 @@ def test_get_complete_trail_scout_passes_measured_sweat_rate_and_reports_nutriti
     assert "nutrition_plan" not in result.get("logistics", {})
 
 
+def test_get_complete_trail_scout_nutrition_marks_assumed_temp_when_weather_unavailable():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    captured = {}
+
+    def nutrition_getter(
+        estimated_hours,
+        max_temp,
+        intensity_score,
+        weight_kg,
+        gender,
+        sweat_profile,
+        sweat_rate_ml_per_hour=None,
+    ):
+        captured["max_temp"] = max_temp
+        return {
+            "status": "Success",
+            "mission_nutrition_briefing": {
+                "fluids": {"total_l": 1.0},
+                "carbohydrates": {"total_g": 60},
+                "electrolytes": {"total_sodium_mg": 800},
+                "tactical_advice": [],
+                "inputs_used": {},
+                "uncertainty_note": "",
+            },
+        }
+
+    service = make_service(FakeSession(response=FakeResponse(payload=payload)))
+    service.weather_getter = lambda *args, **kwargs: {"status": "Error", "message": "down"}
+    service.nutrition_getter = nutrition_getter
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=make_rider(),
+        bike=make_bike("gravel", False),
+        mission=make_mission(),
+        include_weather=True,
+        include_nutrition_plan=True,
+    )
+
+    assert result["status"] == "Success"
+    assert captured["max_temp"] == 20.0
+    assert result["conditions"]["weather_status"] == "Unavailable"
+    plan = result["logistics"]["nutrition_plan"]["mission_nutrition_briefing"]
+    assert plan["inputs_used"]["temperature_assumed_c"] == 20.0
+    assert plan["inputs_used"]["temperature_reliable"] is False
+    assert plan["inputs_used"]["temperature_basis"] == "fallback_assumed_no_reliable_weather"
+    assert "20C assumption" in plan["uncertainty_note"]
+    assert any("ASSUMPTION" in a for a in plan["tactical_advice"])
+
+
 def test_get_complete_trail_scout_creates_climb_profile_images():
     payload = {
         "features": [

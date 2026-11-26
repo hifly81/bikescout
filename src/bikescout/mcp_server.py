@@ -249,7 +249,6 @@ def trail_scout(
         - elevation_source / elevation_samples_total / elevation_samples_interpolated /
           elevation_uncertainty: Elevation data credit and sample-level uncertainty;
           elevation_error explains an omitted profile.
-        - gpx_stats: Technical summary of the generated trace (point count, healed segments).
         - logistics.nutrition_plan: Fueling targets with their evidence basis, confidence,
           uncertainty note, normalised inputs and references; nutrition_error explains a
           rejected plan. A rider-provided measured sweat rate replaces the population estimate.
@@ -413,7 +412,6 @@ def trail_scout_simple(
         - elevation_source / elevation_samples_total / elevation_samples_interpolated /
           elevation_uncertainty: Elevation data credit and sample-level uncertainty;
           elevation_error explains an omitted profile.
-        - gpx_stats: Technical summary of the generated trace (point count, healed segments).
         - logistics.nutrition_plan: Fueling targets with their evidence basis, confidence,
           uncertainty note, normalised inputs and references; nutrition_error explains a
           rejected plan. A rider-provided measured sweat rate replaces the population estimate.

@@ -823,6 +823,9 @@ class FullMissionBriefingResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    error_message: str | None = Field(
+        None, description="Reason why the mission briefing could not be completed."
+    )
     info: RouteInfo | None = Field(
         None,
         description="Structured data regarding the route's morphology and difficulty.",
@@ -876,9 +879,6 @@ class FullMissionBriefingResponse(BaseModel):
     )
     nutrition_error: str | None = Field(
         None, description="Reason why the nutrition plan was omitted."
-    )
-    gpx_stats: dict[str, int] | None = Field(
-        None, description="Dictionary of raw metadata extracted from the GPX file."
     )
 
 

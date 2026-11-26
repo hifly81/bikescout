@@ -88,6 +88,7 @@ class SurfaceAnalyzerService:
         estimated_speed_kmh: float | None = None,
         intensity_score: int | None = None,
         ambient_temp_c: float | None = None,
+        mud_analysis: dict[str, Any] | None = None,
     ):
         """
         Analyze surface, terrain and mechanical setup for a cycling route.
@@ -185,7 +186,8 @@ class SurfaceAnalyzerService:
                         getattr(bike, "rim_internal_width_mm", None),
                     )
 
-                    mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
+                    if mud_analysis is None:
+                        mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
                     t_analysis = mud_analysis.get("tactical_analysis") or {}
                     raw_mud = t_analysis.get("mud_risk_numeric")
                     mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
@@ -447,6 +449,7 @@ def get_surface_analyzer(
     estimated_speed_kmh: float | None = None,
     intensity_score: int | None = None,
     ambient_temp_c: float | None = None,
+    mud_analysis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return service.get_surface_analyzer(
         api_key=api_key,
@@ -460,4 +463,5 @@ def get_surface_analyzer(
         estimated_speed_kmh=estimated_speed_kmh,
         intensity_score=intensity_score,
         ambient_temp_c=ambient_temp_c,
+        mud_analysis=mud_analysis,
     )

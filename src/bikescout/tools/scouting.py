@@ -130,7 +130,7 @@ def generate_tactical_gpx(filename_part, geojson_data, amenities=[]):
         home_dir.mkdir(parents=True, exist_ok=True)
 
         now = time.time()
-        for f in home_dir.glob("*.gpx"):
+        for f in home_dir.glob("tactical_route_*.gpx"):
             if f.is_file() and (now - f.stat().st_mtime) > (14 * 86400):
                 try:
                     f.unlink()
@@ -320,7 +320,7 @@ class TrailScoutService:
             ascent_m = round(props.get("ascent", 0), 0)
             dominant_surface = "Unknown"
 
-            max_temp = 20.0
+            max_temp: float | str = "N/A"
             estimated_hours = 0.0
             intensity_score = 0
             amenities = []
@@ -358,6 +358,21 @@ class TrailScoutService:
                     response_payload["conditions"]["weather_error"] = f"Technical bypass: {e!s}"
                     weather_report = None
 
+            mud_analysis: dict[str, Any] | None = None
+            if include_mud_analysis:
+                try:
+                    # Precompute once; reuse in surface analyzer and response.
+                    pre_mud = self.mud_analyzer(
+                        latitude,
+                        longitude,
+                        dominant_surface,
+                        target_date,
+                    )
+                    if isinstance(pre_mud, dict) and pre_mud.get("status") == "Success":
+                        mud_analysis = pre_mud
+                except Exception:
+                    mud_analysis = None
+
             surface_report: dict[str, Any]
             try:
                 try:
@@ -373,20 +388,32 @@ class TrailScoutService:
                         estimated_speed_kmh=estimated_speed_kmh,
                         intensity_score=intensity_score,
                         ambient_temp_c=ambient_temp_c,
+                        mud_analysis=mud_analysis,
                     )
                 except TypeError as te:
                     if "unexpected keyword argument" not in str(te):
                         raise
-                    surface_report = self.surface_analyzer(
-                        api_key,
-                        latitude,
-                        longitude,
-                        rider,
-                        bike,
-                        mission,
-                        target_date,
-                        route_feature=feature,
-                    )
+                    try:
+                        surface_report = self.surface_analyzer(
+                            api_key,
+                            latitude,
+                            longitude,
+                            rider,
+                            bike,
+                            mission,
+                            target_date,
+                            route_feature=feature,
+                        )
+                    except TypeError:
+                        surface_report = self.surface_analyzer(
+                            api_key,
+                            latitude,
+                            longitude,
+                            rider,
+                            bike,
+                            mission,
+                            target_date,
+                        )
             except Exception as e:
                 surface_report = {"status": "Error", "message": f"Surface Analysis failed: {e!s}"}
 
@@ -459,21 +486,47 @@ class TrailScoutService:
             if include_mud_analysis:
                 avg_slope_pct = terrain.get("avg_gradient")
                 max_slope_pct = terrain.get("max_gradient")
-                mud_analysis = self.mud_analyzer(
-                    latitude,
-                    longitude,
-                    dominant_surface,
-                    target_date,
-                    avg_slope_pct=avg_slope_pct,
-                    max_gradient_pct=max_slope_pct,
+                mud_for_response = mud_analysis
+                needs_slope_rerun = mud_for_response is None or (
+                    (avg_slope_pct is not None or max_slope_pct is not None)
+                    and not (
+                        (mud_for_response.get("metadata") or {}).get("avg_slope_pct") is not None
+                        or (mud_for_response.get("metadata") or {}).get("max_slope_pct") is not None
+                    )
                 )
-                if mud_analysis.get("status") == "Success":
-                    response_payload["conditions"]["mud_risk"] = mud_analysis
+                if needs_slope_rerun:
+                    mud_for_response = self.mud_analyzer(
+                        latitude,
+                        longitude,
+                        dominant_surface,
+                        target_date,
+                        avg_slope_pct=avg_slope_pct,
+                        max_gradient_pct=max_slope_pct,
+                    )
+                if (
+                    isinstance(mud_for_response, dict)
+                    and mud_for_response.get("status") == "Success"
+                ):
+                    response_payload["conditions"]["mud_risk"] = mud_for_response
 
             if include_nutrition_plan:
+                nutrition_temp: Any = max_temp
+                nutrition_temp_reliable = isinstance(max_temp, (int, float))
+                if weather_report and isinstance(weather_report, dict):
+                    ref = weather_report.get("reference_conditions", {})
+                    candidate = ref.get("temp_max", ref.get("temp_actual", max_temp))
+                    if isinstance(candidate, (int, float)):
+                        nutrition_temp = float(candidate)
+                        nutrition_temp_reliable = True
+                    else:
+                        nutrition_temp_reliable = False
+                if not isinstance(nutrition_temp, (int, float)):
+                    nutrition_temp = 20.0
+                    nutrition_temp_reliable = False
+
                 nutrition_plan = self.nutrition_getter(
                     estimated_hours,
-                    max_temp,
+                    float(nutrition_temp),
                     intensity_score,
                     rider.weight_kg,
                     rider.gender,
@@ -481,6 +534,41 @@ class TrailScoutService:
                     sweat_rate_ml_per_hour,
                 )
                 if nutrition_plan.get("status") == "Success":
+                    if not nutrition_temp_reliable:
+                        briefing = nutrition_plan.get("mission_nutrition_briefing")
+                        if isinstance(briefing, dict):
+                            inputs_used = briefing.get("inputs_used")
+                            if not isinstance(inputs_used, dict):
+                                inputs_used = {}
+                                briefing["inputs_used"] = inputs_used
+                            inputs_used["temperature_assumed_c"] = 20.0
+                            inputs_used["temperature_reliable"] = False
+                            inputs_used["temperature_basis"] = (
+                                "fallback_assumed_no_reliable_weather"
+                            )
+
+                            uncertainty = str(briefing.get("uncertainty_note") or "").strip()
+                            assumption_note = (
+                                "Temperature unavailable/unreliable; nutrition used a conservative "
+                                "20C assumption for calculation only. Weather was not fabricated."
+                            )
+                            briefing["uncertainty_note"] = (
+                                f"{uncertainty} {assumption_note}".strip()
+                                if uncertainty
+                                else assumption_note
+                            )
+
+                            advice = briefing.get("tactical_advice")
+                            if not isinstance(advice, list):
+                                advice = []
+                                briefing["tactical_advice"] = advice
+                            assumption_alert = (
+                                "ASSUMPTION: No reliable temperature available; hydration/electrolyte "
+                                "targets calculated with 20C fallback. Adjust for actual conditions."
+                            )
+                            if assumption_alert not in advice:
+                                advice.append(assumption_alert)
+
                     self._ensure_logistics(response_payload)
                     response_payload["logistics"]["nutrition_plan"] = nutrition_plan
                 else:
@@ -758,18 +846,49 @@ class TrailScoutService:
             score += (1.0 - offroad_share) * _OFFROAD_PENALTY_M
         return score
 
-    def _request_route_candidate(self, api_key: str, mission, payload: dict) -> dict:
-        endpoint = f"{ORS_BASE_URL}/{mission.profile}/geojson"
+    @staticmethod
+    def _normalize_profile(profile: Any, bike: BikeSetup | None = None) -> str:
+        value = str(profile or "").strip().lower()
+        if value == "cycling-electric":
+            return "cycling-mountain"
+        if value in {"cycling-mountain", "cycling-road", "cycling-regular"}:
+            return value
+        bike_type = str(getattr(bike, "bike_type", "") or "").strip().lower()
+        if bike_type in {"e-mtb", "emtb"}:
+            return "cycling-mountain"
+        return "cycling-mountain"
+
+    @staticmethod
+    def _is_transient_route_error(exc: Exception) -> bool:
+        if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
+            return True
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", None)
+        return isinstance(status, int) and (status == 429 or status >= 500)
+
+    def _request_route_candidate(self, api_key: str, mission, payload: dict, bike=None) -> dict:
+        profile = self._normalize_profile(getattr(mission, "profile", ""), bike)
+        endpoint = f"{ORS_BASE_URL}/{profile}/geojson"
         headers = {"Authorization": api_key, "Content-Type": "application/json"}
 
-        response = self.http_session.post(
-            endpoint,
-            json=payload,
-            headers=headers,
-            timeout=self.config.routing_timeout_seconds,
-        )
-        response.raise_for_status()
-        return response.json()
+        last_exc: Exception | None = None
+        for attempt in range(2):
+            try:
+                response = self.http_session.post(
+                    endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=self.config.routing_timeout_seconds,
+                )
+                response.raise_for_status()
+                return response.json()
+            except Exception as exc:  # noqa: BLE001 - retry boundary
+                last_exc = exc
+                if attempt == 0 and self._is_transient_route_error(exc):
+                    continue
+                raise
+        assert last_exc is not None
+        raise last_exc
 
     def _select_best_route_candidate(
         self, api_key: str, mission, payload: dict, anchor: dict | None, bike=None
@@ -777,7 +896,7 @@ class TrailScoutService:
         base_seed = int(getattr(mission, "seed", 42) or 42)
 
         if not anchor:
-            return self._request_route_candidate(api_key, mission, payload)
+            return self._request_route_candidate(api_key, mission, payload, bike=bike)
 
         candidate_payloads = []
         for seed_offset in (0, 17, 43):
@@ -794,7 +913,9 @@ class TrailScoutService:
 
         for candidate_payload in candidate_payloads:
             try:
-                route_data = self._request_route_candidate(api_key, mission, candidate_payload)
+                route_data = self._request_route_candidate(
+                    api_key, mission, candidate_payload, bike=bike
+                )
                 score = self._route_candidate_score(route_data, mission, anchor, bike)
                 if score < best_score:
                     best_score = score
@@ -803,7 +924,7 @@ class TrailScoutService:
                 continue
 
         if best_data is None:
-            return self._request_route_candidate(api_key, mission, payload)
+            return self._request_route_candidate(api_key, mission, payload, bike=bike)
 
         return best_data
 
@@ -852,7 +973,7 @@ class TrailScoutService:
                 "difficulty": "N/A",
             },
             "conditions": {
-                "max_temp_detected": "20.0",
+                "max_temp_detected": "N/A",
             },
         }
 

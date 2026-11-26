@@ -246,7 +246,9 @@ class RouteGeometry(BaseModel):
 
 
 class MudIntelligence(BaseModel):
-    score: float = Field(..., description="TAEL® mud score (higher means more saturation)")
+    score: float = Field(
+        ..., description="TAEL® mud moisture index in mm (heuristic, not a 1-100 score)"
+    )
     label: str = Field(..., description="Qualitative risk label (e.g., Low, High, Extreme)")
     traction_risk: str = Field(..., description="Assessment of tire grip on the predicted surface")
     trail_damage_risk: str = Field(..., description="Risk of damaging the trail due to soft ground")
@@ -257,7 +259,9 @@ class MudIntelligence(BaseModel):
 
 class MudTactical(BaseModel):
     surface_type: str = Field(..., description="Primary soil/surface type analyzed")
-    mud_risk_numeric: float = Field(..., description="Raw TAEL® moisture index")
+    mud_risk_numeric: float = Field(
+        ..., description="Raw TAEL® moisture index in mm (heuristic reservoir value)"
+    )
     mud_risk_score: str = Field(..., description="Qualitative mud risk label")
     traction_risk: dict[str, str] = Field(..., description="Grip assessment and tire advice")
     trail_damage_risk: dict[str, str] = Field(

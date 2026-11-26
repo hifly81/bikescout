@@ -301,8 +301,8 @@
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
                         <tr><td><code>surface_type</code></td><td><code>string</code></td><td>-</td><td>Normalized TAEL soil key for the dominant route surface. Display labels are mapped to soil types: <code>Paved</code>/<code>Concrete</code> become <code>asphalt</code>, <code>Unpaved</code>/<code>Unmapped/Mixed</code> become <code>dirt</code>.</td></tr>
-                        <tr><td><code>mud_risk_numeric</code></td><td><code>float</code></td><td>-</td><td>Raw TAEL™ moisture index representing the calculated ground water saturation.</td></tr>
-                        <tr><td><code>mud_risk_score</code></td><td><code>string</code></td><td>-</td><td>Qualitative risk label derived from the numeric index (e.g., 'Moderate', 'Extreme').</td></tr>
+                        <tr><td><code>mud_risk_numeric</code></td><td><code>float</code></td><td>-</td><td>Raw TAEL™ moisture index in mm (heuristic reservoir value; higher means wetter). Not a 1–100 score.</td></tr>
+                        <tr><td><code>mud_risk_score</code></td><td><code>string</code></td><td>-</td><td>Qualitative risk label derived from the moisture index (Low, Medium, High, Extreme).</td></tr>
                         <tr><td><code>traction_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Surface-aware grip assessment. On <code>asphalt</code>/<code>concrete</code> the level is capped at <code>Medium</code> and reports wet-tarmac or aquaplaning advice instead of mud packing.</td></tr>
                         <tr><td><code>trail_damage_risk</code></td><td><code>dict[string, string]</code></td><td>-</td><td>Risk of trail degradation, including probability of rut formation and erosion.</td></tr>
                         <tr><td><code>dry_time_eta</code></td><td><code>string</code></td><td>-</td><td>Estimated time until the trail surface is considered 'ready' or 'optimal' for riding.</td></tr>
@@ -367,7 +367,7 @@
                             <td><code>score</code></td>
                             <td><code>float</code></td>
                             <td>-</td>
-                            <td>Raw TAEL™ moisture reading in mm. The tire-setup model normalizes it to a 0.0-1.0 mud index (<code>score / 20</code>, clamped) for flotation and knob decisions.</td>
+                            <td>Raw TAEL™ moisture index in mm (heuristic, not a 1–100 score). The tire-setup model normalizes it to a 0.0-1.0 mud index (<code>score / 20</code>, clamped) for flotation and knob decisions.</td>
                         </tr>
                         <tr>
                             <td><code>label</code></td>

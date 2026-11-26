@@ -339,8 +339,71 @@ def test_get_mud_risk_analysis_handles_missing_hourly_data(fixed_now):
     result = service.get_mud_risk_analysis(45.0, 10.0, "dirt", None)
 
     assert result["status"] == "Error"
-    assert "No hourly weather data returned from API." in result["message"]
+    assert "No hourly weather data returned" in result["message"]
     assert result["tactical_analysis"] is None
+
+
+def test_get_mud_risk_analysis_rejects_invalid_coords(fixed_now):
+    service = MudAnalysisService(
+        config=MudAnalysisConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload={})),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        solar_altitude_func=lambda lat, lon, dt: 0.0,
+        now_func=fixed_now,
+    )
+
+    result = service.get_mud_risk_analysis(999, 10.0, "dirt", None)
+
+    assert result["status"] == "Error"
+    assert "lat must be between -90 and 90" in result["message"]
+
+
+def test_get_mud_risk_analysis_rejects_inconsistent_hourly_arrays(fixed_now):
+    payload = {
+        "hourly": {
+            "time": ["2026-06-03T12:00", "2026-06-03T13:00"],
+            "precipitation": [0.0],
+            "temperature_2m": [20.0, 21.0],
+            "wind_speed_10m": [10.0, 10.0],
+            "cloudcover": [0.0, 0.0],
+        }
+    }
+    service = MudAnalysisService(
+        config=MudAnalysisConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload=payload)),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        solar_altitude_func=lambda lat, lon, dt: 0.0,
+        now_func=fixed_now,
+    )
+
+    result = service.get_mud_risk_analysis(45.0, 10.0, "dirt", None)
+
+    assert result["status"] == "Error"
+    assert "Inconsistent hourly weather arrays" in result["message"]
+
+
+def test_get_mud_risk_analysis_rejects_missing_weather_value(fixed_now):
+    payload = {
+        "hourly": {
+            "time": ["2026-06-03T12:00"],
+            "precipitation": [None],
+            "temperature_2m": [20.0],
+            "wind_speed_10m": [10.0],
+            "cloudcover": [0.0],
+        }
+    }
+    service = MudAnalysisService(
+        config=MudAnalysisConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload=payload)),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        solar_altitude_func=lambda lat, lon, dt: 0.0,
+        now_func=fixed_now,
+    )
+
+    result = service.get_mud_risk_analysis(45.0, 10.0, "dirt", None)
+
+    assert result["status"] == "Error"
+    assert "Missing weather value" in result["message"]
 
 
 def test_get_mud_risk_analysis_handles_request_failure(fixed_now):
@@ -359,31 +422,19 @@ def test_get_mud_risk_analysis_handles_request_failure(fixed_now):
     assert "network down" in result["message"]
 
 
-def test_get_mud_risk_analysis_uses_surface_fallback_and_coerced_coords(fixed_now):
-    payload = {
-        "hourly": {
-            "time": ["2026-06-03T12:00"],
-            "precipitation": [0.0],
-            "temperature_2m": [20.0],
-            "wind_speed_10m": [10.0],
-            "cloudcover": [0.0],
-        }
-    }
-    session = FakeSession(response=FakeResponse(payload=payload))
+def test_get_mud_risk_analysis_invalid_coords_do_not_fallback_to_null_island(fixed_now):
     service = MudAnalysisService(
         config=MudAnalysisConfig(),
-        requests_session=session,
+        requests_session=FakeSession(response=FakeResponse(payload={})),
         timezone_finder=FakeTimezoneFinder("UTC"),
         solar_altitude_func=lambda lat, lon, dt: 25.0,
         now_func=fixed_now,
     )
 
-    result = service.get_mud_risk_analysis(
-        cast(Any, "bad"), cast(Any, "bad"), cast(Any, None), None
-    )
+    result = service.get_mud_risk_analysis(cast(Any, "bad"), cast(Any, "bad"), "dirt", None)
 
-    assert result["status"] == "Success"
-    assert result["tactical_analysis"]["surface_type"] == "dirt"
+    assert result["status"] == "Error"
+    assert "lat and lon must be valid numbers" in result["message"]
 
 
 def test_module_level_wrapper(monkeypatch):

@@ -31,6 +31,12 @@ from timezonefinder import TimezoneFinder
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
+MODEL_BASIS = (
+    "TAEL heuristic reservoir model (exponential decay, seasonal bias, PET-like "
+    "drying). Coefficients are not empirically calibrated; no soil/DEM/slope data."
+)
+MODEL_CONFIDENCE = "low"
+
 # Display categories from the surface analyzer are mapped to TAEL soil keys.
 MUD_SURFACE_ALIASES = {
     "asphalt": "asphalt",
@@ -68,6 +74,10 @@ class MudAnalysisConfig:
     model_name: str = "TAEL® v3.2"
 
 
+class MudAnalysisError(ValueError):
+    """Raised when mud analysis cannot produce a safe assessment."""
+
+
 class MudAnalysisService:
     def __init__(
         self,
@@ -83,6 +93,17 @@ class MudAnalysisService:
         self.solar_altitude_func = solar_altitude_func or get_solar_altitude
         self.now_func = now_func or (lambda tz: datetime.now(tz))
 
+    @staticmethod
+    def _validate_coords(lat: Any, lon: Any) -> tuple[float, float]:
+        try:
+            lat_f = float(lat)
+            lon_f = float(lon)
+        except (TypeError, ValueError) as exc:
+            raise MudAnalysisError("lat and lon must be valid numbers.") from exc
+        if not (-90.0 <= lat_f <= 90.0 and -180.0 <= lon_f <= 180.0):
+            raise MudAnalysisError("lat must be between -90 and 90 and lon between -180 and 180.")
+        return lat_f, lon_f
+
     def get_mud_risk_analysis(
         self,
         lat: float,
@@ -91,8 +112,7 @@ class MudAnalysisService:
         target_date: str | None = None,
     ) -> dict[str, Any]:
         try:
-            lat = self._coerce_float(lat, 0.0)
-            lon = self._coerce_float(lon, 0.0)
+            lat, lon = self._validate_coords(lat, lon)
             normalized_surface_type = self._normalize_surface_type(surface_type)
 
             tz_name = self._resolve_timezone_name(lat, lon)
@@ -119,8 +139,14 @@ class MudAnalysisService:
             winds = data.get("wind_speed_10m", [])
             clouds = data.get("cloudcover", [])
 
-            if not times:
-                raise ValueError("No hourly weather data returned from API.")
+            required = [times, precips, temps, winds, clouds]
+            if not times or any(len(series) == 0 for series in required):
+                raise MudAnalysisError(
+                    "No hourly weather data returned from provider for mud assessment."
+                )
+            lengths = {len(series) for series in required}
+            if len(lengths) != 1:
+                raise MudAnalysisError("Inconsistent hourly weather arrays returned from provider.")
 
             base_k = self._base_drainage_coefficient(normalized_surface_type)
 
@@ -135,6 +161,10 @@ class MudAnalysisService:
             ):
                 if current_dt < start_date or current_dt > end_date:
                     continue
+                if rain is None or temp is None or wind is None or cloud is None:
+                    raise MudAnalysisError(
+                        "Missing weather value in provider data; cannot assess mud risk safely."
+                    )
 
                 total_raw_rain += rain
                 time_diff = (end_date - current_dt).total_seconds()
@@ -184,6 +214,8 @@ class MudAnalysisService:
                     "timezone": tz_name,
                     "is_predictive": is_predictive,
                     "model": self.config.model_name,
+                    "model_confidence": MODEL_CONFIDENCE,
+                    "model_basis": MODEL_BASIS,
                 },
                 "environmental_context": {
                     "total_rain_72h_mm": round(total_raw_rain, 1),
@@ -200,10 +232,22 @@ class MudAnalysisService:
                 },
             }
 
+        except MudAnalysisError as e:
+            return {
+                "status": "Error",
+                "message": str(e),
+                "tactical_analysis": None,
+            }
+        except requests.exceptions.RequestException as e:
+            return {
+                "status": "Error",
+                "message": f"Mud weather provider error: {e}. Retry later or verify coordinates/date.",
+                "tactical_analysis": None,
+            }
         except Exception as e:
             return {
                 "status": "Error",
-                "message": f"Tactical Planner failure: {str(e)}",
+                "message": f"Unexpected mud analysis error: {e}",
                 "tactical_analysis": None,
             }
 
@@ -260,10 +304,10 @@ class MudAnalysisService:
         max_len = min(len(times), len(precips), len(temps), len(winds), len(clouds))
         for i in range(max_len):
             current_dt = datetime.fromisoformat(times[i]).replace(tzinfo=local_tz)
-            rain = float(precips[i] or 0.0)
-            temp = float(temps[i] or 0.0)
-            wind = float(winds[i] or 0.0)
-            cloud = float(clouds[i] or 0.0)
+            rain = None if precips[i] is None else float(precips[i])
+            temp = None if temps[i] is None else float(temps[i])
+            wind = None if winds[i] is None else float(winds[i])
+            cloud = None if clouds[i] is None else float(clouds[i])
             yield current_dt, rain, temp, wind, cloud
 
     @staticmethod

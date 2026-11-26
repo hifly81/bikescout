@@ -23,6 +23,7 @@ from bikescout.schemas import TireSetupRecommendation
 from bikescout.tools.bike_setup import (
     BikeSetupConfig,
     BikeSetupService,
+    BikeSetupValidationError,
     analyze_compatibility,
     get_tire_setup,
 )
@@ -235,19 +236,18 @@ def test_analyze_compatibility_sorts_breakdown_desc(service, surface_map):
     assert [entry["type"] for entry in breakdown] == ["Asphalt", "Gravel", "Grass"]
 
 
-def test_analyze_compatibility_invalid_tire_width_falls_back_to_25(service, surface_map):
+def test_analyze_compatibility_invalid_tire_width_raises(service, surface_map):
     extras = {"surface": {"summary": [{"value": "gravel_code", "amount": 20.0}]}}
 
-    _, warnings, is_compatible = service.analyze_compatibility(
-        bike_type="road", tire_mm="bad", extras=extras, surface_map=surface_map
-    )
-
-    assert is_compatible is False
-    assert any("25mm tires are unsafe" in warning for warning in warnings)
+    with pytest.raises(BikeSetupValidationError, match="tire_width_mm must be an integer"):
+        service.analyze_compatibility(
+            bike_type="road", tire_mm="bad", extras=extras, surface_map=surface_map
+        )
 
 
-def test_analyze_compatibility_handles_empty_inputs(service):
-    assert service.analyze_compatibility(None, 28, {}, {}) == ([], [], True)
+def test_analyze_compatibility_missing_bike_type_raises(service):
+    with pytest.raises(BikeSetupValidationError, match="bike_type is required"):
+        service.analyze_compatibility(None, 28, {}, {})
 
 
 def test_analyze_compatibility_rim_width_mismatch_is_warning_only(service, surface_map):
@@ -277,21 +277,15 @@ def test_analyze_compatibility_accepts_valid_rim_width(service, surface_map):
     assert not any("Rim-Width Mismatch" in warning for warning in warnings)
 
 
-def test_get_tire_setup_for_unknown_bike_type_defaults_to_road(service):
-    setup = service.get_tire_setup(
-        bike_type="unknown",
-        tire_size_option="weird",
-        mud_index=0.0,
-        surface_type="mixed",
-        rider_weight_kg=80.0,
-    )
-
-    assert isinstance(setup, TireSetupRecommendation)
-    assert setup.tire_width_mm == 25
-    assert setup.wheel_label == "700c"
-    assert setup.strategy == "Standard"
-    assert setup.psi_rear > setup.psi_front
-    assert "F:" in setup.tactical_display and "R:" in setup.tactical_display
+def test_get_tire_setup_unknown_bike_type_raises(service):
+    with pytest.raises(BikeSetupValidationError, match="Unsupported bike_type"):
+        service.get_tire_setup(
+            bike_type="unknown",
+            tire_size_option="weird",
+            mud_index=0.0,
+            surface_type="mixed",
+            rider_weight_kg=80.0,
+        )
 
 
 @pytest.mark.parametrize(
@@ -354,11 +348,9 @@ def test_get_tire_setup_weight_scaling_is_non_linear(service):
     assert baseline.psi_rear - light.psi_rear > 15.0
 
 
-def test_get_tire_setup_invalid_weight_falls_back_to_default(service):
-    setup = service.get_tire_setup("road", "700c", rider_weight_kg="bad")
-
-    assert setup.psi_rear == 84.1
-    assert setup.psi_front == 74.5
+def test_get_tire_setup_invalid_weight_raises(service):
+    with pytest.raises(BikeSetupValidationError, match="rider_weight_kg must be a number"):
+        service.get_tire_setup("road", "700c", rider_weight_kg="bad")
 
 
 def test_get_tire_setup_invalid_mud_index_falls_back_to_zero(service):
@@ -500,6 +492,43 @@ def test_get_tire_setup_rim_width_mismatch_warning(service):
     assert any("Rim-Width Mismatch" in warning for warning in setup.warnings)
 
 
+def test_get_tire_setup_invalid_inputs_raise(service):
+    with pytest.raises(BikeSetupValidationError, match="tire_width_mm must be between 18 and 75"):
+        service.get_tire_setup("mtb", "29", tire_width_mm=10)
+    with pytest.raises(
+        BikeSetupValidationError, match="rim_internal_width_mm must be between 10 and 45"
+    ):
+        service.get_tire_setup("mtb", "29", rim_internal_width_mm=9)
+    with pytest.raises(
+        BikeSetupValidationError, match="rider_weight_kg must be between 30 and 200"
+    ):
+        service.get_tire_setup("mtb", "29", rider_weight_kg=10)
+    with pytest.raises(BikeSetupValidationError, match="Unsupported casing_type"):
+        service.get_tire_setup("mtb", "29", casing_type="carbon")
+
+
+def test_get_tire_setup_reports_model_confidence(service):
+    setup = service.get_tire_setup("gravel", "700c", rider_weight_kg=85.0)
+
+    assert setup.confidence == "low"
+    assert "not calibrated" in (setup.model_basis or "").lower()
+
+
+def test_get_tire_setup_rounds_to_half_psi(service):
+    setup = service.get_tire_setup("mtb", "29", rider_weight_kg=83.0, tire_width_mm=57)
+
+    assert setup.psi_front * 2 == round(setup.psi_front * 2)
+    assert setup.psi_rear * 2 == round(setup.psi_rear * 2)
+
+
+def test_get_tire_setup_wheel_diameter_affects_pressure(service):
+    setup_29 = service.get_tire_setup("mtb", "29", rider_weight_kg=85.0, tire_width_mm=55)
+    setup_275 = service.get_tire_setup("mtb", "27.5", rider_weight_kg=85.0, tire_width_mm=55)
+
+    assert setup_275.psi_front > setup_29.psi_front
+    assert setup_275.psi_rear > setup_29.psi_rear
+
+
 def test_module_level_analyze_compatibility_wrapper(monkeypatch):
     class FakeService:
         def analyze_compatibility(self, **kwargs):
@@ -526,6 +555,8 @@ def test_module_level_get_tire_setup_wrapper(monkeypatch):
         strategy="Standard",
         load_split={"front": 0.45, "rear": 0.55},
         knob_choice="All-Terrain / Trail",
+        confidence="low",
+        model_basis="Heuristic model",
         tactical_display="700c wheels | F: 32.9 PSI | R: 37.1 PSI",
     )
 

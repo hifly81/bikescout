@@ -22,7 +22,11 @@ from typing import Any
 import requests
 
 from bikescout.tools.battery import calculate_battery_drain
-from bikescout.tools.bike_setup import analyze_compatibility, get_tire_setup
+from bikescout.tools.bike_setup import (
+    BikeSetupValidationError,
+    analyze_compatibility,
+    get_tire_setup,
+)
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.terrain import analyze_terrain_profile, segment_distances_m
 
@@ -169,34 +173,37 @@ class SurfaceAnalyzerService:
                 }
                 dominant_surface = _extract_dominant_surface(extras.get("surface", {}), surface_map)
 
-                breakdown, warnings, compatible = self.compatibility_analyzer(
-                    bike.bike_type,
-                    bike.tire_width_mm,
-                    extras,
-                    surface_map,
-                    getattr(bike, "rim_internal_width_mm", None),
-                )
+                try:
+                    breakdown, warnings, compatible = self.compatibility_analyzer(
+                        bike.bike_type,
+                        bike.tire_width_mm,
+                        extras,
+                        surface_map,
+                        getattr(bike, "rim_internal_width_mm", None),
+                    )
 
-                mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
-                t_analysis = mud_analysis.get("tactical_analysis") or {}
-                raw_mud = t_analysis.get("mud_risk_numeric")
-                mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
-                mud_index = _normalize_mud_index(mud_score_val)
+                    mud_analysis = self.mud_analyzer(lat, lon, dominant_surface, target_date)
+                    t_analysis = mud_analysis.get("tactical_analysis") or {}
+                    raw_mud = t_analysis.get("mud_risk_numeric")
+                    mud_score_val = float(raw_mud) if raw_mud is not None else 0.0
+                    mud_index = _normalize_mud_index(mud_score_val)
 
-                tire_display = self.tire_setup_getter(
-                    bike_type=bike.bike_type,
-                    tire_size_option=bike.tire_size,
-                    mud_index=mud_index,
-                    surface_type=dominant_surface,
-                    rider_weight_kg=rider.weight_kg,
-                    tire_width_mm=getattr(bike, "tire_width_mm", None),
-                    rim_internal_width_mm=getattr(bike, "rim_internal_width_mm", None),
-                    casing_type=getattr(bike, "casing_type", "trail"),
-                    tubeless=getattr(bike, "tubeless", True),
-                    technical_difficulty=terrain.get("technical_difficulty"),
-                    ascent_m=clean_ascent,
-                    surface_analysis=breakdown,
-                )
+                    tire_display = self.tire_setup_getter(
+                        bike_type=bike.bike_type,
+                        tire_size_option=bike.tire_size,
+                        mud_index=mud_index,
+                        surface_type=dominant_surface,
+                        rider_weight_kg=rider.weight_kg,
+                        tire_width_mm=getattr(bike, "tire_width_mm", None),
+                        rim_internal_width_mm=getattr(bike, "rim_internal_width_mm", None),
+                        casing_type=getattr(bike, "casing_type", "trail"),
+                        tubeless=getattr(bike, "tubeless", True),
+                        technical_difficulty=terrain.get("technical_difficulty"),
+                        ascent_m=clean_ascent,
+                        surface_analysis=breakdown,
+                    )
+                except BikeSetupValidationError as exc:
+                    return {"status": "Error", "message": f"Bike setup validation error: {exc}"}
 
                 climb_cat = terrain["climb_category"]
                 avg_grad = terrain["avg_climb_gradient"]

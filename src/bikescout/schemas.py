@@ -381,6 +381,14 @@ class TireSetupRecommendation(BaseModel):
     warnings: list[str] = Field(
         default_factory=list, description="Setup-specific warnings (e.g. pinch-flat risk)"
     )
+    confidence: str | None = Field(
+        None,
+        description="Confidence in the recommendation: low for heuristic, uncalibrated models",
+    )
+    model_basis: str | None = Field(
+        None,
+        description="Short description of the model and its calibration status",
+    )
     tactical_display: str = Field(
         ..., description="Human-readable tactical string with differential pressures"
     )

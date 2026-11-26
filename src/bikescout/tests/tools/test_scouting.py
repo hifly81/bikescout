@@ -1152,6 +1152,8 @@ def test_get_complete_trail_scout_does_not_fetch_second_route_for_surface():
             strategy="Standard",
             load_split={"front": 0.45, "rear": 0.55},
             knob_choice="All-Terrain / Trail",
+            confidence="low",
+            model_basis="Heuristic model",
             tactical_display="700c wheels | F: 32.9 PSI | R: 37.1 PSI",
         ),
         battery_drain_calculator=lambda **kwargs: {},

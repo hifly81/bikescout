@@ -98,6 +98,8 @@ class TestNormalizeTireSetup:
             bar_rear=1.75,
             strategy="Compliance",
             load_split={"front": 0.4, "rear": 0.6},
+            confidence="low",
+            model_basis="Heuristic model",
             tactical_display='29" wheels | F: 19.9 PSI | R: 25.4 PSI',
         )
 

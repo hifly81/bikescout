@@ -605,16 +605,18 @@
                         <tr><td><code>knob_choice</code></td><td><code>string</code></td><td>-</td><td>Suggested tread pattern: <code>Mud Spikes</code>, <code>Semi-Slick</code>, or <code>All-Terrain / Trail</code>.</td></tr>
                         <tr><td><code>advice</code></td><td><code>list[string]</code></td><td><code>[]</code></td><td>Actionable equipment advice, including inserts and tubeless conversion for S3+ terrain.</td></tr>
                         <tr><td><code>warnings</code></td><td><code>list[string]</code></td><td><code>[]</code></td><td>Setup-specific warnings such as pinch-flat risk or rim-width mismatch.</td></tr>
-                        <tr><td><code>tactical_display</code></td><td><code>string</code></td><td>-</td><td>Human-readable ASI string with differential pressures, for example <code>F: 19.9 PSI | R: 25.4 PSI (1.37/1.75 Bar)</code>.</td></tr>
+                        <tr><td><code>confidence</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Confidence in the recommendation: <code>low</code> for the current heuristic, uncalibrated model.</td></tr>
+                        <tr><td><code>model_basis</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Short description of the model and its calibration status.</td></tr>
+                        <tr><td><code>tactical_display</code></td><td><code>string</code></td><td>-</td><td>Human-readable string with differential pressures, for example <code>F: 20.0 PSI | R: 25.5 PSI (1.38/1.76 bar)</code>.</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50 mb-6">
                     <p class="text-sm text-slate-300 leading-relaxed">
-                        <strong class="text-emerald-400">Pressure model:</strong> reference pressure is scaled by total system mass (rider + bike) with a 1.25 exponent,
-                        tire width squared, rim internal width to the 0.5 power, casing stiffness and tube factor, then split across the wheels with a 0.6 load exponent.
-                        Rocky or stony surfaces, S3+ technical grades, ascent of 800m or more, and the normalized mud index select the grip strategy.
-                        S3+ terrain recommends tire inserts and tubeless conversion; low-pressure rocky setups raise the floor and add a pinch-flat warning.
+                        <strong class="text-emerald-400">Pressure model:</strong> heuristic pneumatic volume/load model, <strong>not empirically calibrated</strong>.
+                        Reference pressure is scaled by total system mass (rider + bike) with a 1.25 exponent, tire width squared, wheel bead-seat diameter,
+                        rim internal width to the 0.5 power, casing stiffness and tube factor, then split across wheels with a 0.6 load exponent.
+                        Output is rounded to 0.5 PSI for actionability. Invalid inputs return an explicit Error instead of silently defaulting to unsafe values.
                     </p>
                 </div>
 

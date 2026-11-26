@@ -1443,6 +1443,13 @@ def render_route_results(res_data: dict) -> None:
 
                 if setup.get("knob_choice"):
                     st.caption(f"Tread choice: **{setup['knob_choice']}**")
+                confidence = setup.get("confidence")
+                model_basis = setup.get("model_basis")
+                if confidence or model_basis:
+                    st.caption(
+                        f"Model: **{confidence or 'N/A'}** confidence"
+                        + (f" — {model_basis}" if model_basis else "")
+                    )
 
                 advice = [str(item) for item in (setup.get("advice") or [])]
                 if advice:

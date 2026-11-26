@@ -681,7 +681,7 @@ def test_generate_pdf_report_flat_long_day(tmp_path, monkeypatch):
     assert Path(result).exists()
 
 
-def test_generate_pdf_report_cleans_matching_climb_files(tmp_path, monkeypatch):
+def test_generate_pdf_report_does_not_delete_unrelated_climb_files(tmp_path, monkeypatch):
     plot_path = tmp_path / "plot.png"
     plot_path.write_bytes(b"fakepng")
 
@@ -691,6 +691,7 @@ def test_generate_pdf_report_cleans_matching_climb_files(tmp_path, monkeypatch):
     climb_file.write_bytes(b"x")
 
     monkeypatch.setattr(analysis_module.os.path, "expanduser", lambda _: str(tmp_path))
+    monkeypatch.setattr(analysis_module.Path, "home", lambda: tmp_path)
     monkeypatch.setattr(
         analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "abcdef123456"})()
     )
@@ -740,4 +741,4 @@ def test_generate_pdf_report_cleans_matching_climb_files(tmp_path, monkeypatch):
     result = analysis_module._generate_pdf_report(data, str(plot_path))
 
     assert Path(result).exists()
-    assert not climb_file.exists()
+    assert climb_file.exists()

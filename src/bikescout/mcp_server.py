@@ -714,9 +714,10 @@ def analyze_gpx_track(
     report: bool = False,
 ) -> GpxRaceAuditResponse:
     """
-    Performs a high-fidelity professional audit of a GPX race track.
-    Calculates UCI climb categories, VAM, W/kg requirements, and crosswind (echelon) risks.
-    Integrates predictive weather, mud risk, and nutrition planning.
+    Performs a high-fidelity audit of a GPX race track.
+    Estimates climb categories (BikeScout heuristic, not official UCI race classification),
+    VAM, W/kg requirements, and crosswind (echelon) risks. Integrates weather, mud risk,
+    and nutrition planning.
 
     Args:
         gpx_url: Remote URL or local path of the GPX file to analyze.
@@ -735,15 +736,16 @@ def analyze_gpx_track(
         target_date: Optional race date (YYYY-MM-DD). If provided, fetches historical or forecast weather.
         start_hour: Expected start time (0-23). If provided with end_hour, calculates window-averaged metrics.
         end_hour: Expected finish time (0-23). Used to average weather conditions during the event.
-        report: True or False, generate a pdf report with the analysis.
+        report: True or False, generate a PDF race book.
     Returns:
         A GpxRaceAuditResponse object containing:
         - track_metrics: Core distance and elevation data.
-        - planning_tools: Predictive weather, nutrition strategy, and mud risk analysis.
-        - climb_analysis: Detailed UCI categorization of all climbs.
+        - planning_tools: Weather, nutrition strategy, mud risk, and weather basis metadata.
+        - climb_analysis: Detailed climb categorization (BikeScout heuristic).
         - performance_simulation: Estimated times, VAM, and W/kg per sector.
         - tactical_alerts: Positioning warnings, echelon risks, and attack points.
-        - report_path: Local URI to the generated PDF document (if requested).
+        - report_path: Local filesystem path to the generated PDF document (if requested).
+        - mcp_resource_uri_report: MCP resource URI for the generated PDF document (if requested).
     """
 
     try:
@@ -793,6 +795,14 @@ def serve_gpx(filename: str) -> bytes:
     file_path = Path.home() / ".bikescout" / "gpx" / filename
     if not file_path.exists():
         raise FileNotFoundError("GPX not found.")
+    return file_path.read_bytes()
+
+
+@mcp.resource("bikescout://race/{filename}")
+def serve_race_report(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "race" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("Race report not found.")
     return file_path.read_bytes()
 
 

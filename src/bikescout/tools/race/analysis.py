@@ -23,10 +23,11 @@ import traceback
 import uuid
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import gpxpy
-import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import requests
 from fpdf import FPDF
@@ -35,6 +36,9 @@ from geopy.distance import geodesic
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.nutrition import get_nutrition_plan
 from bikescout.tools.weather import apply_weather_windowing, get_weather_forecast
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
 
 
 GRAVITY = 9.80665
@@ -46,6 +50,8 @@ CDA_CLIMB = 0.35
 @dataclass(frozen=True)
 class RaceAnalysisConfig:
     gpx_http_timeout_seconds: float = 20.0
+    min_points: int = 10
+    max_points: int = 5000
 
 
 def analyze_track(
@@ -123,14 +129,16 @@ class RaceAnalysisService:
             gpx = gpxpy.parse(content)
 
             points = self._extract_points(gpx)
-            if len(points) < 10:
+            if len(points) < self.config.min_points:
                 return {"status": "Error", "message": "Insufficient data points in GPX."}
+            if len(points) > self.config.max_points:
+                points = self._downsample_points(points, self.config.max_points)
 
             start_lat, start_lon = points[0]["lat"], points[0]["lon"]
             distance_km = round(gpx.length_3d() / 1000, 2)
 
             if distance_km == 0:
-                distance_meters = 0
+                distance_meters = 0.0
                 for i in range(len(points) - 1):
                     distance_meters += geodesic(
                         (points[i]["lat"], points[i]["lon"]),
@@ -140,16 +148,10 @@ class RaceAnalysisService:
 
             _ud = gpx.get_uphill_downhill()
             _native_uphill = getattr(_ud, "uphill", None) if _ud else None
-
             if _native_uphill is not None and _native_uphill > 0:
-                total_ascent = round(_native_uphill, 1)
+                total_ascent = round(float(_native_uphill), 1)
             else:
-                _manual_uphill = sum(
-                    max(0.0, points[i + 1]["ele"] - points[i]["ele"])
-                    for i in range(len(points) - 1)
-                    if points[i].get("ele") is not None and points[i + 1].get("ele") is not None
-                )
-                total_ascent = round(_manual_uphill, 1)
+                total_ascent = round(self._manual_ascent(points), 1)
 
             analysis_segments = _process_segments(points, activity_type)
             uci_climbs = _detect_uci_climbs(analysis_segments)
@@ -159,21 +161,27 @@ class RaceAnalysisService:
             t_date = target_date if target_date else self.date_provider()
 
             weather_data = self.weather_getter(start_lat, start_lon, t_date)
-            ref_temp, ref_wind_speed, ref_wind_dir = 20.0, 10.0, 90
+            ref_temp, ref_wind_speed, ref_wind_dir = 20.0, 10.0, 90.0
+            weather_basis = "default"
 
-            if weather_data.get("status") == "Success":
+            if isinstance(weather_data, dict) and weather_data.get("status") == "Success":
                 weather_data = self.weather_windowing(weather_data, s_hour, e_hour)
                 ref_cond = weather_data.get("reference_conditions", {})
-                ref_temp = ref_cond.get("temp", ref_temp)
-                ref_wind_speed = ref_cond.get("wind_speed", ref_wind_speed)
-                ref_wind_dir = ref_cond.get("wind_dir_degrees", ref_wind_dir)
+                ref_temp = self._safe_float(
+                    ref_cond.get("temp", ref_cond.get("temp_actual")), ref_temp
+                )
+                ref_wind_speed = self._safe_float(ref_cond.get("wind_speed"), ref_wind_speed)
+                ref_wind_dir = self._safe_float(
+                    ref_cond.get("wind_dir_degrees", ref_cond.get("wind_direction")), ref_wind_dir
+                )
+                weather_basis = "weather_forecast"
 
             intensity_score = self._intensity_score(distance_km, total_ascent, pro_intensity)
             duration_hours, _ = _estimate_ride_duration(
                 distance_km, total_ascent, rider_fitness_level, activity_type
             )
 
-            tactical_alerts = []
+            tactical_alerts: list[dict[str, Any]] = []
             mud_risk = None
             if activity_type.lower() == "road":
                 tactical_alerts = _calculate_aero_risks(
@@ -181,7 +189,10 @@ class RaceAnalysisService:
                 )
             else:
                 mapped_surface = "gravel" if "gravel" in activity_type.lower() else "dirt"
-                mud_risk = self.mud_analyzer(start_lat, start_lon, mapped_surface, t_date)
+                try:
+                    mud_risk = self.mud_analyzer(start_lat, start_lon, mapped_surface, t_date)
+                except Exception as exc:  # noqa: BLE001
+                    mud_risk = {"status": "Unavailable", "message": str(exc)}
 
             nutrition_plan = self.nutrition_getter(
                 duration_hours,
@@ -201,25 +212,22 @@ class RaceAnalysisService:
             )
 
             tactical_output = _identify_tactical_zones(analysis_segments, uci_climbs, distance_km)
-            elev_extremes = gpx.get_elevation_extremes()
+            max_altitude = self._max_altitude(points)
 
-            final_json = {
+            final_json: dict[str, Any] = {
                 "status": "Success",
                 "mode": activity_type.upper(),
                 "target_date": t_date,
                 "track_metrics": {
                     "distance_km": distance_km,
                     "total_ascent": total_ascent,
-                    "max_altitude": round(
-                        getattr(elev_extremes, "maximum", None)
-                        or max((p["ele"] for p in points if p.get("ele") is not None), default=0),
-                        1,
-                    ),
+                    "max_altitude": round(max_altitude, 1),
                 },
                 "planning_tools": {
                     "weather_forecast": weather_data,
                     "nutrition_plan": nutrition_plan,
                     "mud_risk": mud_risk,
+                    "weather_basis": weather_basis,
                 },
                 "climb_analysis": uci_climbs,
                 "performance_simulation": performance,
@@ -232,6 +240,7 @@ class RaceAnalysisService:
                 plot_path = self.plot_generator(analysis_segments, t_date)
                 pdf_path = self.pdf_generator(final_json, plot_path)
                 final_json["report_path"] = pdf_path
+                final_json["mcp_resource_uri_report"] = self._report_resource_uri(pdf_path)
 
             return final_json
 
@@ -249,33 +258,107 @@ class RaceAnalysisService:
 
     @staticmethod
     def _extract_points(gpx) -> list[dict[str, Any]]:
-        points = []
+        points: list[dict[str, Any]] = []
         for track in gpx.tracks:
             for segment in track.segments:
                 for p in segment.points:
-                    if p.elevation is not None:
-                        points.append(
-                            {
-                                "lat": p.latitude,
-                                "lon": p.longitude,
-                                "ele": p.elevation,
-                                "time": p.time,
-                            }
-                        )
+                    points.append(RaceAnalysisService._point_dict(p))
 
         for route in gpx.routes:
             for p in route.points:
-                if p.elevation is not None:
-                    points.append(
-                        {
-                            "lat": p.latitude,
-                            "lon": p.longitude,
-                            "ele": p.elevation,
-                            "time": p.time,
-                        }
-                    )
+                points.append(RaceAnalysisService._point_dict(p))
 
+        return RaceAnalysisService._normalize_points(points)
+
+    @staticmethod
+    def _point_dict(p: Any) -> dict[str, Any]:
+        ele = p.elevation
+        try:
+            ele_val = float(ele) if ele is not None else None
+        except (TypeError, ValueError):
+            ele_val = None
+        if ele_val is not None and not math.isfinite(ele_val):
+            ele_val = None
+        return {
+            "lat": float(p.latitude),
+            "lon": float(p.longitude),
+            "ele": ele_val,
+            "time": p.time,
+        }
+
+    @staticmethod
+    def _normalize_points(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not points:
+            return points
+        # Forward/back fill missing elevation; if all missing, set 0.0 and mark assumption.
+        first_ele = next((p["ele"] for p in points if p.get("ele") is not None), None)
+        if first_ele is None:
+            for p in points:
+                p["ele"] = 0.0
+                p["ele_missing"] = True
+            return points
+        last = float(first_ele)
+        for p in points:
+            if p.get("ele") is None:
+                p["ele"] = last
+                p["ele_interpolated"] = True
+            else:
+                last = float(p["ele"])
+        # Back-fill leading None-equivalent already handled; ensure float
+        for p in points:
+            p["ele"] = float(p["ele"])
         return points
+
+    @staticmethod
+    def _downsample_points(points: list[dict[str, Any]], max_points: int) -> list[dict[str, Any]]:
+        if len(points) <= max_points or max_points < 2:
+            return points
+        step = (len(points) - 1) / (max_points - 1)
+        sampled = [points[int(round(i * step))] for i in range(max_points)]
+        sampled[-1] = points[-1]
+        return sampled
+
+    @staticmethod
+    def _manual_ascent(points: list[dict[str, Any]]) -> float:
+        ascent = 0.0
+        for i in range(len(points) - 1):
+            e0 = points[i].get("ele")
+            e1 = points[i + 1].get("ele")
+            if e0 is None or e1 is None:
+                continue
+            delta = float(e1) - float(e0)
+            if math.isfinite(delta) and delta > 0:
+                ascent += delta
+        return ascent
+
+    @staticmethod
+    def _max_altitude(points: list[dict[str, Any]]) -> float:
+        vals = [
+            float(p["ele"])
+            for p in points
+            if p.get("ele") is not None and math.isfinite(float(p["ele"]))
+        ]
+        return max(vals) if vals else 0.0
+
+    @staticmethod
+    def _safe_float(value: Any, default: float) -> float:
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return default
+        return v if math.isfinite(v) else default
+
+    @staticmethod
+    def _report_resource_uri(pdf_path: str | None) -> str | None:
+        if not pdf_path:
+            return None
+        try:
+            path = Path(pdf_path)
+            race_root = Path.home() / ".bikescout" / "race"
+            rel = path.resolve().relative_to(race_root.resolve())
+            return f"bikescout://race/{rel.as_posix()}"
+        except Exception:
+            return None
 
     @staticmethod
     def _intensity_score(distance_km: float, total_ascent: float, pro_intensity: float) -> int:
@@ -316,12 +399,30 @@ def _load_gpx_content(gpx_path: str) -> str:
     return service._load_gpx_content(gpx_path)
 
 
+def _smooth_elevations(elevations: list[float], window: int = 10) -> np.ndarray:
+    """Moving average with edge padding to avoid zero-padding corruption."""
+    arr = np.asarray(elevations, dtype=float)
+    if arr.size == 0:
+        return arr
+    w = max(1, min(window, arr.size))
+    kernel = np.ones(w, dtype=float) / w
+    pad = w // 2
+    padded = np.pad(arr, (pad, pad), mode="edge")
+    smoothed = np.convolve(padded, kernel, mode="valid")
+    # Convolve valid with symmetric edge padding can yield length n+1 for even windows; trim/fit.
+    if smoothed.size > arr.size:
+        smoothed = smoothed[: arr.size]
+    elif smoothed.size < arr.size:
+        smoothed = np.pad(smoothed, (0, arr.size - smoothed.size), mode="edge")
+    return smoothed
+
+
 def _process_segments(points: List[Dict], surface: str) -> List[Dict]:
     dist_filter = 25.0 if surface == "road" else 15.0
     grade_cap = 25.0 if surface == "road" else 35.0
 
-    elevations = [p["ele"] for p in points]
-    smoothed_ele = np.convolve(elevations, np.ones(10) / 10, mode="same")
+    elevations = [float(p.get("ele", 0.0) or 0.0) for p in points]
+    smoothed_ele = _smooth_elevations(elevations, window=10)
 
     segments = []
     accum_d, total_elapsed, start_idx = 0.0, 0.0, 0
@@ -333,7 +434,10 @@ def _process_segments(points: List[Dict], surface: str) -> List[Dict]:
         total_elapsed += d
 
         if accum_d >= dist_filter:
-            grade = ((smoothed_ele[i + 1] - smoothed_ele[start_idx]) / accum_d) * 100
+            elev_delta = float(smoothed_ele[i + 1] - smoothed_ele[start_idx])
+            grade = (elev_delta / accum_d) * 100 if accum_d > 0 else 0.0
+            if not math.isfinite(grade):
+                grade = 0.0
 
             if total_elapsed < 500:
                 grade = max(min(grade, 8.0), -8.0)
@@ -355,8 +459,8 @@ def _process_segments(points: List[Dict], surface: str) -> List[Dict]:
                     "dist": accum_d,
                     "grade": grade,
                     "bearing": bearing,
-                    "ele_start": smoothed_ele[start_idx],
-                    "ele_end": smoothed_ele[i + 1],
+                    "ele_start": float(smoothed_ele[start_idx]),
+                    "ele_end": float(smoothed_ele[i + 1]),
                 }
             )
             start_idx, accum_d = i + 1, 0.0
@@ -419,6 +523,7 @@ def _finalize_climb_data(current_climb, all_segments, climbs_list):
                 "gain_m": round(total_gain, 1),
                 "avg_grade": round(avg_grade, 1),
                 "category": category,
+                "category_system": "bikescout_heuristic",
             }
         )
 
@@ -535,63 +640,69 @@ def _calculate_performance(climbs, rider_w, bike_w, intensity, temp, wind_speed)
 
 def _calculate_aero_risks(segments, wind_dir, wind_speed) -> List[Dict]:
     alerts = []
-    if wind_speed < 18:
+    try:
+        wind_speed_f = float(wind_speed)
+        wind_dir_f = float(wind_dir)
+    except (TypeError, ValueError):
+        return []
+    if not math.isfinite(wind_speed_f) or not math.isfinite(wind_dir_f) or wind_speed_f < 18:
         return []
     for i in range(0, len(segments), 45):
         s = segments[i]
-        rel_angle = abs(s["bearing"] - wind_dir) % 360
+        rel_angle = abs(float(s.get("bearing", 0.0)) - wind_dir_f) % 360
         if rel_angle > 180:
             rel_angle = 360 - rel_angle
 
         if 60 < rel_angle < 120:
-            dist_at = sum(x["dist"] for x in segments[:i]) / 1000
+            dist_at = sum(float(x.get("dist", 0.0)) for x in segments[:i]) / 1000
             alerts.append(
                 {
                     "km": round(dist_at, 1),
                     "type": "ECHELON RISK",
-                    "detail": f"{round(wind_speed, 1)}km/h Crosswind",
+                    "detail": f"{round(wind_speed_f, 1)}km/h Crosswind",
                 }
             )
     return alerts[:4]
 
 
 def _generate_elevation_plot(segments: List[Dict], target_date: str) -> str:
-    x_dist = []
-    y_ele = []
+    x_dist: list[float] = []
+    y_ele: list[float] = []
     curr_dist = 0.0
 
     for s in segments:
-        curr_dist += s["dist"] / 1000
+        curr_dist += float(s.get("dist", 0.0)) / 1000
         x_dist.append(curr_dist)
-        y_ele.append(s["ele_end"])
+        y_ele.append(float(s.get("ele_end", 0.0)))
 
-    plt.figure(figsize=(10, 3.5))
-    plt.fill_between(x_dist, y_ele, color="steelblue", alpha=0.3)
-    plt.plot(x_dist, y_ele, color="midnightblue", linewidth=1.5)
+    save_dir = Path.home() / ".bikescout" / "race"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    unique_id = uuid.uuid4().hex[:8]
+    file_path = save_dir / f"profile_{target_date}_{unique_id}.png"
 
-    plt.title("Stage Elevation Profile", fontsize=12, fontweight="bold")
-    plt.xlabel("Distance (km)", fontsize=10)
-    plt.ylabel("Elevation (m)", fontsize=10)
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
+    fig, ax = plt.subplots(figsize=(10, 3.5))
+    try:
+        ax.fill_between(x_dist, y_ele, color="steelblue", alpha=0.3)
+        ax.plot(x_dist, y_ele, color="midnightblue", linewidth=1.5)
+        ax.set_title("Stage Elevation Profile", fontsize=12, fontweight="bold")
+        ax.set_xlabel("Distance (km)", fontsize=10)
+        ax.set_ylabel("Elevation (m)", fontsize=10)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        fig.tight_layout()
+        fig.savefig(file_path, dpi=150)
+    finally:
+        plt.close(fig)
 
-    save_dir = os.path.join(os.path.expanduser("~"), ".bikescout", "race")
-    os.makedirs(save_dir, exist_ok=True)
-    file_path = os.path.join(save_dir, f"profile_{target_date}.png")
-
-    plt.savefig(file_path, dpi=150)
-    plt.close()
-
-    return file_path
+    return str(file_path)
 
 
 def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
-    report_dir = os.path.join(os.path.expanduser("~"), ".bikescout", "race")
-    os.makedirs(report_dir, exist_ok=True)
+    report_dir = Path.home() / ".bikescout" / "race"
+    report_dir.mkdir(parents=True, exist_ok=True)
 
     unique_id = uuid.uuid4().hex[:6]
     target_date = data.get("target_date", "unknown")
-    file_path = os.path.join(report_dir, f"race_report_{target_date}_{unique_id}.pdf")
+    file_path = report_dir / f"race_report_{target_date}_{unique_id}.pdf"
 
     class BikeScoutPDF(FPDF):
         def footer(self):
@@ -721,16 +832,9 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
             ln=True,
         )
 
-    pdf.output(file_path)
-
-    for f in os.listdir(report_dir):
-        if f.startswith("climb_") and f.endswith(f"_{unique_id}.png"):
-            try:
-                os.remove(os.path.join(report_dir, f))
-            except OSError:
-                pass
-
-    return file_path
+    pdf.output(str(file_path))
+    # No orphan climb_*.png generated in this module; avoid deleting unrelated files.
+    return str(file_path)
 
 
 service = RaceAnalysisService()

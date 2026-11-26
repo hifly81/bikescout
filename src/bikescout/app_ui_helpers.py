@@ -325,15 +325,25 @@ def inject_component_styles() -> None:
             margin-bottom: 10px;
         }
 
-        .bs-section h3 {
+        .bs-section h2 {
             margin: 0 0 8px 0 !important;
-            font-size: 1.12rem !important;
+            font-size: 1.25rem !important;
             font-weight: 800 !important;
+            line-height: 1.2 !important;
         }
 
         .bs-section p {
             color: #aeb8d0 !important;
             margin: 0 !important;
+            font-size: 0.95rem !important;
+        }
+
+        /* Align form fields in multi-column guided forms */
+        div[data-testid="stForm"] [data-testid="stHorizontalBlock"] {
+            align-items: flex-end;
+        }
+        div[data-testid="stForm"] [data-testid="stHorizontalBlock"] > div {
+            min-width: 0;
         }
 
         .bs-metric-card {
@@ -768,8 +778,8 @@ def section_intro(title: str, subtitle: str = "") -> None:
     st.markdown(
         f"""
         <div class="bs-section">
-            <h3>{title}</h3>
-            <p>{subtitle}</p>
+            <h2>{html.escape(title)}</h2>
+            <p>{html.escape(subtitle)}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -919,7 +929,7 @@ def render_rider_profile_fields() -> None:
     if current_gender not in gender_options:
         current_gender = "male"
 
-    st.markdown("#### Rider profile")
+    st.markdown("### Rider profile")
     st.caption("Defaults for guided planning. In chat, state your details in the message.")
     rider_col, weight_col, gender_col, sweat_col = st.columns(4)
     with rider_col:

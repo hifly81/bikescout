@@ -569,7 +569,11 @@ class ClimbMetrics(BaseModel):
     dist_km: float = Field(..., description="Length of the climbing sector")
     gain_m: float = Field(..., description="Total vertical ascent of the climb")
     avg_grade: float = Field(..., description="Average gradient percentage")
-    category: str = Field(..., description="UCI classification (Cat 4 to HC)")
+    category: str = Field(..., description="BikeScout heuristic climb category (HC/Cat 1-4)")
+    category_system: str | None = Field(
+        "bikescout_heuristic",
+        description="Classification system used for category; not official UCI race categorization.",
+    )
 
 
 class PerformanceSim(BaseModel):
@@ -944,5 +948,8 @@ class GpxRaceAuditResponse(BaseModel):
         ..., description="Key points for attacks or technical caution"
     )
     report_path: str | None = Field(
-        None, description="Path to the generated PDF race book, if requested"
+        None, description="Local filesystem path to the generated PDF race book, if requested"
+    )
+    mcp_resource_uri_report: str | None = Field(
+        None, description="MCP resource URI for the generated PDF race book, if requested"
     )

@@ -984,7 +984,8 @@
                         <tr><td><code>dist_km</code></td><td><code>float</code></td><td>-</td><td>Total length of the specific climbing sector in kilometers.</td></tr>
                         <tr><td><code>gain_m</code></td><td><code>float</code></td><td>-</td><td>Total vertical ascent (D+) of the climb in meters.</td></tr>
                         <tr><td><code>avg_grade</code></td><td><code>float</code></td><td>-</td><td>Average gradient percentage for the entire duration of the sector.</td></tr>
-                        <tr><td><code>category</code></td><td><code>string</code></td><td>-</td><td>UCI standard classification (e.g., 'Cat 4', 'Cat 1', 'HC').</td></tr>
+                        <tr><td><code>category</code></td><td><code>string</code></td><td>-</td><td>BikeScout heuristic climb category (e.g., 'Cat 4', 'Cat 1', 'HC'). Not an official UCI race classification.</td></tr>
+                        <tr><td><code>category_system</code></td><td><code>string | null</code></td><td><code>"bikescout_heuristic"</code></td><td>Classification system used for the category.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1361,12 +1362,13 @@
                         <tr><td><code>target_date</code></td><td><code>string</code></td><td>-</td><td>Date used for synchronizing weather, wind, and mud impact models.</td></tr>
                         <tr><td><code>track_metrics</code></td><td><code>dict</code></td><td>-</td><td>Dictionary of core track data: distance, total ascent, and peak altitude.</td></tr>
                         <tr><td><code>planning_tools</code></td><td><code>object</code></td><td>-</td><td>Container for weather snapshots, nutrition strategy, and mud risk analysis.</td></tr>
-                        <tr><td><code>climb_analysis</code></td><td><code>list[ClimbMetrics]</code></td><td>-</td><td>List of all detected climbing sectors with UCI categorization.</td></tr>
+                        <tr><td><code>climb_analysis</code></td><td><code>list[ClimbMetrics]</code></td><td>-</td><td>List of all detected climbing sectors with BikeScout heuristic categorization (not official UCI race classification).</td></tr>
                         <tr><td><code>performance_simulation</code></td><td><code>list[PerformanceSim]</code></td><td>-</td><td>Climb-by-climb power, VAM, and timing estimates.</td></tr>
                         <tr><td><code>tactical_alerts</code></td><td><code>list[dict]</code></td><td>-</td><td>Specific alerts for race dynamics (e.g., 'ECHELON RISK', 'HEADWIND SECTOR').</td></tr>
                         <tr><td><code>pre_climb_positioning</code></td><td><code>list[dict]</code></td><td>-</td><td>Strategic points where the rider should optimize pack position.</td></tr>
                         <tr><td><code>tactical_action_zones</code></td><td><code>list[TacticalActionZone]</code></td><td>-</td><td>Key points designated for potential attacks or extreme technical caution.</td></tr>
-                        <tr><td><code>report_path</code></td><td><code>string</code></td><td><code>null</code></td><td>File path to the generated high-fidelity PDF race book/roadbook.</td></tr>
+                        <tr><td><code>report_path</code></td><td><code>string</code></td><td><code>null</code></td><td>Local filesystem path to the generated PDF race book/roadbook, if requested.</td></tr>
+                        <tr><td><code>mcp_resource_uri_report</code></td><td><code>string</code></td><td><code>null</code></td><td>MCP resource URI for the generated PDF race book/roadbook (<code>bikescout://race/{filename}</code>), if requested.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2334,11 +2336,11 @@
                     <ul class="space-y-2 text-sm text-slate-300">
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mode / target_date:</strong> Selected activity mode and date used for weather and mud prediction.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>track_metrics:</strong> Core telemetry (distance, total ascent, peak altitude).</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>climb_analysis:</strong> Granular breakdown of every climb with UCI categorization.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>climb_analysis:</strong> Granular breakdown of every climb with BikeScout heuristic categorization (not official UCI race classification).</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>performance_simulation:</strong> Predicted sector times, VAM, and weather-adjusted W/kg targets.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_alerts / pre_climb_positioning / tactical_action_zones:</strong> Race dynamics, pack-positioning cues and technical caution points.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planning_tools:</strong> Integrated nutrition plan and environmental risk summaries.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>report_path:</strong> URI to the generated professional PDF roadbook (if <code>report=True</code>).</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planning_tools:</strong> Integrated weather, nutrition, mud risk, and weather-basis metadata.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>report_path / mcp_resource_uri_report:</strong> Local PDF path and MCP resource URI for the generated race book (if <code>report=True</code>).</li>
                     </ul>
                 </div>
             </div>

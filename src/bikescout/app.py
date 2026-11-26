@@ -815,7 +815,7 @@ def render_plan_tab() -> None:
             st.info("Distance is computed automatically for A → B routes.")
             distance = None
 
-        st.markdown("#### Route character")
+        st.markdown("### Route character")
 
         rc1, rc2 = st.columns(2)
         with rc1:
@@ -857,7 +857,7 @@ def render_plan_tab() -> None:
             key="guided_distance_flex_percent",
         )
 
-        st.markdown("#### Options")
+        st.markdown("### Options")
         o1, o2, o3 = st.columns(3)
         with o1:
             include_poi = st.checkbox("Amenities / POI", value=True, key="guided_poi")
@@ -868,30 +868,6 @@ def render_plan_tab() -> None:
         with o3:
             include_nutrition = st.checkbox("Nutrition plan", value=True, key="guided_nutrition")
             include_altimetry = st.checkbox("Altimetry", value=True, key="guided_altimetry")
-
-        st.markdown("#### Go/No-Go window")
-        g1, g2 = st.columns(2)
-        with g1:
-            gonogo_duration_hours = st.number_input(
-                "Ride duration (h)",
-                min_value=0.5,
-                max_value=12.0,
-                value=2.0,
-                step=0.5,
-                key="guided_gonogo_duration",
-                help="Used by the automatic Go/No-Go report.",
-            )
-        with g2:
-            gonogo_use_date = st.checkbox(
-                "Set target date", value=False, key="guided_gonogo_use_date"
-            )
-            gonogo_target_date = st.date_input(
-                "Target date",
-                value=date.today(),
-                key="guided_gonogo_target_date",
-                disabled=not gonogo_use_date,
-                help="Optional target date for the Go/No-Go report.",
-            )
 
         submitted = st.form_submit_button("Generate ride plan", type="primary")
 
@@ -985,8 +961,6 @@ def render_plan_tab() -> None:
             "include_nutrition": include_nutrition,
             "include_gpx": include_gpx,
             "include_altimetry": include_altimetry,
-            "gonogo_duration_hours": float(gonogo_duration_hours),
-            "gonogo_target_date": gonogo_target_date.isoformat() if gonogo_use_date else None,
         }
 
         st.session_state["pending_plan_request"] = plan_request
@@ -1011,7 +985,7 @@ def render_gpx_tab() -> None:
             placeholder="https://.../route.gpx or /path/to/route.gpx",
         )
 
-        st.markdown("#### Rider & bike setup")
+        st.markdown("### Rider & bike setup")
         col1, col2, col3 = st.columns(3)
         with col1:
             activity_type = cast(Literal["road", "mtb"], st.selectbox("Type", ["road", "mtb"]))
@@ -1034,7 +1008,7 @@ def render_gpx_tab() -> None:
                 "Intensity factor", min_value=1.0, max_value=2.0, value=1.3, step=0.1
             )
 
-        st.markdown("#### Weather planning")
+        st.markdown("### Weather planning")
         col4, col5 = st.columns(2)
         with col4:
             sweat_profile = cast(
@@ -1156,6 +1130,9 @@ def render_gpx_tab() -> None:
                         st.dataframe(sim_df, hide_index=True)
 
                 report_path = res_data.get("report_path")
+                report_uri = res_data.get("mcp_resource_uri_report")
+                if report_uri:
+                    st.caption(f"Report MCP resource: `{report_uri}`")
                 if report_path and os.path.exists(report_path):
                     with open(report_path, "rb") as file:
                         st.download_button(

@@ -26,7 +26,7 @@ cp .env.example .env          # set ORS_API_KEY; never commit .env
 
 - [ ] All applicable gates are green and the commands/results are recorded in the handoff.
 - [ ] Tests cover new behavior with stubs/fakes; no live model or HTTP calls.
-- [ ] `SPEC.md` traceability, `TECH_STACK.md` inventory and this file's parameter table still match the code.
+- [ ] `SPEC.md` traceability, `TECH_STACK.md` inventory, this file's parameter table and `site/documentation/api-reference.html` still match the code.
 - [ ] `BRAND.md` checklist satisfied for user-facing copy.
 - [ ] No secrets, ignored files or contract changes without approval.
 - [ ] Drift registered or resolved; no silent scope expansion.
@@ -44,7 +44,8 @@ uv run pytest --cov=src/bikescout --cov-fail-under=80
 
 - Explicit agent check before finishing a code task: `git add ... && uv run lefthook run pre-commit`.
 - Never use `git commit --no-verify`; never push.
-- Docs-only changes: verify paths, tool names and parameters against the code; Python gates only if code was touched. There is no automated docs-consistency test yet.
+- Docs-only changes: verify paths, tool names and parameters against the code; Python gates only if code was touched.
+- API reference gate: any input/output change in `mcp_server.py` or model change in `schemas.py` must update `site/documentation/api-reference.html` in the same change and pass `uv run pytest src/bikescout/tests/test_api_reference_docs.py` (checked automatically in the full suite). The test compares schema fields, defaults and `Literal` choices, plus registered tool names, parameters, defaults and return models.
 
 ## 4. MCP invocation contract (agent hosts)
 
@@ -95,7 +96,7 @@ Agents normalize natural-language constraints to the exact typed parameters in `
 
 ## 5. Docs and brand maintenance
 
-Behavior changes must be reflected in the same change: `SPEC.md` (intent + traceability), `TECH_STACK.md` (tool inventory/config), `CODE_STANDARDS.md` (rules), this file (parameter tables), `BRAND.md` (new terms or visual tokens) and `README.md` (public examples). Do not change a public schema or session/mission contract to make documentation look correct — open a drift entry instead.
+Behavior changes must be reflected in the same change: `SPEC.md` (intent + traceability), `TECH_STACK.md` (tool inventory/config), `CODE_STANDARDS.md` (rules), this file (parameter tables), `site/documentation/api-reference.html` (public tool/schema mirror, enforced by the consistency test in §3), `BRAND.md` (new terms or visual tokens) and `README.md` (public examples). Do not change a public schema or session/mission contract to make documentation look correct — open a drift entry instead.
 
 ## 6. Drift register
 
@@ -114,6 +115,7 @@ Entries record verified conflicts between docs, configs and code. Agents must no
 | DR-09 | No `ruff`/`pyright` config; `uv.lock` ignored by a leading-space pattern; `.venv/` not ignored | Resolved | Config added to `pyproject.toml`; `uv.lock` and `.venv/` correctly ignored |
 | DR-10 | Palette divergence between `config.toml`, app CSS and site | Resolved by alignment | Streamlit primary is now `#7c3aed`, matching app CSS; site `#bef264` remains intentionally surface-specific |
 | DR-11 | Host configs used `/app/...` paths and placeholder keys; README had a broken push instruction | Resolved | Host configs launch `uv run bikescout` with no key override; README fixes the push command and states agents never push |
-| DR-12 | `uv run pyright` reported 175 pre-existing errors (65 production, 110 tests) once a deterministic config exists; implicit `None` defaults, missing return types, narrowing external dependencies to concrete classes, and `SimpleNamespace` test fakes | Resolved | Gate is green: `pyright` 0 errors, ruff/format clean, 547 tests at 88% coverage. Internal signatures now use accurate annotations (`target_date: str \| None`, `dict[str, Any]` returns); public MCP tool schemas are unchanged. Test doubles and deliberately invalid inputs use localized `cast(Any, ...)`; no blanket ignores and no weakened gate |
+| DR-12 | `uv run pyright` reported 175 pre-existing errors (65 production, 110 tests) once a deterministic config exists; implicit `None` defaults, missing return types, narrowing external dependencies to concrete classes, and `SimpleNamespace` test fakes | Resolved | Gate is green: `pyright` 0 errors, ruff/format clean, 564 tests at 88.72% coverage. Internal signatures now use accurate annotations (`target_date: str \| None`, `dict[str, Any]` returns); public MCP tool schemas are unchanged. Test doubles and deliberately invalid inputs use localized `cast(Any, ...)`; no blanket ignores and no weakened gate |
+| DR-13 | Public HTML reference drifted from code: `hydration_scout` documented `weight`/default `70` and omitted `target_date`; `MudIntelligence` listed nonexistent `safety_advice`; `complexity` was described as difficulty `1-5` instead of waypoint count `3-10`; nullable fields and the `NutritionPlanWrapper`/`WeatherContext` sections were missing | Resolved | HTML aligned with verified code; `test_api_reference_docs.py` added as the automatic gate for schema fields, defaults, `Literal` choices, tool signatures, registrations and return models |
 
 To open an entry: add a short row with the conflicting sources, mark status `Open`, and reference it from the handoff. Do not delete entries without resolving the underlying conflict.

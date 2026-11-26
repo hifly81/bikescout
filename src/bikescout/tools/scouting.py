@@ -28,7 +28,7 @@ from typing import Any, Literal
 import requests
 
 from bikescout.schemas import BikeSetup, MissionConstraints, RiderProfile, RouteGeometry
-from bikescout.tools.altimetry import get_elevation_profile_image
+from bikescout.tools.altimetry import create_climb_profile_images, get_elevation_profile_image
 from bikescout.tools.maps import save_local_tactical_map
 from bikescout.tools.mud import get_mud_risk_analysis
 from bikescout.tools.nutrition import get_nutrition_plan
@@ -252,6 +252,7 @@ class TrailScoutService:
         poi_scout=None,
         mud_analyzer=None,
         altimetry_getter=None,
+        climb_altimetry_getter=None,
         nutrition_getter=None,
         gpx_generator=None,
         uuid_func=None,
@@ -265,6 +266,7 @@ class TrailScoutService:
         self.poi_scout = poi_scout or get_poi_scout
         self.mud_analyzer = mud_analyzer or get_mud_risk_analysis
         self.altimetry_getter = altimetry_getter or get_elevation_profile_image
+        self.climb_altimetry_getter = climb_altimetry_getter or create_climb_profile_images
         self.nutrition_getter = nutrition_getter or get_nutrition_plan
         self.gpx_generator = gpx_generator or generate_tactical_gpx
         self.uuid_func = uuid_func or (lambda: uuid.uuid4().hex[:6])
@@ -321,6 +323,7 @@ class TrailScoutService:
             estimated_hours = 0.0
             intensity_score = 0
             amenities = []
+            terrain: dict[str, Any] = {}
 
             response_payload = self._base_response_payload(
                 dist_km=dist_km,
@@ -481,6 +484,13 @@ class TrailScoutService:
                         response_payload["mcp_resource_uri_elevation_profile"] = altimetry_report[
                             "mcp_resource_uri"
                         ]
+                        climb_profiles = terrain.get("climb_profile_coordinates") or []
+                        if climb_profiles:
+                            self.climb_altimetry_getter(
+                                profiles=climb_profiles,
+                                uuid_input=filename_part,
+                                style=style,
+                            )
                 except Exception as e:
                     response_payload["elevation_error"] = f"Altimetry failed: {e!s}"
 

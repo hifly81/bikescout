@@ -176,10 +176,10 @@
                     <table>
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
-                        <tr><td><code>weight_kg</code></td><td><code>float</code></td><td>75</td><td>Total weight (rider + gear) for PSI and energy calculations.</td></tr>
-                        <tr><td><code>gender</code></td><td><code>string</code></td><td>male</td><td>Gender.</td></tr>
-                        <tr><td><code>fitness_level</code></td><td><code>string</code></td><td>intermediate</td><td>Affects difficulty grading. Options: <code>beginner</code>, <code>intermediate</code>, <code>advanced</code>, <code>pro</code>.</td></tr>
-                        <tr><td><code>sweat_profile</code></td><td><code>string</code></td><td>default</td><td>Genetic sodium loss classification. low: ~400mg/L (Diluted sweat), standard: ~800mg/L (Population average), high: ~1200mg/L (Salty sweater), extreme: ~1800mg/L (Genetic outlier/Heavy loser).</td></tr>
+                        <tr><td><code>weight_kg</code></td><td><code>float</code></td><td>75.0</td><td>Rider weight in kilograms. Critical for tire pressure and energy modeling.</td></tr>
+                        <tr><td><code>gender</code></td><td><code>string</code></td><td>male</td><td>Rider gender: <code>male</code> or <code>female</code>.</td></tr>
+                        <tr><td><code>fitness_level</code></td><td><code>string</code></td><td>intermediate</td><td>Rider athletic preparation level: <code>beginner</code>, <code>intermediate</code>, or <code>pro</code>. Affects fatigue and climbing logic.</td></tr>
+                        <tr><td><code>sweat_profile</code></td><td><code>string</code></td><td>standard</td><td>Genetic sodium loss classification: <code>low</code> (~400mg/L), <code>standard</code> (~800mg/L), <code>high</code> (~1200mg/L), or <code>extreme</code> (~1800mg/L).</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -189,8 +189,8 @@
                     <table>
                         <thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
                         <tbody>
-                        <tr><td><code>bike_type</code></td><td><code>string</code></td><td>-</td><td>Geometry profile (Road, Gravel, MTB, Enduro, E-MTB).</td></tr>
-                        <tr><td><code>tire_size</code></td><td><code>string</code></td><td>29</td><td>Diameter (26, 27.5, 29, 32, 700c, 650b).</td></tr>
+                        <tr><td><code>bike_type</code></td><td><code>string</code></td><td>mtb</td><td>Bike category. Accepted values: <code>MTB</code>, <code>mtb</code>, <code>Road</code>, <code>road</code>, <code>Gravel</code>, <code>gravel</code>, <code>E-MTB</code>, <code>e-mtb</code>, <code>Enduro</code>, <code>enduro</code>. Used to filter suitable trail surfaces.</td></tr>
+                        <tr><td><code>tire_size</code></td><td><code>string</code></td><td>29</td><td>Standard wheel diameter: <code>32</code>, <code>29</code>, <code>27.5</code>, <code>700c</code>, or <code>650b</code>.</td></tr>
                         <tr><td><code>tire_width_mm</code></td><td><code>int</code></td><td>54</td><td>Actual width in mm (18 to 75). Drives tire-volume scaling and setup strategy.</td></tr>
                         <tr><td><code>rim_internal_width_mm</code></td><td><code>int | null</code></td><td><code>null</code></td><td>Rim internal width in mm (10 to 45). Used for volume support and rim-width mismatch checks; defaults by bike category in <code>trail_scout_simple</code>.</td></tr>
                         <tr><td><code>casing_type</code></td><td><code>string</code></td><td>trail</td><td>Casing stiffness class: <code>xc</code>, <code>trail</code>, <code>enduro</code>, or <code>dh</code>. Stiffer casings require less pressure for the same support.</td></tr>
@@ -209,10 +209,10 @@
                         <tr><td><code>total_length_km</code></td><td><code>int</code></td><td>30</td><td>The total distance of the round trip in kilometers (e.g., 25.0).</td></tr>
                         <tr><td><code>profile</code></td><td><code>string</code></td><td>cycling-mountain</td><td>ORS routing profile (<code>cycling-mountain</code>, <code>cycling-road</code>, <code>cycling-regular</code>, <code>cycling-electric</code>).</td></tr>
                         <tr><td><code>surface_preference</code></td><td><code>string</code></td><td>neutral</td><td>User preference for road vs off-road surfaces (<code>neutral</code>, <code>prefer_paved</code>, <code>avoid_unpaved</code>).</td></tr>
-                        <tr><td><code>complexity</code></td><td><code>int</code></td><td>3</td><td>Number of waypoints / route-shaping points used to generate the loop. Also drives the difficulty grade: <code>4</code> raises it to Advanced, <code>5</code> to Expert.</td></tr>
+                        <tr><td><code>complexity</code></td><td><code>int</code></td><td>3</td><td>Number of waypoints / route-shaping points used to generate the loop (<code>3</code> to <code>10</code>); serialized as <code>points</code>. A value of <code>4</code> or <code>5</code> can also raise the reported difficulty to Advanced or Expert.</td></tr>
                         <tr><td><code>seed</code></td><td><code>int</code></td><td>42</td><td>Randomizer seed used to reproduce specific route variations.</td></tr>
-                        <tr><td><code>assist_mode</code></td><td><code>string</code></td><td>Eco</td><td>Defines the motor assistance profile (<code>Eco</code>, <code>Trail</code>, <code>Boost</code>) and influences e-bike battery consumption estimates.</td></tr>
-                        <tr><td><code>direction_bias</code></td><td><code>list[string]</code></td><td>[]</td><td>Preferred geographic route bias, for example <code>["south"]</code> or <code>["south", "east"]</code>, used to steer loop generation toward a requested quadrant.</td></tr>
+                        <tr><td><code>assist_mode</code></td><td><code>string</code></td><td>Eco</td><td>Defines the motor assistance profile (<code>Eco</code>/<code>eco</code>, <code>Trail</code>/<code>trail</code>, <code>Boost</code>/<code>boost</code>) and influences e-bike battery consumption estimates.</td></tr>
+                        <tr><td><code>direction_bias</code></td><td><code>list[string]</code></td><td>[]</td><td>Preferred geographic route bias. Accepted values: <code>north</code>, <code>south</code>, <code>east</code>, <code>west</code>, for example <code>["south"]</code> or <code>["south", "east"]</code>.</td></tr>
                         <tr><td><code>avoid_urban</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation away from dense urban sections when possible. Combined with <code>prefer_rural</code>, <code>priority_mode=ride_character_first</code> and an off-road bike type, this also ranks already-fetched ORS candidates by off-road share without extra routing requests.</td></tr>
                         <tr><td><code>prefer_rural</code></td><td><code>bool</code></td><td>false</td><td>Bias route generation toward quieter countryside roads and lower-density riding environments when possible. See <code>avoid_urban</code> for the off-road candidate ranking behavior.</td></tr>
                         <tr><td><code>distance_flex_percent</code></td><td><code>int</code></td><td>10</td><td>Allowed flexibility around the requested target distance when route character matters more than exact mileage.</td></tr>
@@ -363,12 +363,6 @@
                             <td><code>string</code></td>
                             <td>-</td>
                             <td>Estimated time (e.g., '24h', 'Ready Now') until the trail returns to dry/optimal conditions.</td>
-                        </tr>
-                        <tr>
-                            <td><code>safety_advice</code></td>
-                            <td><code>string</code></td>
-                            <td>-</td>
-                            <td>Tactical advice for riding and bike maintenance in the current soil conditions.</td>
                         </tr>
                         </tbody>
                     </table>
@@ -793,7 +787,7 @@
                         </tr>
                         <tr>
                             <td><code>emtb_tactical</code></td>
-                            <td><code>EmtbTactical</code></td>
+                            <td><code>EmtbTactical | null</code></td>
                             <td><code>null</code></td>
                             <td>Optional battery and power physics metrics for E-MTB profiles.</td>
                         </tr>
@@ -813,10 +807,10 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr><td><code>weather</code></td><td><code>list[WeatherSnapshot]</code></td><td>-</td><td>Hourly weather forecast snapshots for the mission duration.</td></tr>
-                        <tr><td><code>mud_risk</code></td><td><code>MudRiskAnalysis</code></td><td>-</td><td>Technical analysis of soil saturation and trail rideability.</td></tr>
+                        <tr><td><code>weather</code></td><td><code>list[WeatherSnapshot] | null</code></td><td><code>null</code></td><td>Hourly weather forecast snapshots for the mission duration.</td></tr>
+                        <tr><td><code>mud_risk</code></td><td><code>MudRiskAnalysis | null</code></td><td><code>null</code></td><td>Technical analysis of soil saturation and trail rideability.</td></tr>
                         <tr><td><code>max_temp_detected</code></td><td><code>string</code></td><td>-</td><td>The peak temperature identified within the activity window.</td></tr>
-                        <tr><td><code>safety_advice</code></td><td><code>SafetyAdvice</code></td><td>-</td><td>Critical safety briefing including gear recommendations and wind risk.</td></tr>
+                        <tr><td><code>safety_advice</code></td><td><code>SafetyAdvice | null</code></td><td><code>null</code></td><td>Critical safety briefing including gear recommendations and wind risk.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -873,11 +867,30 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr><td><code>nutrition_plan</code></td><td><code>NutritionPlanWrapper</code></td><td>-</td><td>The physiological fueling plan including fluids, carbs, and electrolytes.</td></tr>
-                        <tr><td><code>nearby_amenities</code></td><td><code>list[Amenity]</code></td><td>-</td><td>A list of strategic points detected along or near the route.</td></tr>
+                        <tr><td><code>nutrition_plan</code></td><td><code>NutritionPlanWrapper | null</code></td><td><code>null</code></td><td>The physiological fueling plan including fluids, carbs, and electrolytes.</td></tr>
+                        <tr><td><code>nearby_amenities</code></td><td><code>list[Amenity] | null</code></td><td><code>null</code></td><td>A list of strategic points detected along or near the route.</td></tr>
                         </tbody>
                     </table>
                 </div>
+
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">NutritionPlanWrapper</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Calculation status of the nutrition engine.</td></tr>
+                        <tr><td><code>mission_nutrition_briefing</code></td><td><code>NutritionBriefing</code></td><td>-</td><td>Detailed fueling and hydration strategy.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
                 <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">EnvironmentalBriefing</h4>
 
                 <div class="overflow-x-auto mb-6">
@@ -891,10 +904,10 @@
                         </tr>
                         </thead>
                         <tbody>
-                        <tr><td><code>message</code></td><td><code>string</code></td><td>-</td><td>NO GO message.</td></tr>
-                        <tr><td><code>rain_avg</code></td><td><code>string</code></td><td>-</td><td>Average probability of precipitation during the mission window.</td></tr>
-                        <tr><td><code>wind_max</code></td><td><code>string</code></td><td>-</td><td>Maximum expected wind speed (sustained or gust peak).</td></tr>
-                        <tr><td><code>temp_avg</code></td><td><code>string</code></td><td>-</td><td>Average ambient temperature predicted for the activity duration.</td></tr>
+                        <tr><td><code>message</code></td><td><code>string | null</code></td><td><code>null</code></td><td>NO GO message.</td></tr>
+                        <tr><td><code>rain_avg</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Average probability of precipitation during the mission window.</td></tr>
+                        <tr><td><code>wind_max</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Maximum expected wind speed (sustained or gust peak).</td></tr>
+                        <tr><td><code>temp_avg</code></td><td><code>string | null</code></td><td><code>null</code></td><td>Average ambient temperature predicted for the activity duration.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -999,7 +1012,7 @@
                             <tr><td><code>distance_km</code></td><td><code>float</code></td><td>-</td><td>The total length in kilometers of the selected route whose geometry is exported to GPX, map and altimetry.</td></tr>
                             <tr><td><code>ascent_m</code></td><td><code>int</code></td><td>-</td><td>Total vertical elevation gain in meters, derived by the Terrain Truth Engine from the same exported route geometry when surface analysis succeeds.</td></tr>
                             <tr><td><code>difficulty</code></td><td><code>string</code></td><td>-</td><td>Overall rating from distance, ascent, sustained climb gradient and requested complexity. A complexity of 4 or 5 raises it to Advanced or Expert even on a shorter route.</td></tr>
-                            <tr><td><code>surface_analysis</code></td><td><code>RouteSurface</code></td><td>-</td><td>A detailed breakdown of surface compositions, terrain intelligence and traction indices.</td></tr>
+                            <tr><td><code>surface_analysis</code></td><td><code>RouteSurface | null</code></td><td><code>null</code></td><td>A detailed breakdown of surface compositions, terrain intelligence and traction indices.</td></tr>
                             <tr><td><code>max_gradient</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Steepest positive gradient found anywhere on the route in percent.</td></tr>
                             <tr><td><code>climb_list</code></td><td><code>list[ClimbDetail] | null</code></td><td><code>null</code></td><td>Presentation view of <code>surface_analysis.tactical_briefing.terrain_analysis.climbs</code>; mirrors the canonical list instead of duplicating it inside each nested block.</td></tr>
                             <tr><td><code>data_confidence</code></td><td><code>float | null</code></td><td><code>null</code></td><td>Confidence in the elevation-derived terrain metrics from 0.0 to 1.0.</td></tr>
@@ -1180,7 +1193,7 @@
                         </tr>
                         <tr>
                             <td><code>emtb_tactical</code></td>
-                            <td><code>EmtbTactical</code></td>
+                            <td><code>EmtbTactical | null</code></td>
                             <td><code>null</code></td>
                             <td>Optional power and battery metrics; only populated if <code>is_ebike</code> is true.</td>
                         </tr>
@@ -1202,16 +1215,35 @@
                         <tbody>
                         <tr><td><code>payload_version</code></td><td><code>string</code></td><td>-</td><td>BikeScout protocol version.</td></tr>
                         <tr><td><code>status</code></td><td><code>string</code></td><td>-</td><td>Operation status (Success/Error).</td></tr>
-                        <tr><td><code>info</code></td><td><code>RouteInfo</code></td><td>-</td><td>Structured data regarding the route's morphology and difficulty.</td></tr>
-                        <tr><td><code>conditions</code></td><td><code>MissionConditions</code></td><td>-</td><td>Environmental analysis synchronized with the mission time window.</td></tr>
-                        <tr><td><code>logistics</code></td><td><code>MissionLogistics</code></td><td>-</td><td>Tactical recommendations for mechanical setup, nutrition, and timing.</td></tr>
-                        <tr><td><code>map_path</code></td><td><code>string</code></td><td>-</td><td>The local file path for the static map image of the route.</td></tr>
-                        <tr><td><code>mcp_resource_uri_map</code></td><td><code>string</code></td><td>-</td><td>The MCP URI for direct map layer access.</td></tr>
-                        <tr><td><code>gpx_export_path</code></td><td><code>string</code></td><td>-</td><td>The local file path of the generated GPX file.</td></tr>
-                        <tr><td><code>mcp_resource_uri_gpx</code></td><td><code>string</code></td><td>-</td><td>The MCP URI for downloading the GPX mission file.</td></tr>
-                        <tr><td><code>elevation_profile_path</code></td><td><code>string</code></td><td>-</td><td>The local file path for the elevation profile chart.</td></tr>
-                        <tr><td><code>mcp_resource_uri_elevation_profile</code></td><td><code>string</code></td><td>-</td><td>The MCP URI for the visual altimetry analysis.</td></tr>
-                        <tr><td><code>gpx_stats</code></td><td><code>dict[string, int]</code></td><td>-</td><td>Dictionary of raw metadata extracted from the GPX file.</td></tr>
+                        <tr><td><code>info</code></td><td><code>RouteInfo | null</code></td><td><code>null</code></td><td>Structured data regarding the route's morphology and difficulty.</td></tr>
+                        <tr><td><code>conditions</code></td><td><code>MissionConditions | null</code></td><td><code>null</code></td><td>Environmental analysis synchronized with the mission time window.</td></tr>
+                        <tr><td><code>logistics</code></td><td><code>MissionLogistics | null</code></td><td><code>null</code></td><td>Tactical recommendations for mechanical setup, nutrition, and timing.</td></tr>
+                        <tr><td><code>map_path</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The local file path for the static map image of the route.</td></tr>
+                        <tr><td><code>mcp_resource_uri_map</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The MCP URI for direct map layer access.</td></tr>
+                        <tr><td><code>gpx_export_path</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The local file path of the generated GPX file.</td></tr>
+                        <tr><td><code>mcp_resource_uri_gpx</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The MCP URI for downloading the GPX mission file.</td></tr>
+                        <tr><td><code>elevation_profile_path</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The local file path for the elevation profile chart.</td></tr>
+                        <tr><td><code>mcp_resource_uri_elevation_profile</code></td><td><code>string | null</code></td><td><code>null</code></td><td>The MCP URI for the visual altimetry analysis.</td></tr>
+                        <tr><td><code>gpx_stats</code></td><td><code>dict[string, int] | null</code></td><td><code>null</code></td><td>Dictionary of raw metadata extracted from the GPX file.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="text-xl font-bold text-slate-200 group-open:text-blue-400 transition-colors">WeatherContext</h4>
+                <div class="overflow-x-auto mb-6">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr><td><code>date_referenced</code></td><td><code>string</code></td><td>-</td><td>The date used for the thermal analysis.</td></tr>
+                        <tr><td><code>max_temp_detected</code></td><td><code>string</code></td><td>-</td><td>Peak temperature detected in the activity window (e.g., <code>16.2°C</code>).</td></tr>
+                        <tr><td><code>is_future_event</code></td><td><code>bool</code></td><td>-</td><td>True when the analysis is based on a forecast rather than current conditions.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1432,19 +1464,19 @@
                                 <td class="py-2 px-3"><code>rider</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>RiderProfile</code></td>
                                 <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Rider's physiological profile (weight, FTP, etc.).</td>
+                                <td>Rider physiological profile: weight, gender, fitness level and sweat profile.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>bike</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>BikeSetup</code></td>
                                 <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Bike technical setup (weight, tires, e-bike specs).</td>
+                                <td>Bike technical setup: category, tires, casing, tubeless and e-bike battery specs.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>mission</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>MissionConstraints</code></td>
                                 <td class="text-orange-400 font-semibold">Required</td>
-                                <td>Activity constraints (start time, intensity).</td>
+                                <td>Mission constraints: distance, ORS profile, surface preference, waypoint count and route biases.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>dest_latitude</code></td>
@@ -1686,7 +1718,7 @@
                                 <td class="py-2 px-3"><code>complexity</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>int</code></td>
                                 <td class="text-blue-400/70 italic text-xs">Default: 3</td>
-                                <td>Route complexity factor (1-5); shapes the loop and grades difficulty: <code>4</code> = Advanced, <code>5</code> = Expert ("very hard").</td>
+                                <td>Number of ORS waypoints shaping the loop (<code>3</code> to <code>10</code>), serialized as <code>points</code>. The Streamlit UI maps its 1-5 difficulty scale to <code>3</code>-<code>5</code>. A value of <code>4</code> can raise the reported difficulty to Advanced, <code>5</code> to Expert.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>seed</code></td>
@@ -1806,6 +1838,7 @@
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>conditions:</strong> Weather, rain probability, and safety gear briefings when requested.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>logistics:</strong> Hydration/nutrition plan and detected amenities when requested.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>Visual Assets:</strong> Native URIs for the map, elevation profile, and GPX file.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>gpx_stats:</strong> Technical summary of trace integrity (point count, segment healing).</li>
                     </ul>
                 </div>
             </div>
@@ -1969,10 +2002,10 @@
                     </div>
                     <ul class="space-y-2 text-sm text-slate-300">
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>metadata:</strong> Contextual info including the local solar window (sunrise/sunset) to avoid riding in the dark.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planner_report:</strong> The final <strong>GO/WATCH/NO-GO</strong> verdict with a visual risk color (Green/Yellow/Red).</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>environmental_briefing:</strong> Aggregated summary of rain probability, max wind gusts, and average temperature.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>best_window:</strong> The specific time range (e.g., 09:00 - 11:00) identified as safest and driest.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mud_risk_impact:</strong> A percentage indicating how soil saturation levels might affect traction and overall mission success.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planner_report.verdict:</strong> The final <strong>GO/WATCH/NO-GO</strong> verdict with <strong>planner_report.tactical_color</strong> (Green/Yellow/Red).</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planner_report.environmental_briefing:</strong> Aggregated summary of rain probability, max wind gusts, and average temperature.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planner_report.best_window:</strong> The specific time range (e.g., 09:00 - 11:00) identified as safest and driest.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planner_report.mud_risk_impact:</strong> A percentage indicating how soil saturation levels might affect traction and overall mission success.</li>
                     </ul>
                 </div>
             </div>
@@ -2030,7 +2063,7 @@
                             <tr>
                                 <td class="py-2 px-3"><code>duration_hours</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>float</code></td>
-                                <td class="text-blue-400/70 italic text-xs">Default: 2.0</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 2</td>
                                 <td>Estimated time in the saddle (decimal hours).</td>
                             </tr>
                             <tr>
@@ -2040,10 +2073,10 @@
                                 <td>Perceived effort (1: Recovery, 3: Tempo, 5: Race/Max effort).</td>
                             </tr>
                             <tr>
-                                <td class="py-2 px-3"><code>weight</code></td>
+                                <td class="py-2 px-3"><code>weight_kg</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>float</code></td>
-                                <td class="text-blue-400/70 italic text-xs">Default: 70</td>
-                                <td>Weight in KG.</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: 70.0</td>
+                                <td>Rider weight in kilograms.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>gender</code></td>
@@ -2054,12 +2087,18 @@
                             <tr>
                                 <td class="py-2 px-3"><code>sweat_profile</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
-                                <td class="text-blue-400/70 italic text-xs">Default: default</td>
+                                <td class="text-blue-400/70 italic text-xs">Default: standard</td>
                                 <td>Genetic sodium loss classification.
                                     - "low": ~400mg/L (Diluted sweat).
                                     - "standard": ~800mg/L (Population average).
                                     - "high": ~1200mg/L (Salty sweater).
                                     - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>target_date</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>string | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Date of the event (YYYY-MM-DD). Defaults to the current weather window; future dates use the forecast thermal peak.</td>
                             </tr>
                             </tbody>
                         </table>
@@ -2073,11 +2112,11 @@
                         <span class="text-emerald-400 font-mono text-sm">HydrationScoutResponse</span>
                     </div>
                     <ul class="space-y-2 text-sm text-slate-300">
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>weather_context:</strong> Environmental factors (Temp, Humidity, Wind) that influenced the physiological stress calculation.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>fluids:</strong> Total volume required and hourly intake rate (ml/h) to maintain hydration.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>carbohydrates:</strong> Total grams and hourly target (g/h) based on intensity and duration.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>electrolytes:</strong> Sodium and salt requirements (mg) to prevent cramping and hyponatremia.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_advice:</strong> Critical alerts regarding heat stress, bonk risk, or specific absorption strategies.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>weather_context:</strong> Environmental factors that influenced the hydration/sodium calculation.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mission_nutrition_briefing.fluids:</strong> Total volume required and hourly intake rate (ml/h) to maintain hydration.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mission_nutrition_briefing.carbohydrates:</strong> Total grams and hourly target (g/h) based on intensity and duration.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mission_nutrition_briefing.electrolytes:</strong> Sodium and salt requirements (mg) to prevent cramping and hyponatremia.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mission_nutrition_briefing.tactical_advice:</strong> Critical alerts regarding heat stress, bonk risk, or specific absorption strategies.</li>
                     </ul>
                 </div>
             </div>
@@ -2137,13 +2176,13 @@
                                 <td class="py-2 px-3"><code>rider_gender</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
                                 <td class="text-blue-400/70 italic text-xs">Default: male</td>
-                                <td>Gender.</td>
+                                <td>Rider gender: <code>male</code> or <code>female</code>.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>rider_fitness_level</code></td>
                                 <td class="py-2 px-3 text-blue-300"><code>string</code></td>
                                 <td class="text-blue-400/70 italic text-xs">Default: intermediate</td>
-                                <td>User's athletic preparation level. Affects fatigue and climbing logic. Default "intermediate"</td>
+                                <td>Rider athletic preparation level: <code>beginner</code>, <code>intermediate</code>, or <code>pro</code>. Affects fatigue and climbing logic.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>sweat_profile</code></td>
@@ -2203,10 +2242,11 @@
                         <span class="text-emerald-400 font-mono text-sm">GpxRaceAuditResponse</span>
                     </div>
                     <ul class="space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>mode / target_date:</strong> Selected activity mode and date used for weather and mud prediction.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>track_metrics:</strong> Core telemetry (distance, total ascent, peak altitude).</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>climb_analysis:</strong> Granular breakdown of every climb with UCI categorization.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>performance_simulation:</strong> Predicted sector times, VAM, and weather-adjusted W/kg targets.</li>
-                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_alerts:</strong> Critical warnings for echelons (crosswinds), technical action zones, and positioning cues.</li>
+                        <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>tactical_alerts / pre_climb_positioning / tactical_action_zones:</strong> Race dynamics, pack-positioning cues and technical caution points.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>planning_tools:</strong> Integrated nutrition plan and environmental risk summaries.</li>
                         <li class="flex gap-2"><span class="text-blue-400">●</span> <strong>report_path:</strong> URI to the generated professional PDF roadbook (if <code>report=True</code>).</li>
                     </ul>

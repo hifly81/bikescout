@@ -862,6 +862,51 @@ def test_get_complete_trail_scout_success_all_features():
     assert result["elevation_profile_path"] == "/tmp/fixedid.png"
 
 
+def test_get_complete_trail_scout_creates_climb_profile_images():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    service = make_service(FakeSession(response=FakeResponse(payload=payload)))
+    profiles = [[[10.0, 45.0, 100.0], [10.01, 45.01, 120.0], [10.02, 45.02, 140.0]]]
+    service.surface_analyzer = (
+        lambda api_key, latitude, longitude, rider, bike, mission, target_date=None, route_feature=None: {
+            "status": "Success",
+            "tactical_briefing": {
+                "distance_km": 40.0,
+                "elevation_gain_m": 500.0,
+                "terrain_analysis": {"climb_profile_coordinates": profiles},
+            },
+            "surface_breakdown": [{"type": "Gravel", "percentage": "100%"}],
+        }
+    )
+    calls = []
+
+    def fake_climb_getter(profiles, uuid_input, style):
+        calls.append((profiles, uuid_input, style))
+        return {1: "/tmp/fixedid_climb_1.png"}
+
+    service.climb_altimetry_getter = fake_climb_getter
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=make_rider(),
+        bike=make_bike("gravel", False),
+        mission=make_mission(),
+        include_altimetry=True,
+        style="filled",
+    )
+
+    assert result["status"] == "Success"
+    assert calls == [(profiles, "fixedid", "filled")]
+
+
 def test_get_complete_trail_scout_uses_complexity_and_canonical_climbs():
     payload = {
         "features": [

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from typing import Any, cast
 
 import streamlit as st
@@ -34,6 +35,7 @@ from bikescout.tools.bike_setup import (
     default_rim_internal_width_mm,
     default_tire_width_mm,
 )
+from bikescout.tools.terrain import CLIMB_PROFILE_MIN_LENGTH_M
 
 
 def normalize_tire_setup(details: Any) -> dict[str, Any]:
@@ -1103,20 +1105,30 @@ def _format_terrain_percent(value) -> str:
     return f"{float(value) * 100:.0f}%"
 
 
-def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list[dict[str, str]]:
-    """Format geometry-detected climbs for the Streamlit climb list table."""
+def _terrain_climbs(tactical_briefing: dict, terrain_analysis: dict) -> list[dict[str, Any]]:
+    """Return the geometry-detected climbs used by the Streamlit climb list."""
     climbs = (
         tactical_briefing.get("climb_list")
         or terrain_analysis.get("climbs")
         or terrain_analysis.get("climb_list")
         or []
     )
+    return [climb for climb in climbs if isinstance(climb, dict)]
 
+
+def _climb_start_elevation(climb: dict[str, Any]) -> float | None:
+    """Derive the climb base elevation from the terrain engine's summit and gain."""
+    summit = climb.get("summit_elevation_m")
+    gain = climb.get("gain_m")
+    if not _is_number(summit) or not _is_number(gain):
+        return None
+    return float(cast(float, summit)) - float(cast(float, gain))
+
+
+def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list[dict[str, str]]:
+    """Format geometry-detected climbs for the Streamlit climb list table."""
     rows: list[dict[str, str]] = []
-    for number, climb in enumerate(climbs, start=1):
-        if not isinstance(climb, dict):
-            continue
-
+    for number, climb in enumerate(_terrain_climbs(tactical_briefing, terrain_analysis), start=1):
         length_m = climb.get("length_m")
         length_km = None
         if isinstance(length_m, (int, float)) and not isinstance(length_m, bool):
@@ -1128,7 +1140,7 @@ def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list
                 "Gain (m)": _format_terrain_value(climb.get("gain_m")),
                 "Length (km)": _format_terrain_value(length_km, 2),
                 "Avg grade": _format_terrain_value(climb.get("avg_gradient"), 1, "%"),
-                "Max grade": _format_terrain_value(climb.get("max_gradient"), 1, "%"),
+                "Start (m)": _format_terrain_value(_climb_start_elevation(climb)),
                 "Summit (m)": _format_terrain_value(climb.get("summit_elevation_m")),
                 "FIETS": _format_terrain_value(climb.get("fiets_index"), 2),
                 "Profile samples": f"{climb.get('start_index', '?')}–{climb.get('end_index', '?')}",
@@ -1137,6 +1149,49 @@ def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list
     return rows
 
 
+def _empty_dataframe_selection() -> dict[str, dict[str, list[Any]]]:
+    """Return the session-state value that clears a dataframe row selection."""
+    return {"selection": {"rows": [], "columns": [], "cells": []}}
+
+
+def reset_climb_profile_state() -> None:
+    """Clear the climb-list selection before rendering a new mission result."""
+    st.session_state["climb_list_table"] = _empty_dataframe_selection()
+    st.session_state.pop("climb_profile_handled_selection", None)
+
+
+def _climb_chart_path(res_data: dict, number: int) -> str | None:
+    """Locate the per-climb PNG generated beside the mission elevation profile."""
+    profile_path = res_data.get("elevation_profile_path")
+    if not isinstance(profile_path, str) or not profile_path:
+        return None
+    return str(Path(profile_path).with_name(f"{Path(profile_path).stem}_climb_{number}.png"))
+
+
+@st.dialog("Climb profile", icon=":material/show_chart:", width="medium")
+def _render_climb_profile_dialog(
+    number: int, climb: dict[str, Any], chart_path: str, selection_signature: tuple[str, int]
+) -> None:
+    """Show the elevation profile generated for a single long climb."""
+    start = _format_terrain_value(_climb_start_elevation(climb))
+    summit = _format_terrain_value(climb.get("summit_elevation_m"))
+    length_km = _format_terrain_value(
+        float(climb["length_m"]) / 1000.0 if _is_number(climb.get("length_m")) else None,
+        2,
+        " km",
+    )
+    gain = _format_terrain_value(climb.get("gain_m"))
+
+    st.caption(f"Climb {number} · {str(climb.get('category', 'N/A'))}")
+    st.caption(f"{start} m → {summit} m · {length_km} · {gain} m gained")
+    st.image(chart_path, caption="Elevation profile", width="stretch")
+    if st.button("Done", key="climb_profile_done", type="primary", width="stretch"):
+        st.session_state["climb_profile_handled_selection"] = selection_signature
+        st.session_state["climb_list_table"] = _empty_dataframe_selection()
+        st.rerun()
+
+
+@st.fragment
 def render_route_results(res_data: dict) -> None:
     info = res_data.get("info", {}) or {}
     logistics = res_data.get("logistics", {}) or {}
@@ -1344,11 +1399,38 @@ def render_route_results(res_data: dict) -> None:
             st.caption(f"Elevation source: {elevation_source}")
 
         with st.expander("Climb list", expanded=True):
+            climbs = _terrain_climbs(tactical, terrain)
             climb_rows = _terrain_climb_rows(tactical, terrain)
-            if climb_rows:
-                st.dataframe(climb_rows, hide_index=True)
-            else:
+            if not climb_rows:
                 st.info("No significant climbs detected or climb data unavailable.")
+            else:
+                selection = st.dataframe(
+                    climb_rows,
+                    hide_index=True,
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    key="climb_list_table",
+                )
+                selected_rows = list(selection.selection.rows)
+                if selected_rows:
+                    row_index = int(selected_rows[0])
+                    profile_path = res_data.get("elevation_profile_path")
+                    signature = (str(profile_path or ""), row_index)
+                    if st.session_state.get("climb_profile_handled_selection") != signature:
+                        st.session_state["climb_profile_handled_selection"] = signature
+                        number = row_index + 1
+                        chart_path = _climb_chart_path(res_data, number)
+                        climb = climbs[row_index] if row_index < len(climbs) else {}
+                        is_long_climb = (
+                            _is_number(climb.get("length_m"))
+                            and float(climb["length_m"]) >= CLIMB_PROFILE_MIN_LENGTH_M
+                        )
+                        if chart_path and os.path.exists(chart_path) and is_long_climb:
+                            _render_climb_profile_dialog(number, climb, chart_path, signature)
+                        else:
+                            st.caption(
+                                "An elevation profile is available only for climbs of at least 1.00 km."
+                            )
 
         if terrain_warnings:
             with st.expander("Terrain warnings", expanded=True):

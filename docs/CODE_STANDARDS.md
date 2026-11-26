@@ -90,7 +90,7 @@ def geocode_location(location_name: str, language: str = "en") -> GeocodingRespo
 ```
 
 - **MCP tool docstrings are agent-facing API documentation.** Every documented parameter must exist in the tool signature; describe defaults and the exact semantics of `include_*` flags. Do not advertise removed or nonexistent parameters (see DR-03).
-- Keep tool descriptions aligned with the parameter table in `PROCESS.md` §4.3.
+- Keep tool descriptions aligned with the parameter table in `PROCESS.md` §4.3 and with `site/documentation/api-reference.html`.
 
 ## 7. MCP tool pattern
 
@@ -131,7 +131,8 @@ def geocode_location(location_name: str, language: str = "en") -> GeocodingRespo
 ## 12. Schema and state evolution
 
 - Public Pydantic schemas, MCP tool signatures/resources, and Streamlit session/mission state keys require approval before modification (`AGENTS.md` §2).
-- When a schema changes, update `PROCESS.md` §4.3, `TECH_STACK.md` §3 and the tests in the same change.
+- When a schema or MCP tool signature changes, update `PROCESS.md` §4.3, `TECH_STACK.md` §3, `site/documentation/api-reference.html` and the tests in the same change.
+- `src/bikescout/tests/test_api_reference_docs.py` is the automated consistency gate: it compares HTML fields, defaults and `Literal` choices with the Pydantic models, and tool names, parameters, defaults and return models with FastMCP. Run `uv run pytest src/bikescout/tests/test_api_reference_docs.py` after touching `mcp_server.py` or `schemas.py`; fix the HTML, not the assertions.
 - Keep natural-language docs and tool docstrings in sync with the actual field names (`total_length_km`, not `target_distance_km`; no `route_mode` on `trail_scout_simple`).
 
 ## 13. Commits

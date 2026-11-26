@@ -55,14 +55,14 @@ Streamlit app (app.py) --> page composition + mission orchestration
 | `hydration_scout` | Hydration/electrolyte plan | `lat`, `lon`, duration, intensity, rider profile → `HydrationScoutResponse` |
 | `analyze_gpx_track` | Imported track / race audit | `gpx_url`, rider/bike scalars, activity, date range → `GpxRaceAuditResponse` |
 
-Resources: `bikescout://altimetry/{filename}`, `bikescout://maps/{filename}`, `bikescout://gpx/{filename}`. The authoritative parameter list is the tool signature in `mcp_server.py`; `PROCESS.md` §4 gives the natural-language mapping rules.
+Resources: `bikescout://altimetry/{filename}`, `bikescout://maps/{filename}`, `bikescout://gpx/{filename}`. The authoritative parameter list is the tool signature in `mcp_server.py`; `PROCESS.md` §4 gives the natural-language mapping rules. `site/documentation/api-reference.html` mirrors tools and schemas for the public site and is checked by `src/bikescout/tests/test_api_reference_docs.py`.
 
 ## 4. Stack by layer
 
 - **Server:** `fastmcp>=3.0.0`, `python-dotenv`, `pydantic>=2.0.0`.
 - **Domain services:** `requests`, `polyline`, `geopy`, `astral`, `timezonefinder`, `numpy`, `matplotlib`.
 - **Exports:** `gpxpy`, `staticmap`, `pillow`, `fpdf`.
-- **UI:** `streamlit>=1.53.0`, `watchdog`; theme in `src/bikescout/config.toml`; CSS design tokens in `app_ui_helpers.py`. The rider profile is edited from a sidebar launcher that opens a native `st.dialog` modal.
+- **UI:** `streamlit>=1.53.0`, `watchdog`; theme in `src/bikescout/config.toml`; CSS design tokens in `app_ui_helpers.py`. The rider profile is edited from a sidebar launcher that opens a native `st.dialog` modal. Selecting a climb of at least 1 km in the climb list opens another native modal with its elevation profile, generated beside the mission altimetry artifact.
 - **Local planner:** `langchain-core>=0.3.0,<1.8.0`, `llama-cpp-python>=0.3.16`, `huggingface_hub>=0.27.0`; GGUF cache in the ignored `models/` directory; `LlamaChatModel` is a `BaseChatModel` adapter over `Llama`, driven by an LCEL chain with a structured response format and thinking disabled on Qwen3.5.
 - **Tests:** `pytest`, `pytest-cov`, `pytest-asyncio` (`asyncio_mode = auto`, `pythonpath = ["src"]`, `testpaths = ["src/bikescout/tests"]`).
 - **Dev gates:** `ruff`, `pyright`, `lefthook` (pre-commit runs lint, format, type check and pytest with 80% coverage).

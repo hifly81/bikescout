@@ -55,6 +55,32 @@ class TestRenderEmptyState:
         assert kwargs["unsafe_allow_html"] is True
 
 
+class TestTerrainClimbRows:
+    def test_shows_start_and_summit_without_max_grade(self):
+        rows = ui_helpers._terrain_climb_rows(
+            {
+                "climb_list": [
+                    {
+                        "start_index": 12,
+                        "end_index": 48,
+                        "length_m": 1800.0,
+                        "gain_m": 120.0,
+                        "avg_gradient": 6.7,
+                        "max_gradient": 22.5,
+                        "summit_elevation_m": 1120.0,
+                        "fiets_index": 2.4,
+                        "category": "C3 - Challenging",
+                    }
+                ]
+            },
+            {},
+        )
+
+        assert rows[0]["Start (m)"] == "1000.0"
+        assert rows[0]["Summit (m)"] == "1120.0"
+        assert "Max grade" not in rows[0]
+
+
 class TestNormalizeTireSetup:
     def test_normalizes_structured_model(self):
         from bikescout.schemas import TireSetupRecommendation

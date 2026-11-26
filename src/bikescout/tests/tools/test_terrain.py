@@ -68,8 +68,23 @@ def test_segment_distances_and_short_profile() -> None:
     assert result["total_ascent_m"] == 0.0
     assert result["data_confidence"] == 0.0
     assert result["climbs"] == []
+    assert result["climb_profile_coordinates"] == []
     assert "climb_list" not in result
     assert result["climb_category"] == "Flat / Rolling"
+
+
+def test_exposes_profile_coordinates_only_for_long_climbs() -> None:
+    elevations = [100.0 + index * 10.0 for index in range(20)]
+    elevations += [300.0 - index * 10.0 for index in range(20)]
+
+    result = analyze_terrain_profile(geometry_from_elevations(elevations, step=0.0009))
+
+    assert len(result["climbs"]) == 1
+    climb = result["climbs"][0]
+    coordinates = result["climb_profile_coordinates"][0]
+    assert coordinates is not None
+    assert len(coordinates) == climb["end_index"] - climb["start_index"] + 1
+    assert coordinates[0][2] == pytest.approx(elevations[climb["start_index"]], abs=25.0)
 
 
 def test_smooth_profile_preserves_length_and_edge_values() -> None:

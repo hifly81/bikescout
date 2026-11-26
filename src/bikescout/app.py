@@ -60,6 +60,7 @@ from bikescout.app_ui_helpers import (
     metric_card,
     render_empty_state,
     render_route_results,
+    reset_climb_profile_state,
     render_sidebar,
     section_intro,
 )
@@ -294,6 +295,7 @@ def execute_plan_request(plan_request: dict) -> tuple[str, bool]:
         if not res_data or res_data.get("status") != "Success":
             return "The system could not generate a route for this configuration.", False
 
+        reset_climb_profile_state()
         render_route_results(res_data)
         return "Mission generated successfully.", True
 
@@ -589,6 +591,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
             return "Unable to complete route planning.", False
 
     if res_data:
+        reset_climb_profile_state()
         render_route_results(res_data)
         had_visual_result = True
 

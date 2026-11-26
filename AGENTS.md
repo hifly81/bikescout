@@ -50,12 +50,12 @@ No task is "done" without executed gates and a handoff report. Do not expand sco
 | :--- | :--- |
 | Python under `src/` | `uv run ruff check --fix <files>`, `uv run ruff format <files>`, `uv run pyright`, `uv run pytest --cov=src/bikescout --cov-fail-under=80` |
 | Any code commit | `git add ...` then `uv run lefthook run pre-commit` (or a clean `git commit` without `--no-verify`); never push |
-| MCP tool / schema | Python gates + verify tool registration, parameters and return model in `mcp_server.py` / `schemas.py` + tests for new behavior |
+| MCP tool / schema | Python gates + verify tool registration, parameters and return model in `mcp_server.py` / `schemas.py` + update `site/documentation/api-reference.html` + `uv run pytest src/bikescout/tests/test_api_reference_docs.py` + tests for new behavior |
 | Streamlit UI / session state | Python gates + manual smoke: `uv run streamlit run src/bikescout/app.py` |
 | Docs only | Check every referenced path, tool name and parameter against the code; update cross-references. Python gates only if code was touched |
 | User-facing copy | `docs/BRAND.md` checklist + verify terminology against the glossary |
 
-Lefthook runs lint, format, type and test gates on staged `src/**/*.py`. Keep the working tree green; never bypass the hook. Current status: all four gates pass — ruff, format, `pyright` (0 errors) and pytest (547 tests, 88% coverage). DR-12 in `PROCESS.md` records how the pre-existing type debt was cleared without weakening the gate or adding blanket ignores.
+Lefthook runs lint, format, type and test gates on staged `src/**/*.py`. Keep the working tree green; never bypass the hook. Current status: all four gates pass — ruff, format, `pyright` (0 errors) and pytest (564 tests, 88.72% coverage). DR-12 in `PROCESS.md` records how the pre-existing type debt was cleared without weakening the gate or adding blanket ignores.
 
 ## 5. Boundaries
 
@@ -64,7 +64,7 @@ Lefthook runs lint, format, type and test gates on staged `src/**/*.py`. Keep th
 - Use the `uv`-based environment from §6 for development gates; keep `PYTHONPATH=src` in mind for ad-hoc scripts.
 - Use English for code comments, docstrings, identifiers and error messages; follow `docs/BRAND.md` for user-facing wording.
 - Run relevant `pytest` tests after code changes; tests use stubs/fakes, never a live GGUF model or live HTTP.
-- Update the affected docs in the same change when behavior, tools or contracts change.
+- Update the affected docs in the same change when behavior, tools or contracts change; any input/output change in `mcp_server.py` or a model change in `schemas.py` also requires updating `site/documentation/api-reference.html` and running its consistency test (§4).
 
 **Ask first**
 
@@ -102,7 +102,8 @@ A plain `venv` + `pip install -e .` is enough to run the apps, but **not** to ru
 - `src/bikescout/app.py` — Streamlit page composition and mission orchestration; `app_helpers.py` — session defaults and intent normalization; `app_llm.py` — LangChain adapter, model catalog, cached loader and tactical prompt chain; `app_ui_helpers.py` — reusable renderers and CSS design tokens.
 - `src/bikescout/schemas.py` — Pydantic v2 contracts; tool-facing inputs `RiderProfile`, `BikeSetup`, `MissionConstraints` and six response models.
 - `src/bikescout/tools/` — stateless domain services; ORS-compatible routing/POI (HeiGIT), weather, offline terrain truth, GPX/map/altimetry exports.
-- `src/bikescout/tests/` — pytest suite (`asyncio_mode = auto`, `pythonpath = ["src"]`) with stub LLM and fake HTTP sessions; no live model/network.
+- `src/bikescout/tests/` — pytest suite (`asyncio_mode = auto`, `pythonpath = ["src"]`) with stub LLM and fake HTTP sessions; no live model/network; `test_api_reference_docs.py` checks the public HTML reference against tool signatures, registered tools and Pydantic models.
+- `site/documentation/api-reference.html` — public API reference for tools and object schemas; update it in the same change as any `mcp_server.py` input/output or `schemas.py` model change.
 - `src/bikescout/config.toml` — Streamlit theme; `models/` — ignored local GGUF cache; `~/.bikescout` — generated artifacts.
 - `docs/` — this harness's documentation set; `.agents/skills/` — optional domain personas; `site/` — public website (separate visual tokens, see `BRAND.md`).
 

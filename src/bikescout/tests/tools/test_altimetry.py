@@ -177,6 +177,16 @@ def test_create_profile_image_success(service, valid_geometry_3d):
     assert Path(result["file_location"]).exists()
 
 
+def test_create_climb_profile_images_skips_empty_slices(service, valid_geometry_3d):
+    paths = service.create_climb_profile_images(
+        [None, valid_geometry_3d, valid_geometry_3d[:1]], "mission-id"
+    )
+
+    assert set(paths) == {2}
+    assert paths[2].endswith("bs_altimetry_mission-id_climb_2.png")
+    assert Path(paths[2]).exists()
+
+
 def test_create_profile_image_handles_2d(service, valid_geometry_2d):
     geometry = DummyGeometry(coordinates=valid_geometry_2d)
     result = service.create_profile_image(geometry, "twod")

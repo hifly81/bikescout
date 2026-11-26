@@ -73,6 +73,13 @@ class AltimetryStorageResult:
     total_distance_km: float
 
 
+@dataclass(frozen=True)
+class _ProfileSlice:
+    """Minimal geometry wrapper accepted by create_profile_image."""
+
+    coordinates: list[Sequence[object]]
+
+
 class AltimetryService:
     def __init__(
         self, config: AltimetryConfig | None = None, logger: logging.Logger | None = None
@@ -161,6 +168,41 @@ class AltimetryService:
         except Exception as exc:
             self.logger.exception("Unexpected altimetry failure")
             return {"status": "Error", "message": f"Altimetry home-storage failed: {exc}"}
+
+    def create_climb_profile_images(
+        self,
+        profiles: Sequence[Iterable[Sequence[object]] | None],
+        uuid_input: str | None,
+        style: PlotStyle = "filled",
+    ) -> dict[int, str]:
+        """
+        Store one elevation chart per climb with a dedicated profile.
+
+        Args:
+            profiles: Coordinate slices aligned with the climb list; None entries are skipped.
+            uuid_input: Mission identifier used as the full altimetry filename stem.
+            style: Plot style reused from the mission request.
+        Returns:
+            Mapping of 1-based climb numbers to generated PNG paths.
+        """
+        base_id = self._sanitize_filename_component(uuid_input, fallback=uuid.uuid4().hex[:12])
+        paths: dict[int, str] = {}
+        for number, profile in enumerate(profiles, start=1):
+            if profile is None:
+                continue
+            coordinates = list(profile)
+            if len(coordinates) < 2:
+                continue
+            result = self.create_profile_image(
+                geometry_obj=_ProfileSlice(coordinates=coordinates),
+                uuid_input=f"{base_id}_climb_{number}",
+                style=style,
+            )
+            if result["status"] == "Success":
+                paths[number] = str(result["file_location"])
+            else:
+                self.logger.debug("Climb %d altimetry skipped: %s", number, result["message"])
+        return paths
 
     def cleanup_old_png_files(self, directory: Path) -> None:
         now = time.time()
@@ -390,5 +432,18 @@ def get_elevation_profile_image(
         uuid_input=uuid_input,
         width=width,
         height=height,
+        style=style,
+    )
+
+
+def create_climb_profile_images(
+    profiles: Sequence[Iterable[Sequence[object]] | None],
+    uuid_input: str | None,
+    style: PlotStyle = "filled",
+) -> dict[int, str]:
+    """Create per-climb elevation charts using the shared altimetry service."""
+    return AltimetryService().create_climb_profile_images(
+        profiles=profiles,
+        uuid_input=uuid_input,
         style=style,
     )

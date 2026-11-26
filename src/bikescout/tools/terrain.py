@@ -43,6 +43,9 @@ class TerrainConfig:
     min_profile_points: int = 4
 
 
+# Minimum climb length with a dedicated altimetry chart in the local planner.
+CLIMB_PROFILE_MIN_LENGTH_M = 1000.0
+
 _SURFACE_TECH_HINTS: dict[str, int] = {
     "0": 0,
     "1": 0,
@@ -104,7 +107,7 @@ def segment_distances_m(geometry: list[Any]) -> list[float]:
 
 def _extract_profile(
     geometry: list[Any], config: TerrainConfig
-) -> tuple[list[float], list[float], int]:
+) -> tuple[list[float], list[float], int, list[Any]]:
     """
     Extract a numeric elevation series and cap implausible jumps.
 
@@ -112,7 +115,8 @@ def _extract_profile(
         geometry: Coordinate triplets in [lon, lat, elevation] order.
         config: Terrain processing parameters.
     Returns:
-        A tuple of (step-capped elevations, segment distances, capped-step count).
+        A tuple of (step-capped elevations, segment distances, capped-step count,
+        usable coordinates). The coordinate list aligns with the elevation list.
     """
     elevations: list[float] = []
     usable_points: list[Any] = []
@@ -126,7 +130,7 @@ def _extract_profile(
 
     distances = segment_distances_m(usable_points)
     if not elevations:
-        return [], [], 0
+        return [], [], 0, []
 
     cleaned = [elevations[0]]
     capped_steps = 0
@@ -140,7 +144,7 @@ def _extract_profile(
             elevation = previous - config.max_step_down_m
             capped_steps += 1
         cleaned.append(elevation)
-    return cleaned, distances, capped_steps
+    return cleaned, distances, capped_steps, usable_points
 
 
 def _edge_slope(segment: np.ndarray) -> float:
@@ -402,7 +406,7 @@ class TerrainService:
             Dictionary with geometry-derived terrain metrics. Always contains
             the same keys, including for short or invalid profiles.
         """
-        elevations, distances, capped_steps = _extract_profile(geometry, self.config)
+        elevations, distances, capped_steps, usable_points = _extract_profile(geometry, self.config)
         sample_count = len(elevations)
         max_gradient = 0.0
         if sample_count >= 2:
@@ -418,6 +422,7 @@ class TerrainService:
                 "avg_climb_gradient": 0.0,
                 "profile_length_m": 0.0,
                 "climbs": [],
+                "climb_profile_coordinates": [],
                 "climb_category": "Flat / Rolling",
                 "data_confidence": 0.0,
                 "technical_difficulty": technical,
@@ -433,6 +438,7 @@ class TerrainService:
         profile_length_m = round(cumulative[-1], 1)
 
         climbs: list[dict[str, Any]] = []
+        climb_profile_coordinates: list[list[list[float]] | None] = []
         total_ascent = 0.0
         radius = max(1, self.config.smoothing_window // 2)
         previous_end = 0
@@ -478,6 +484,16 @@ class TerrainService:
                     "category": _fiets_category(fiets_index),
                 }
             )
+            if length >= CLIMB_PROFILE_MIN_LENGTH_M:
+                climb_profile_coordinates.append(
+                    [
+                        [float(point[0]), float(point[1]), float(elevations[index])]
+                        for index, point in enumerate(usable_points)
+                        if raw_start <= index <= raw_end
+                    ]
+                )
+            else:
+                climb_profile_coordinates.append(None)
 
         total_ascent = round(total_ascent, 1)
         avg_gradient = total_ascent / profile_length_m * 100.0 if profile_length_m > 0 else 0.0
@@ -507,6 +523,7 @@ class TerrainService:
             "avg_climb_gradient": round(avg_climb_gradient, 2),
             "profile_length_m": profile_length_m,
             "climbs": climbs,
+            "climb_profile_coordinates": climb_profile_coordinates,
             "climb_category": climb_category,
             "data_confidence": _data_confidence(sample_count, distances, capped_steps, self.config),
             "technical_difficulty": technical,

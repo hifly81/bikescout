@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import base64
+from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -23,6 +25,9 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 APP_PATH = Path(__file__).resolve().parent.parent / "app.py"
+PNG_1PX = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=="
+)
 
 
 class TestAppScript:
@@ -257,3 +262,55 @@ class TestPlanFlow:
         assert climb_row["Length (km)"] == "1.80"
         assert scout_calls
         assert 3 <= scout_calls[0]["complexity"] <= 5
+
+    def test_climb_profile_dialog_opens_for_long_climb(self, tmp_path):
+        climb_path = tmp_path / "bs_altimetry_fixed_climb_1.png"
+        climb_path.write_bytes(PNG_1PX)
+        climb = {
+            "category": "C3 - Challenging",
+            "length_m": 1800.0,
+            "gain_m": 120.0,
+            "summit_elevation_m": 1120.0,
+        }
+        script = f"""
+import streamlit as st
+st.session_state["climb_list_table"] = {{"selection": {{"rows": [], "columns": [], "cells": []}}}}
+if "dialog_shown" not in st.session_state:
+    st.session_state["dialog_shown"] = True
+    from bikescout.app_ui_helpers import _render_climb_profile_dialog
+    _render_climb_profile_dialog(1, {climb!r}, {str(climb_path)!r}, ("", 1))
+"""
+        at = AppTest.from_string(script)
+        at.run()
+
+        assert not at.exception
+        captions = [caption.value for caption in at.caption]
+        assert any("Climb 1" in value for value in captions)
+        assert any("1000.0 m → 1120.0 m · 1.80 km · 120.0 m gained" in value for value in captions)
+        assert at.button(key="climb_profile_done")
+
+        at.button(key="climb_profile_done").click().run()
+        assert not at.exception
+        assert not any(button.key == "climb_profile_done" for button in at.button)
+
+    def test_selected_climb_dialog_does_not_reopen_after_done(self, tmp_path):
+        (tmp_path / "bs_altimetry_fixed.png").write_bytes(PNG_1PX)
+        (tmp_path / "bs_altimetry_fixed_climb_1.png").write_bytes(PNG_1PX)
+        result = deepcopy(FAKE_MISSION_RESULT)
+        result["elevation_profile_path"] = str(tmp_path / "bs_altimetry_fixed.png")
+        script = f"""
+import streamlit as st
+from bikescout.app_ui_helpers import render_route_results
+st.session_state["climb_list_table"] = {{"selection": {{"rows": [0], "columns": [], "cells": []}}}}
+render_route_results({result!r})
+"""
+        at = AppTest.from_string(script)
+        at.run()
+
+        assert not at.exception
+        assert at.button(key="climb_profile_done")
+
+        at.button(key="climb_profile_done").click().run()
+
+        assert not at.exception
+        assert not any(button.key == "climb_profile_done" for button in at.button)

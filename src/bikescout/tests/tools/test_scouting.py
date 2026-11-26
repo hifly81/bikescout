@@ -805,7 +805,7 @@ def make_service(session):
             "elevation_samples_interpolated": 3,
             "elevation_uncertainty": "3 of 42 elevation samples estimated from neighbours.",
         },
-        nutrition_getter=lambda estimated_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile: {
+        nutrition_getter=lambda estimated_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile, sweat_rate_ml_per_hour=None: {
             "status": "Success",
             "mission_nutrition_briefing": {},
         },
@@ -871,6 +871,54 @@ def test_get_complete_trail_scout_success_all_features():
         "3 of 42 elevation samples estimated from neighbours."
     )
     assert result.get("elevation_error") is None
+
+
+def test_get_complete_trail_scout_passes_measured_sweat_rate_and_reports_nutrition_error():
+    payload = {
+        "features": [
+            {
+                "properties": {"summary": {"distance": 40000}, "ascent": 500},
+                "geometry": {"coordinates": [[10.0, 45.0, 100], [10.001, 45.001, 101]]},
+            }
+        ]
+    }
+    calls = []
+
+    def nutrition_getter(
+        estimated_hours,
+        max_temp,
+        intensity_score,
+        weight_kg,
+        gender,
+        sweat_profile,
+        sweat_rate_ml_per_hour=None,
+    ):
+        calls.append(sweat_rate_ml_per_hour)
+        return {
+            "status": "Error",
+            "error_message": "sweat_rate_ml_per_hour must be between 100 and 5000; got -1.",
+        }
+
+    service = make_service(FakeSession(response=FakeResponse(payload=payload)))
+    service.nutrition_getter = nutrition_getter
+
+    result = service.get_complete_trail_scout(
+        api_key="key",
+        latitude=45.0,
+        longitude=10.0,
+        rider=make_rider(),
+        bike=make_bike("gravel", False),
+        mission=make_mission(),
+        include_nutrition_plan=True,
+        sweat_rate_ml_per_hour=900.0,
+    )
+
+    assert calls == [900.0]
+    assert result["status"] == "Success"
+    assert result["nutrition_error"] == (
+        "sweat_rate_ml_per_hour must be between 100 and 5000; got -1."
+    )
+    assert "nutrition_plan" not in result.get("logistics", {})
 
 
 def test_get_complete_trail_scout_creates_climb_profile_images():

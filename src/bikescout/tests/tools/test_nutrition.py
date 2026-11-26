@@ -20,6 +20,7 @@ import pytest
 
 import bikescout.tools.nutrition as nutrition_module
 from bikescout.tools.nutrition import (
+    NUTRITION_REFERENCES,
     NutritionConfig,
     NutritionService,
     get_nutrition_plan,
@@ -31,38 +32,39 @@ def service():
     return NutritionService(NutritionConfig())
 
 
-def test_coerce_float(service):
-    assert service._coerce_float("12.5", 1.0) == 12.5
-    assert service._coerce_float("bad", 1.0) == 1.0
+def test_require_number_accepts_numeric_strings(service):
+    assert service._require_number("duration_hours", "2.5", 0.1, 24.0) == 2.5
 
 
-def test_coerce_positive_float(service):
-    assert service._coerce_positive_float(2.0, 1.0) == 2.0
-    assert service._coerce_positive_float(0, 1.0) == 1.0
-    assert service._coerce_positive_float(-1, 1.0) == 1.0
-    assert service._coerce_positive_float("bad", 1.0) == 1.0
+@pytest.mark.parametrize("bad", ["bad", None, True, float("nan"), 0.0, 25.0])
+def test_require_number_rejects_invalid_values(service, bad):
+    with pytest.raises(ValueError, match="duration_hours"):
+        service._require_number("duration_hours", bad, 0.1, 24.0)
 
 
-def test_normalize_gender(service):
-    assert service._normalize_gender("male") == "male"
-    assert service._normalize_gender(" Female ") == "female"
-    assert service._normalize_gender("") == "male"
-    assert service._normalize_gender(None) == "male"
+@pytest.mark.parametrize("good", [1, "5", 3.0])
+def test_require_int_accepts_whole_numbers(service, good):
+    assert service._require_int("intensity_score", good, 1, 5) == int(good)
 
 
-def test_normalize_sweat_profile(service):
-    assert service._normalize_sweat_profile("high") == "high"
-    assert service._normalize_sweat_profile(" Extreme ") == "extreme"
-    assert service._normalize_sweat_profile("") == "standard"
-    assert service._normalize_sweat_profile(None) == "standard"
+@pytest.mark.parametrize("bad", ["bad", None, True, 3.5, 0, 6])
+def test_require_int_rejects_invalid_values(service, bad):
+    with pytest.raises(ValueError, match="intensity_score"):
+        service._require_int("intensity_score", bad, 1, 5)
 
 
-def test_normalize_intensity_score(service):
-    assert service._normalize_intensity_score(1) == 1
-    assert service._normalize_intensity_score(5) == 5
-    assert service._normalize_intensity_score(0) == 1
-    assert service._normalize_intensity_score(9) == 5
-    assert service._normalize_intensity_score("bad") == 2
+def test_require_choice_uses_default_for_missing_values(service):
+    assert service._require_choice("gender", None, ("male", "female"), "male") == "male"
+    assert service._require_choice("gender", " ", ("male", "female"), "male") == "male"
+
+
+def test_require_choice_normalizes_valid_values(service):
+    assert service._require_choice("gender", " Female ", ("male", "female"), "male") == "female"
+
+
+def test_require_choice_rejects_unknown_values(service):
+    with pytest.raises(ValueError, match="must be one of"):
+        service._require_choice("gender", "alien", ("male", "female"), "male")
 
 
 def test_intensity_factor(service):
@@ -71,7 +73,6 @@ def test_intensity_factor(service):
     assert service._intensity_factor(3) == 0.85
     assert service._intensity_factor(4) == 0.95
     assert service._intensity_factor(5) == 1.05
-    assert service._intensity_factor(99) == 0.75
 
 
 def test_avg_hourly_fluid_short_duration(service):
@@ -131,7 +132,6 @@ def test_sodium_concentration(service):
     assert service._sodium_concentration("standard") == 800
     assert service._sodium_concentration("high") == 1200
     assert service._sodium_concentration("extreme") == 1800
-    assert service._sodium_concentration("weird") == 800
 
 
 def test_build_alerts_none(service):
@@ -144,6 +144,7 @@ def test_build_alerts_none(service):
         hourly_sodium_mg=500.0,
         total_fluid_l=1.0,
         weight_kg=70.0,
+        estimated_fluid_ml=700.0,
     )
     assert alerts == []
 
@@ -158,14 +159,52 @@ def test_build_alerts_all(service):
         hourly_sodium_mg=1200.0,
         total_fluid_l=6.0,
         weight_kg=70.0,
+        estimated_fluid_ml=1100.0,
+        humidity_pct=75.0,
+        temperature_basis="daily_max",
     )
 
-    assert len(alerts) == 5
+    assert len(alerts) == 8
     assert any("FUELING ALERT" in alert for alert in alerts)
     assert any("HEAT STRESS" in alert for alert in alerts)
     assert any("BONK RISK" in alert for alert in alerts)
     assert any("ELECTROLYTE CRITICAL" in alert for alert in alerts)
     assert any("HYPER-HYDRATION RISK" in alert for alert in alerts)
+    assert any("FLUID CEILING" in alert for alert in alerts)
+    assert any("HUMIDITY LOAD" in alert for alert in alerts)
+    assert any("TEMPERATURE CONTEXT" in alert for alert in alerts)
+
+
+def test_measured_sweat_rate_skips_fluid_ceiling_alert(service):
+    alerts = service._build_alerts(
+        carb_rate=40,
+        ratios="Standard isotonic or whole foods",
+        temp_c=22.0,
+        duration_hours=2.0,
+        intensity_factor=0.75,
+        hourly_sodium_mg=400.0,
+        total_fluid_l=3.0,
+        weight_kg=70.0,
+        estimated_fluid_ml=1000.0,
+        sweat_rate_ml_per_hour=1500.0,
+    )
+    assert not any("FLUID CEILING" in alert for alert in alerts)
+
+
+def test_measured_sweat_rate_above_2_5_l_warns(service):
+    alerts = service._build_alerts(
+        carb_rate=40,
+        ratios="Standard isotonic or whole foods",
+        temp_c=22.0,
+        duration_hours=2.0,
+        intensity_factor=0.75,
+        hourly_sodium_mg=400.0,
+        total_fluid_l=6.0,
+        weight_kg=70.0,
+        estimated_fluid_ml=2600.0,
+        sweat_rate_ml_per_hour=3000.0,
+    )
+    assert any("SWEAT CHECK" in alert for alert in alerts)
 
 
 def test_get_nutrition_plan_basic_success(service):
@@ -184,6 +223,26 @@ def test_get_nutrition_plan_basic_success(service):
     assert "carbohydrates" in briefing
     assert "electrolytes" in briefing
     assert "tactical_advice" in briefing
+    assert briefing["estimate_confidence"] == "low"
+    assert "population estimate" in briefing["data_basis"]
+    assert "timed weigh-in" in briefing["uncertainty_note"]
+    assert briefing["inputs_used"]["sweat_rate_source"] == "estimated"
+    assert briefing["references"] == list(NUTRITION_REFERENCES)
+
+
+def test_get_nutrition_plan_bounds_population_fluid_estimate(service):
+    result = service.get_nutrition_plan(
+        duration_hours=3.0,
+        temp_c=20.0,
+        intensity_score=2,
+        weight_kg=70.0,
+    )
+    fluids = result["mission_nutrition_briefing"]["fluids"]
+    assert fluids["hourly_average_ml"] == 800
+    assert any(
+        "FLUID CEILING" in alert
+        for alert in result["mission_nutrition_briefing"]["tactical_advice"]
+    )
 
 
 def test_get_nutrition_plan_high_intensity_hot_long_ride(service):
@@ -203,30 +262,56 @@ def test_get_nutrition_plan_high_intensity_hot_long_ride(service):
     )
     assert briefing["carbohydrates"]["intensity_context"] == "Race / Threshold"
     assert len(briefing["tactical_advice"]) >= 4
+    assert briefing["fluids"]["hourly_average_ml"] == 800
 
 
-def test_get_nutrition_plan_female_changes_fluid_model(service):
-    male_result = service.get_nutrition_plan(
+def test_get_nutrition_plan_measured_sweat_rate_overrides_estimate(service):
+    result = service.get_nutrition_plan(
         duration_hours=2.0,
-        temp_c=20.0,
+        temp_c=30.0,
         intensity_score=2,
         weight_kg=70.0,
-        gender="male",
-        sweat_profile="standard",
+        sweat_rate_ml_per_hour=1200.0,
     )
-    female_result = service.get_nutrition_plan(
+
+    briefing = result["mission_nutrition_briefing"]
+    assert briefing["fluids"]["hourly_average_ml"] == 1200
+    assert briefing["fluids"]["total_liters"] == 2.4
+    assert briefing["estimate_confidence"] == "moderate"
+    assert "measured sweat rate" in briefing["data_basis"]
+    assert "sodium concentration remains" in briefing["uncertainty_note"]
+    assert briefing["inputs_used"]["sweat_rate_source"] == "measured"
+
+
+def test_get_nutrition_plan_reports_humidity_and_temperature_basis(service):
+    result = service.get_nutrition_plan(
         duration_hours=2.0,
-        temp_c=20.0,
+        temp_c=26.0,
         intensity_score=2,
-        weight_kg=70.0,
-        gender="female",
-        sweat_profile="standard",
+        relative_humidity_pct=70.0,
+        temperature_basis="daily_max",
     )
+    briefing = result["mission_nutrition_briefing"]
+    assert any("HUMIDITY LOAD" in alert for alert in briefing["tactical_advice"])
+    assert any("TEMPERATURE CONTEXT" in alert for alert in briefing["tactical_advice"])
+    assert "not the ride window" in briefing["uncertainty_note"]
+    assert briefing["inputs_used"]["relative_humidity_pct"] == 70.0
 
-    male_hourly = male_result["mission_nutrition_briefing"]["fluids"]["hourly_average_ml"]
-    female_hourly = female_result["mission_nutrition_briefing"]["fluids"]["hourly_average_ml"]
 
-    assert female_hourly < male_hourly
+def test_get_nutrition_plan_gender_alone_does_not_change_fluid(service):
+    kwargs = {
+        "duration_hours": 2.0,
+        "temp_c": 20.0,
+        "intensity_score": 2,
+        "weight_kg": 70.0,
+        "sweat_profile": "standard",
+    }
+    male = service.get_nutrition_plan(**kwargs, gender="male")
+    female = service.get_nutrition_plan(**kwargs, gender="female")
+    assert (
+        male["mission_nutrition_briefing"]["fluids"]
+        == female["mission_nutrition_briefing"]["fluids"]
+    )
 
 
 def test_get_nutrition_plan_low_sweat_profile_changes_sodium(service):
@@ -235,7 +320,6 @@ def test_get_nutrition_plan_low_sweat_profile_changes_sodium(service):
         temp_c=20.0,
         intensity_score=2,
         weight_kg=70.0,
-        gender="male",
         sweat_profile="low",
     )
 
@@ -244,20 +328,35 @@ def test_get_nutrition_plan_low_sweat_profile_changes_sodium(service):
     assert sodium < 1000
 
 
-def test_get_nutrition_plan_invalid_inputs_fall_back(service):
-    result = service.get_nutrition_plan(
-        duration_hours="bad",
-        temp_c="bad",
-        intensity_score="bad",
-        weight_kg="bad",
-        gender=None,
-        sweat_profile=None,
-    )
-
-    briefing = result["mission_nutrition_briefing"]
-    assert result["status"] == "Success"
-    assert briefing["carbohydrates"]["hourly_target_g"] == 40
-    assert briefing["carbohydrates"]["intensity_context"] == "Endurance / Recovery"
+@pytest.mark.parametrize(
+    "overrides, field",
+    [
+        ({"duration_hours": "bad"}, "duration_hours"),
+        ({"duration_hours": 0}, "duration_hours"),
+        ({"temp_c": "bad"}, "temp_c"),
+        ({"temp_c": 100}, "temp_c"),
+        ({"intensity_score": "bad"}, "intensity_score"),
+        ({"intensity_score": 9}, "intensity_score"),
+        ({"weight_kg": -1}, "weight_kg"),
+        ({"gender": "alien"}, "gender"),
+        ({"sweat_profile": "salty"}, "sweat_profile"),
+        ({"sweat_rate_ml_per_hour": 0}, "sweat_rate_ml_per_hour"),
+        ({"relative_humidity_pct": 120}, "relative_humidity_pct"),
+        ({"temperature_basis": "yesterday"}, "temperature_basis"),
+    ],
+)
+def test_get_nutrition_plan_invalid_inputs_return_error(service, overrides, field):
+    payload = {
+        "duration_hours": 2.0,
+        "temp_c": 20.0,
+        "intensity_score": 2,
+        "weight_kg": 70.0,
+    }
+    payload.update(overrides)
+    result = service.get_nutrition_plan(**payload)
+    assert result["status"] == "Error"
+    assert field in result["error_message"]
+    assert "mission_nutrition_briefing" not in result
 
 
 def test_module_level_wrapper(monkeypatch):
@@ -279,7 +378,11 @@ def test_module_level_wrapper(monkeypatch):
         weight_kg=70.0,
         gender="male",
         sweat_profile="standard",
+        sweat_rate_ml_per_hour=900.0,
+        relative_humidity_pct=55.0,
+        temperature_basis="ride_window",
     )
 
     assert result["status"] == "Success"
     assert len(fake_service.calls) == 1
+    assert fake_service.calls[0]["sweat_rate_ml_per_hour"] == 900.0

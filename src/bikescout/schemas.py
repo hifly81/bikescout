@@ -49,8 +49,12 @@ class RiderProfile(BaseModel):
     )
     sweat_profile: Literal["standard", "low", "high", "extreme"] = Field(
         "standard",
-        description="Genetic sodium loss classification. low: ~400mg/L (Diluted sweat), standard: ~800mg/L (Population average), high: ~1200mg/L (Salty sweater), extreme: ~1800mg/L (Genetic outlier/Heavy loser).",
-        json_schema_extra={"examples": ["default", "extreme", "low", "high"]},
+        description="Self-reported sweat sodium concentration profile. low: ~400 mg/L, standard: ~800 mg/L, high: ~1200 mg/L, extreme: ~1800 mg/L; a measured sweat test is needed to personalise it.",
+        json_schema_extra={"examples": ["standard", "extreme", "low", "high"]},
+    )
+    sweat_rate_ml_per_hour: float | None = Field(
+        default=None,
+        description="Optional measured whole-body sweat rate (ml/h) from a timed weigh-in; overrides the population fluid estimate.",
     )
 
 
@@ -465,6 +469,22 @@ class NutritionBriefing(BaseModel):
     tactical_advice: list[str] = Field(
         ..., description="Critical nutrition alerts (e.g., Bonk Risk, Heat Stress)"
     )
+    data_basis: str | None = Field(
+        None, description="Evidence basis for the fluid, carbohydrate and sodium targets"
+    )
+    estimate_confidence: str | None = Field(
+        None,
+        description="Confidence in the fluid target: low for estimates, moderate when measured",
+    )
+    uncertainty_note: str | None = Field(
+        None, description="What the plan cannot resolve without an individual sweat test"
+    )
+    inputs_used: dict[str, Any] | None = Field(
+        None, description="Normalised inputs and their measurement source"
+    )
+    references: list[str] | None = Field(
+        None, description="Published ranges informing the planning heuristics"
+    )
 
 
 class ClimbMetrics(BaseModel):
@@ -501,6 +521,10 @@ class WeatherContext(BaseModel):
     max_temp_detected: str = Field(
         ...,
         description="Peak temperature detected in the activity window (e.g., '16.2°C')",
+    )
+    temperature_basis: str | None = Field(
+        None,
+        description="Where the temperature came from: ride_window, reference_fallback or default",
     )
     is_future_event: bool = Field(
         ...,
@@ -564,6 +588,9 @@ class Amenity(BaseModel):
 
 class NutritionPlanWrapper(BaseModel):
     status: str = Field(..., description="The calculation status of the nutrition engine.")
+    error_message: str | None = Field(
+        None, description="Reason why the nutrition engine rejected the inputs."
+    )
     mission_nutrition_briefing: NutritionBriefing = Field(
         ..., description="The detailed fueling and hydration strategy."
     )
@@ -737,6 +764,9 @@ class FullMissionBriefingResponse(BaseModel):
     elevation_error: str | None = Field(
         None, description="Reason why the elevation profile was omitted."
     )
+    nutrition_error: str | None = Field(
+        None, description="Reason why the nutrition plan was omitted."
+    )
     gpx_stats: dict[str, int] | None = Field(
         None, description="Dictionary of raw metadata extracted from the GPX file."
     )
@@ -753,6 +783,9 @@ class HydrationScoutResponse(BaseModel):
     )
     mission_nutrition_briefing: NutritionBriefing = Field(
         ..., description="Detailed fluid, carb, and electrolyte plan"
+    )
+    error_message: str | None = Field(
+        None, description="Reason why the nutrition engine rejected the inputs."
     )
 
 

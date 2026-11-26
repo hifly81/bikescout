@@ -234,6 +234,11 @@ def generate_tactical_response(
                                         "include_altimetry": {"type": "boolean"},
                                         "is_ebike": {"type": "boolean"},
                                         "weight_kg": {"type": "number"},
+                                        "sweat_rate_ml_per_hour": {
+                                            "type": "number",
+                                            "minimum": 100,
+                                            "maximum": 5000,
+                                        },
                                         "seed": {"type": "number"},
                                         "complexity": {
                                             "type": "integer",

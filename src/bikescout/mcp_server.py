@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import sys
 import traceback
@@ -145,6 +146,12 @@ def _tool_error_response(
     """
     reason = _error_reason(data) if data is not None else None
     _log_error_details(reason=reason, exception=exception, tool_name=tool_name)
+    if reason and "error_message" in response_model.model_fields:
+        return response_model.model_construct(
+            payload_version=BIKESCOUT_PROTOCOL_VERSION,
+            status="Error",
+            error_message=reason,
+        )
     return response_model.model_construct(
         payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
     )
@@ -210,7 +217,8 @@ def trail_scout(
     Args:
         latitude: Latitude of the starting point.
         longitude: Longitude of the starting point.
-        rider: Profile including weight and fitness level.
+        rider: Profile including weight, fitness level and an optional measured
+            sweat rate (ml/h) that replaces the population fluid estimate.
         bike: Setup details including bike type and tire width.
         mission: Constraints like search total_length_km and surface preference.
         dest_latitude: Latitude of the ending point.
@@ -242,6 +250,9 @@ def trail_scout(
           elevation_uncertainty: Elevation data credit and sample-level uncertainty;
           elevation_error explains an omitted profile.
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
+        - logistics.nutrition_plan: Fueling targets with their evidence basis, confidence,
+          uncertainty note, normalised inputs and references; nutrition_error explains a
+          rejected plan. A rider-provided measured sweat rate replaces the population estimate.
     """
 
     if not ORS_API_KEY:
@@ -274,6 +285,7 @@ def trail_scout(
             include_weather,
             include_mud_analysis,
             include_nutrition_plan,
+            sweat_rate_ml_per_hour=getattr(rider, "sweat_rate_ml_per_hour", None),
         )
         if data.get("status") == "Error":
             return _error_mission_response(reason=_error_reason(data), tool_name="trail_scout")
@@ -323,6 +335,7 @@ def trail_scout_simple(
     include_weather: bool = False,
     include_mud_analysis: bool = False,
     include_nutrition_plan: bool = False,
+    sweat_rate_ml_per_hour: float | None = None,
 ) -> FullMissionBriefingResponse:
     """
     Simplified tactical scout for cycling routes.
@@ -340,12 +353,14 @@ def trail_scout_simple(
         latitude: Latitude of the starting point.
         longitude: Longitude of the starting point.
         weight_kg: Rider's weight in kilograms (default: 75.0). Used for energy and nutrition math.
-        gender: "male" or "female". Scales sweat rate based on plasma volume variances.
-        sweat_profile: Genetic sodium loss classification.
-            - "low": ~400mg/L (Diluted sweat).
-            - "standard": ~800mg/L (Population average).
-            - "high": ~1200mg/L (Salty sweater).
-            - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).
+        gender: "male" or "female". Recorded for context; it does not change the
+            fluid target without a measured sweat rate.
+        sweat_profile: Self-reported sweat sodium concentration profile; a measured
+            sweat test is needed to personalise it.
+            - "low": ~400 mg/L.
+            - "standard": ~800 mg/L (population average).
+            - "high": ~1200 mg/L.
+            - "extreme": ~1800 mg/L.
         fitness_level: Rider's stamina level ("beginner", "intermediate", "pro").
         bike_type: Type of bicycle to optimize the mechanical and tactical advice.
         tire_size: Wheel/tire diameter for specific pressure (PSI) recommendations.
@@ -366,6 +381,8 @@ def trail_scout_simple(
         prefer_rural: Bias route generation toward countryside or quieter roads when possible.
         distance_flex_percent: Allowed tolerance on target distance when route character matters more than exact mileage.
         priority_mode: Optimization strategy between exact distance and ride character.
+        sweat_rate_ml_per_hour: Optional measured whole-body sweat rate (ml/h) from a
+            timed weigh-in; overrides the population fluid estimate in the nutrition plan.
         dest_latitude: Optional. Latitude of the finish line (for A-to-B missions).
         dest_longitude: Optional. Longitude of the finish line (for A-to-B missions).
         style: Visual style for the elevation profile graphic.
@@ -394,6 +411,9 @@ def trail_scout_simple(
           elevation_uncertainty: Elevation data credit and sample-level uncertainty;
           elevation_error explains an omitted profile.
         - gpx_stats: Technical summary of the generated trace (point count, healed segments).
+        - logistics.nutrition_plan: Fueling targets with their evidence basis, confidence,
+          uncertainty note, normalised inputs and references; nutrition_error explains a
+          rejected plan. A rider-provided measured sweat rate replaces the population estimate.
     """
     try:
         rider = RiderProfile(
@@ -401,6 +421,7 @@ def trail_scout_simple(
             gender=gender,
             fitness_level=fitness_level,
             sweat_profile=sweat_profile,
+            sweat_rate_ml_per_hour=sweat_rate_ml_per_hour,
         )
 
         bike = BikeSetup(
@@ -540,6 +561,49 @@ def ride_window_planner(
         )
 
 
+def _ride_window_temperature(
+    weather_data: dict[str, Any], duration_hours: float
+) -> tuple[float, Literal["ride_window", "reference_fallback", "default"]]:
+    """Return the forecast peak inside the ride window, never the daily maximum.
+
+    Args:
+        weather_data: Weather payload returned by the forecast tool.
+        duration_hours: Planned ride duration used to bound the window.
+
+    Returns:
+        The temperature in °C and a label describing where it came from.
+    """
+    metadata = weather_data.get("metadata") or {}
+    start_label = str(metadata.get("target_time_local") or "")
+    try:
+        start_hour = int(start_label.split(":")[0])
+    except (ValueError, IndexError):
+        start_hour = 9
+    try:
+        window_hours = max(1, min(24, math.ceil(float(duration_hours))))
+    except (TypeError, ValueError):
+        window_hours = 1
+    end_hour = min(23, start_hour + window_hours - 1)
+
+    window_temps: list[float] = []
+    for entry in weather_data.get("tactical_forecast") or []:
+        try:
+            hour = int(str(entry["time"]).split(":")[0])
+            temp = float(str(entry["temp"]).replace("°C", "").strip())
+        except (ValueError, KeyError, TypeError):
+            continue
+        if start_hour <= hour <= end_hour:
+            window_temps.append(temp)
+    if window_temps:
+        return max(window_temps), "ride_window"
+
+    reference = weather_data.get("reference_conditions") or {}
+    try:
+        return float(reference["temp"]), "reference_fallback"
+    except (KeyError, TypeError, ValueError):
+        return 20.0, "default"
+
+
 @mcp.tool()
 def hydration_scout(
     lat: float,
@@ -550,14 +614,17 @@ def hydration_scout(
     gender: str = "male",
     sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
     target_date: str | None = None,
+    sweat_rate_ml_per_hour: float | None = None,
+    relative_humidity_pct: float | None = None,
 ) -> HydrationScoutResponse:
     """
     Physiological Intelligence Engine.
-    Calculates a specific nutrition and hydration plan by cross-referencing
-    weather data (heat/humidity) with predicted mission intensity.
+    Calculates a nutrition and hydration plan from the ride-window temperature
+    and the predicted mission intensity.
 
     If target_date is None, it defaults to the current window.
-    For future dates, it analyzes the predicted race-day thermal peak.
+    For future dates, it uses the forecast peak inside the ride window rather
+    than the daily maximum.
 
     Args:
         lat: Latitude of the mission area.
@@ -565,16 +632,24 @@ def hydration_scout(
         duration_hours: Estimated time in the saddle.
         intensity_score: Physiological effort (1 to 5) 5 = Max Effort/Race.
         weight_kg: Weight in Kg.
-        gender: "male" or "female". Scales sweat rate based on plasma volume variances.
-        sweat_profile: Genetic sodium loss classification.
-            - "low": ~400mg/L (Diluted sweat).
-            - "standard": ~800mg/L (Population average).
-            - "high": ~1200mg/L (Salty sweater).
-            - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).
+        gender: "male" or "female". Recorded for context; it does not change the
+            fluid target without a measured sweat rate.
+        sweat_profile: Self-reported sweat sodium concentration profile; a measured
+            sweat test is needed to personalise it.
+            - "low": ~400 mg/L.
+            - "standard": ~800 mg/L (population average).
+            - "high": ~1200 mg/L.
+            - "extreme": ~1800 mg/L.
         target_date: Optional. The date of the event in YYYY-MM-DD format.
+        sweat_rate_ml_per_hour: Optional measured whole-body sweat rate (ml/h)
+            from a timed weigh-in; replaces the population fluid estimate.
+        relative_humidity_pct: Optional relative humidity (%). It raises a heat
+            alert but does not change the fluid target.
     Returns:
-        A HydrationScoutResponse containing the tactical weather context and
-        the complete nutrition briefing (fluids, carbs, electrolytes).
+        A HydrationScoutResponse containing the weather context (with the
+        temperature basis) and the nutrition briefing, including its evidence
+        basis, confidence, uncertainty note, normalised inputs and references.
+        error_message explains rejected inputs.
     """
     try:
         # 1. Fetch weather context using the updated forecast engine
@@ -585,28 +660,21 @@ def hydration_scout(
                 HydrationScoutResponse, tool_name="hydration_scout", data=weather_data
             )
 
-        # 2. Extract peak temperature from the tactical forecast window
-        # Default to 20°C if weather data is unavailable
-        max_temp = 20.0
-
-        # We now look for 'tactical_forecast' (the new key in our updated weather tool)
-        forecast = weather_data.get("tactical_forecast", [])
-
-        if forecast:
-            try:
-                # We parse the temperature strings (e.g., "24.5°C" -> 24.5)
-                # and find the maximum expected during the ride window
-                temps = [float(h["temp"].replace("°C", "")) for h in forecast]
-                max_temp = max(temps)
-            except (ValueError, KeyError, TypeError):
-                # Fallback to the reference condition if list parsing fails
-                ref_cond = weather_data.get("reference_conditions", {})
-                max_temp = float(ref_cond.get("temp", 20.0))
+        # 2. Use the peak temperature inside the ride window, not the daily maximum.
+        max_temp, temperature_basis = _ride_window_temperature(weather_data, duration_hours)
 
         # 3. Execute the Nutrition Logic
         # The engine calculates carbs/hour and ml/hour based on heat and intensity
         data = get_nutrition_plan(
-            duration_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile
+            duration_hours=duration_hours,
+            temp_c=max_temp,
+            intensity_score=intensity_score,
+            weight_kg=weight_kg,
+            gender=gender,
+            sweat_profile=sweat_profile,
+            sweat_rate_ml_per_hour=sweat_rate_ml_per_hour,
+            relative_humidity_pct=relative_humidity_pct,
+            temperature_basis=temperature_basis,
         )
         if data.get("status") == "Error":
             return _tool_error_response(
@@ -616,6 +684,7 @@ def hydration_scout(
         context = WeatherContext(
             date_referenced=weather_data.get("metadata", {}).get("date_analyzed", target_date),
             max_temp_detected=f"{max_temp}°C",
+            temperature_basis=temperature_basis,
             is_future_event=weather_data.get("metadata", {}).get("is_future_planning", False),
         )
 
@@ -653,11 +722,12 @@ def analyze_gpx_track(
         rider_weight_kg: Body mass of the rider for Power-to-Weight calculations. Default: 75
         rider_gender: Default "male",
         rider_fitness_level: User's athletic preparation level. Affects fatigue and climbing logic. Default "intermediate"
-        sweat_profile: Genetic sodium loss classification.
-            - "low": ~400mg/L (Diluted sweat).
-            - "standard": ~800mg/L (Population average).
-            - "high": ~1200mg/L (Salty sweater).
-            - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).
+        sweat_profile: Self-reported sweat sodium concentration profile; a measured
+            sweat test is needed to personalise it.
+            - "low": ~400 mg/L.
+            - "standard": ~800 mg/L (population average).
+            - "high": ~1200 mg/L.
+            - "extreme": ~1800 mg/L.
         bike_weight_kg: Mass of the bike (default 8.5kg for road bikes).
         pro_intensity: Effort multiplier (1.0 = amateur, 1.6 = pro pace, 2.0 = world-class attack).
         activity_type: Type of activity ('road' or 'mtb').

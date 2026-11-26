@@ -624,6 +624,7 @@ def init_session_state() -> None:
             "fitness_level": "intermediate",
             "weight_kg": 75.0,
             "gender": "male",
+            "sweat_rate_ml_per_hour": None,
         },
     }
     for key, value in defaults.items():

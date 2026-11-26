@@ -22,6 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from bikescout.mcp_server import (
+    _ride_window_temperature,
     analyze_gpx_track,
     check_trail_weather,
     geocode_location,
@@ -186,8 +187,13 @@ class TestMcpServer:
     @patch("bikescout.mcp_server.get_nutrition_plan")
     def test_hydration_scout_flow(self, m_nut, m_weather):
         m_weather.return_value = {
-            "tactical_forecast": [{"temp": "28.0°C"}],
-            "metadata": {"date_analyzed": "2026-06-15"},
+            "tactical_forecast": [
+                {"time": "09:00", "temp": "22.0°C"},
+                {"time": "10:00", "temp": "28.0°C"},
+                {"time": "18:00", "temp": "34.0°C"},
+            ],
+            "metadata": {"date_analyzed": "2026-06-15", "target_time_local": "09:00"},
+            "reference_conditions": {"temp": 22.0},
         }
 
         m_nut.return_value = {
@@ -200,13 +206,68 @@ class TestMcpServer:
                     "Drink early and often due to 28°C heat.",
                     "Pre-hydrate with 500ml of electrolytes 1 hour before start.",
                 ],
+                "data_basis": "Measured sweat rate used.",
+                "estimate_confidence": "moderate",
+                "uncertainty_note": "Sodium remains self-reported.",
+                "inputs_used": {"sweat_rate_ml_per_hour": 900.0},
+                "references": ["ACSM 2009"],
             },
         }
 
-        response = hydration_scout(lat=45.0, lon=9.0, duration_hours=2.0)
+        response = hydration_scout(
+            lat=45.0,
+            lon=9.0,
+            duration_hours=2.0,
+            sweat_rate_ml_per_hour=900.0,
+            relative_humidity_pct=65.0,
+        )
 
         assert response.weather_context.max_temp_detected == "28.0°C"
+        assert response.weather_context.temperature_basis == "ride_window"
         assert "Drink early" in response.mission_nutrition_briefing.tactical_advice[0]
+        assert response.mission_nutrition_briefing.estimate_confidence == "moderate"
+        called_args = m_nut.call_args.kwargs
+        assert called_args["temperature_basis"] == "ride_window"
+        assert called_args["sweat_rate_ml_per_hour"] == 900.0
+        assert called_args["relative_humidity_pct"] == 65.0
+
+    def test_ride_window_temperature_ignores_daily_peak(self):
+        weather = {
+            "metadata": {"target_time_local": "09:00"},
+            "tactical_forecast": [
+                {"time": "09:00", "temp": "21.0°C"},
+                {"time": "10:00", "temp": "25.5°C"},
+                {"time": "17:00", "temp": "36.0°C"},
+            ],
+            "reference_conditions": {"temp": 21.0},
+        }
+        assert _ride_window_temperature(weather, 2.0) == (25.5, "ride_window")
+
+    def test_ride_window_temperature_falls_back_to_reference(self):
+        weather = {
+            "metadata": {},
+            "tactical_forecast": [{"temp": "30.0°C"}],
+            "reference_conditions": {"temp": 18.0},
+        }
+        assert _ride_window_temperature(weather, 2.0) == (18.0, "reference_fallback")
+        assert _ride_window_temperature({}, 2.0) == (20.0, "default")
+
+    @patch("bikescout.mcp_server.get_weather_forecast")
+    @patch("bikescout.mcp_server.get_nutrition_plan")
+    def test_hydration_scout_exposes_input_error(self, m_nut, m_weather):
+        m_weather.return_value = {
+            "tactical_forecast": [{"time": "09:00", "temp": "22.0°C"}],
+            "metadata": {"date_analyzed": "2026-06-15", "target_time_local": "09:00"},
+        }
+        m_nut.return_value = {
+            "status": "Error",
+            "error_message": "duration_hours must be between 0.1 and 24; got 0.",
+        }
+
+        response = hydration_scout(lat=45.0, lon=9.0, duration_hours=0.0)
+
+        assert response.status == "Error"
+        assert response.error_message == "duration_hours must be between 0.1 and 24; got 0."
 
     @patch("bikescout.mcp_server.analyze_track")
     def test_analyze_gpx_track(self, m_analyze):

@@ -290,6 +290,7 @@ class TrailScoutService:
         include_weather: bool = False,
         include_mud_analysis: bool = False,
         include_nutrition_plan: bool = False,
+        sweat_rate_ml_per_hour: float | None = None,
     ) -> dict[str, Any]:
         routing_payload = self._routing_payload(
             latitude=latitude,
@@ -436,10 +437,17 @@ class TrailScoutService:
                     rider.weight_kg,
                     rider.gender,
                     rider.sweat_profile,
+                    sweat_rate_ml_per_hour,
                 )
                 if nutrition_plan.get("status") == "Success":
                     self._ensure_logistics(response_payload)
                     response_payload["logistics"]["nutrition_plan"] = nutrition_plan
+                else:
+                    response_payload["nutrition_error"] = str(
+                        nutrition_plan.get("error_message")
+                        or nutrition_plan.get("message")
+                        or "Nutrition plan unavailable."
+                    )
 
             if include_poi:
                 try:
@@ -919,6 +927,7 @@ def get_complete_trail_scout(
     include_weather: bool = False,
     include_mud_analysis: bool = False,
     include_nutrition_plan: bool = False,
+    sweat_rate_ml_per_hour: float | None = None,
 ) -> dict[str, Any]:
     return service.get_complete_trail_scout(
         api_key=api_key,
@@ -938,4 +947,5 @@ def get_complete_trail_scout(
         include_weather=include_weather,
         include_mud_analysis=include_mud_analysis,
         include_nutrition_plan=include_nutrition_plan,
+        sweat_rate_ml_per_hour=sweat_rate_ml_per_hour,
     )

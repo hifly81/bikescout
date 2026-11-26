@@ -910,7 +910,7 @@ def render_rider_profile_fields() -> None:
 
     st.markdown("#### Rider profile")
     st.caption("Defaults for guided planning. In chat, state your details in the message.")
-    rider_col, weight_col, gender_col = st.columns(3)
+    rider_col, weight_col, gender_col, sweat_col = st.columns(4)
     with rider_col:
         profile["fitness_level"] = st.selectbox(
             "Fitness level",
@@ -933,6 +933,16 @@ def render_rider_profile_fields() -> None:
             index=gender_options.index(current_gender),
             key="rider_profile_gender",
         )
+    with sweat_col:
+        measured_rate = st.number_input(
+            "Measured sweat (ml/h)",
+            min_value=0.0,
+            max_value=5000.0,
+            value=ext_cast(profile.get("sweat_rate_ml_per_hour"), float, 0.0),
+            help="Optional timed weigh-in result; 0 means use the population estimate.",
+            key="rider_profile_sweat_rate",
+        )
+        profile["sweat_rate_ml_per_hour"] = measured_rate or None
 
     st.session_state["rider_profile"] = profile
 
@@ -1072,6 +1082,21 @@ def _climb_chart_path(res_data: dict, number: int) -> str | None:
     if not isinstance(profile_path, str) or not profile_path:
         return None
     return str(Path(profile_path).with_name(f"{Path(profile_path).stem}_climb_{number}.png"))
+
+
+def _nutrition_note(briefing: dict) -> str | None:
+    """Build a compact evidence and uncertainty note for the fueling plan."""
+    parts: list[str] = []
+    basis = briefing.get("data_basis")
+    confidence = briefing.get("estimate_confidence")
+    uncertainty = briefing.get("uncertainty_note")
+    if isinstance(basis, str) and basis:
+        parts.append(basis)
+    if isinstance(confidence, str) and confidence:
+        parts.append(f"Confidence: {confidence}.")
+    if isinstance(uncertainty, str) and uncertainty:
+        parts.append(uncertainty)
+    return " ".join(parts) or None
 
 
 def _altimetry_caption(res_data: dict) -> str | None:
@@ -1704,6 +1729,22 @@ def render_route_results(res_data: dict) -> None:
             tactical_advice = briefing_nut.get("tactical_advice", []) or []
             for advice in tactical_advice:
                 st.info(advice)
+
+            note = _nutrition_note(briefing_nut)
+            if note:
+                st.caption(note)
+            references = briefing_nut.get("references") or []
+            if references:
+                with st.expander("Fueling sources", expanded=False):
+                    for reference in references:
+                        st.markdown(f"- {reference}")
+
+    nutrition_error = res_data.get("nutrition_error")
+    if nutrition_error:
+        st.warning(
+            f"Nutrition plan unavailable: {nutrition_error} "
+            "Check the input values or add a measured sweat rate and retry."
+        )
 
     map_uri = res_data.get("map_path")
     alt_uri = res_data.get("elevation_profile_path")

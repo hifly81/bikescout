@@ -14,10 +14,28 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+"""Deterministic, evidence-labelled fueling and hydration estimates.
+
+The published ranges below set the bounds of the planning heuristics; they are
+not a clinical prescription. An individual sweat-rate measurement always
+replaces the population fluid estimate.
+"""
+
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any, Literal
+
+NUTRITION_REFERENCES: tuple[str, ...] = (
+    "ACSM Position Stand: Nutrition and Athletic Performance (2009), MSSE 41(3):709-731: "
+    "30-60 g carbohydrate/h, up to 90 g/h in prolonged events with multiple "
+    "transportable carbohydrates.",
+    "ACSM Position Stand: Exercise and Fluid Replacement (2007), MSSE 39(2):377-390: "
+    "initial fluid plan 400-800 ml/h, adjusted to the individual sweat rate.",
+    "Maughan & Shirreffs (2008) and Baker et al. (2019) sweat-composition data: "
+    "sweat sodium concentration spans roughly 460-1840 mg/L.",
+)
 
 
 @dataclass(frozen=True)
@@ -28,9 +46,13 @@ class NutritionConfig:
     default_intensity_score: int = 2
     default_duration_hours: float = 1.0
     default_temp_c: float = 20.0
+    # Gender alone is not a supported basis for sweat-rate differences; the
+    # rider can supply a measured rate instead. The factor is kept at 1.0.
     male_gender_factor: float = 1.0
-    non_male_gender_factor: float = 0.85
+    non_male_gender_factor: float = 1.0
     sweat_rate_multiplier: float = 1.0
+    estimated_fluid_min_ml_per_hour: float = 400.0
+    estimated_fluid_max_ml_per_hour: float = 800.0
 
 
 class NutritionService:
@@ -45,15 +67,47 @@ class NutritionService:
         weight_kg: float = 70.0,
         gender: str = "male",
         sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-    ):
-        duration_hours = self._coerce_positive_float(
-            duration_hours, self.config.default_duration_hours
-        )
-        temp_c = self._coerce_float(temp_c, self.config.default_temp_c)
-        intensity_score = self._normalize_intensity_score(intensity_score)
-        weight_kg = self._coerce_positive_float(weight_kg, self.config.default_weight_kg)
-        gender = self._normalize_gender(gender)
-        normalized_sweat_profile = self._normalize_sweat_profile(sweat_profile)
+        sweat_rate_ml_per_hour: float | None = None,
+        relative_humidity_pct: float | None = None,
+        temperature_basis: Literal[
+            "ride_window", "daily_max", "manual", "reference_fallback", "default"
+        ] = "ride_window",
+    ) -> dict[str, Any]:
+        """Build a fueling plan, or report invalid inputs as an Error payload."""
+        try:
+            duration_hours = self._require_number("duration_hours", duration_hours, 0.1, 24.0)
+            temp_c = self._require_number("temp_c", temp_c, -40.0, 60.0)
+            intensity_score = self._require_int("intensity_score", intensity_score, 1, 5)
+            weight_kg = self._require_number("weight_kg", weight_kg, 20.0, 250.0)
+            gender = self._require_choice(
+                "gender", gender, ("male", "female"), self.config.default_gender
+            )
+            normalized_profile = self._require_choice(
+                "sweat_profile",
+                sweat_profile,
+                ("low", "standard", "high", "extreme"),
+                self.config.default_sweat_profile,
+            )
+            normalized_basis = self._require_choice(
+                "temperature_basis",
+                temperature_basis,
+                ("ride_window", "daily_max", "manual", "reference_fallback", "default"),
+                "ride_window",
+            )
+            sweat_rate = (
+                self._require_number(
+                    "sweat_rate_ml_per_hour", sweat_rate_ml_per_hour, 100.0, 5000.0
+                )
+                if sweat_rate_ml_per_hour is not None
+                else None
+            )
+            humidity = (
+                self._require_number("relative_humidity_pct", relative_humidity_pct, 0.0, 100.0)
+                if relative_humidity_pct is not None
+                else None
+            )
+        except ValueError as exc:
+            return {"status": "Error", "error_message": str(exc)}
 
         gender_factor = (
             self.config.male_gender_factor
@@ -62,13 +116,21 @@ class NutritionService:
         )
         intensity_factor = self._intensity_factor(intensity_score)
 
-        avg_hourly_fluid = self._avg_hourly_fluid_ml(
+        estimated_fluid_ml = self._avg_hourly_fluid_ml(
             duration_hours=duration_hours,
             temp_c=temp_c,
             intensity_factor=intensity_factor,
             weight_kg=weight_kg,
             gender_factor=gender_factor,
         )
+        sweat_rate_source = "measured" if sweat_rate is not None else "estimated"
+        if sweat_rate is None:
+            avg_hourly_fluid = min(
+                max(estimated_fluid_ml, self.config.estimated_fluid_min_ml_per_hour),
+                self.config.estimated_fluid_max_ml_per_hour,
+            )
+        else:
+            avg_hourly_fluid = sweat_rate
         total_fluid_l = (avg_hourly_fluid * duration_hours) / 1000.0
 
         carb_rate, intensity_label = self._carb_rate_and_label(duration_hours, intensity_factor)
@@ -79,7 +141,7 @@ class NutritionService:
             else "Standard isotonic or whole foods"
         )
 
-        sodium_concentration = self._sodium_concentration(normalized_sweat_profile)
+        sodium_concentration = self._sodium_concentration(normalized_profile)
         hourly_sodium_mg = (avg_hourly_fluid / 1000.0) * sodium_concentration
         total_sodium_mg = hourly_sodium_mg * duration_hours
 
@@ -92,7 +154,59 @@ class NutritionService:
             hourly_sodium_mg=hourly_sodium_mg,
             total_fluid_l=total_fluid_l,
             weight_kg=weight_kg,
+            estimated_fluid_ml=estimated_fluid_ml,
+            humidity_pct=humidity,
+            sweat_rate_ml_per_hour=sweat_rate,
+            temperature_basis=normalized_basis,
         )
+
+        if sweat_rate is not None:
+            basis = (
+                "Fluid target from a rider-provided measured sweat rate. Carbohydrate tiers "
+                "follow published 30-90 g/h ranges; sodium uses the self-reported sweat profile."
+            )
+            confidence = "moderate"
+            uncertainty = (
+                "Fluid target reflects the measured sweat rate; sodium concentration remains "
+                "self-reported and is not a clinical prescription."
+            )
+        else:
+            basis = (
+                "Fluid target is a population estimate from rider mass, air temperature and "
+                "intensity, bounded to the published "
+                f"{self.config.estimated_fluid_min_ml_per_hour:g}-"
+                f"{self.config.estimated_fluid_max_ml_per_hour:g} ml/h planning range. "
+                "Carbohydrate tiers follow published 30-90 g/h ranges; sodium uses the "
+                "self-reported sweat profile."
+            )
+            confidence = "low"
+            uncertainty = (
+                "No measured sweat rate: fluid target is a population estimate; sodium profile "
+                "is self-reported. Validate with a timed weigh-in before an event."
+            )
+        if normalized_basis != "ride_window":
+            uncertainty += (
+                f" Temperature basis is '{normalized_basis}', not the ride window; "
+                "heat exposure may be overstated."
+            )
+        if humidity is not None:
+            uncertainty += (
+                f" Relative humidity ({humidity:g}%) is reported but does not change the "
+                "fluid target."
+            )
+
+        inputs_used: dict[str, Any] = {
+            "duration_hours": duration_hours,
+            "temp_c": temp_c,
+            "temperature_basis": normalized_basis,
+            "intensity_score": intensity_score,
+            "weight_kg": weight_kg,
+            "gender": gender,
+            "sweat_profile": normalized_profile,
+            "sweat_rate_ml_per_hour": sweat_rate,
+            "sweat_rate_source": sweat_rate_source,
+            "relative_humidity_pct": humidity,
+        }
 
         return {
             "status": "Success",
@@ -112,6 +226,11 @@ class NutritionService:
                     "hourly_sodium_mg": int(hourly_sodium_mg),
                 },
                 "tactical_advice": alerts,
+                "data_basis": basis,
+                "estimate_confidence": confidence,
+                "uncertainty_note": uncertainty,
+                "inputs_used": inputs_used,
+                "references": list(NUTRITION_REFERENCES),
             },
         }
 
@@ -150,7 +269,7 @@ class NutritionService:
             4: 0.95,
             5: 1.05,
         }
-        return intensity_map.get(intensity_score, 0.75)
+        return intensity_map[intensity_score]
 
     @staticmethod
     def _carb_rate_and_label(duration_hours: float, intensity_factor: float) -> tuple[int, str]:
@@ -178,7 +297,7 @@ class NutritionService:
             "high": 1200,
             "extreme": 1800,
         }
-        return sodium_profile_map.get(sweat_profile.lower(), 800)
+        return sodium_profile_map[sweat_profile]
 
     @staticmethod
     def _build_alerts(
@@ -190,8 +309,12 @@ class NutritionService:
         hourly_sodium_mg: float,
         total_fluid_l: float,
         weight_kg: float,
+        estimated_fluid_ml: float,
+        humidity_pct: float | None = None,
+        sweat_rate_ml_per_hour: float | None = None,
+        temperature_basis: str = "ride_window",
     ) -> list[str]:
-        alerts = []
+        alerts: list[str] = []
 
         if carb_rate > 60:
             alerts.append(
@@ -218,35 +341,68 @@ class NutritionService:
                 "HYPER-HYDRATION RISK: Fluid targets are high relative to mass. Ensure sodium balance."
             )
 
+        if sweat_rate_ml_per_hour is None and estimated_fluid_ml > 800:
+            alerts.append(
+                "FLUID CEILING: Population estimate exceeds 800 ml/h. Confirm with a timed "
+                "weigh-in before raising the target."
+            )
+        if sweat_rate_ml_per_hour is not None and sweat_rate_ml_per_hour > 2500:
+            alerts.append(
+                "SWEAT CHECK: Measured rate above 2.5 L/h. Verify the weigh-in and seek "
+                "medical advice if confirmed."
+            )
+        if humidity_pct is not None and temp_c >= 24 and humidity_pct >= 60:
+            alerts.append(
+                "HUMIDITY LOAD: Hot and humid conditions raise heat strain. No humidity-specific "
+                "volume adjustment is applied; calibrate with thirst and a post-ride weigh-in."
+            )
+        if temperature_basis == "daily_max":
+            alerts.append(
+                "TEMPERATURE CONTEXT: Daily peak temperature used; ride-window heat may be lower."
+            )
+
         return alerts
 
-    def _normalize_gender(self, gender: Any) -> str:
-        if not isinstance(gender, str) or not gender.strip():
-            return self.config.default_gender
-        return gender.strip().lower()
-
-    def _normalize_sweat_profile(self, sweat_profile: Any) -> str:
-        if not isinstance(sweat_profile, str) or not sweat_profile.strip():
-            return self.config.default_sweat_profile
-        return sweat_profile.strip().lower()
-
-    def _normalize_intensity_score(self, intensity_score: Any) -> int:
+    @staticmethod
+    def _require_number(name: str, value: Any, minimum: float, maximum: float) -> float:
+        if isinstance(value, bool):
+            raise ValueError(f"{name} must be a number between {minimum:g} and {maximum:g}.")
         try:
-            value = int(intensity_score)
+            parsed = float(value)
         except (TypeError, ValueError):
-            return self.config.default_intensity_score
-        return max(1, min(value, 5))
+            raise ValueError(
+                f"{name} must be a number between {minimum:g} and {maximum:g}."
+            ) from None
+        if not math.isfinite(parsed) or not minimum <= parsed <= maximum:
+            raise ValueError(f"{name} must be between {minimum:g} and {maximum:g}; got {value!r}.")
+        return parsed
 
     @staticmethod
-    def _coerce_float(value: Any, fallback: float) -> float:
+    def _require_int(name: str, value: Any, minimum: int, maximum: int) -> int:
+        if isinstance(value, bool):
+            raise ValueError(f"{name} must be an integer between {minimum} and {maximum}.")
         try:
-            return float(value)
+            parsed_float = float(value)
         except (TypeError, ValueError):
-            return fallback
+            raise ValueError(
+                f"{name} must be an integer between {minimum} and {maximum}."
+            ) from None
+        if not math.isfinite(parsed_float) or not parsed_float.is_integer():
+            raise ValueError(f"{name} must be an integer between {minimum} and {maximum}.")
+        parsed = int(parsed_float)
+        if not minimum <= parsed <= maximum:
+            raise ValueError(f"{name} must be between {minimum} and {maximum}; got {value!r}.")
+        return parsed
 
-    def _coerce_positive_float(self, value: Any, fallback: float) -> float:
-        parsed = self._coerce_float(value, fallback)
-        return parsed if parsed > 0 else fallback
+    @staticmethod
+    def _require_choice(name: str, value: Any, allowed: tuple[str, ...], default: str) -> str:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return default
+        normalized = str(value).strip().lower()
+        if normalized not in allowed:
+            choices = ", ".join(allowed)
+            raise ValueError(f"{name} must be one of {choices}; got {value!r}.")
+        return normalized
 
 
 service = NutritionService()
@@ -259,7 +415,12 @@ def get_nutrition_plan(
     weight_kg: float = 70.0,
     gender: str = "male",
     sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-):
+    sweat_rate_ml_per_hour: float | None = None,
+    relative_humidity_pct: float | None = None,
+    temperature_basis: Literal[
+        "ride_window", "daily_max", "manual", "reference_fallback", "default"
+    ] = "ride_window",
+) -> dict[str, Any]:
     return service.get_nutrition_plan(
         duration_hours=duration_hours,
         temp_c=temp_c,
@@ -267,4 +428,7 @@ def get_nutrition_plan(
         weight_kg=weight_kg,
         gender=gender,
         sweat_profile=sweat_profile,
+        sweat_rate_ml_per_hour=sweat_rate_ml_per_hour,
+        relative_humidity_pct=relative_humidity_pct,
+        temperature_basis=temperature_basis,
     )

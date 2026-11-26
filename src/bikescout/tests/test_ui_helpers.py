@@ -129,6 +129,24 @@ class TestNormalizeTireSetup:
         assert result["advice"] == []
 
 
+class TestNutritionNote:
+    def test_combines_basis_confidence_and_uncertainty(self):
+        note = ui_helpers._nutrition_note(
+            {
+                "data_basis": "Fluid target is a population estimate.",
+                "estimate_confidence": "low",
+                "uncertainty_note": "Validate with a timed weigh-in.",
+            }
+        )
+        assert note == (
+            "Fluid target is a population estimate. Confidence: low. "
+            "Validate with a timed weigh-in."
+        )
+
+    def test_returns_none_when_provenance_is_missing(self):
+        assert ui_helpers._nutrition_note({}) is None
+
+
 class TestAltimetryCaption:
     def test_combines_source_and_uncertainty(self):
         caption = ui_helpers._altimetry_caption(

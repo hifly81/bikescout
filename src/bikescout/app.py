@@ -59,7 +59,6 @@ from bikescout.app_ui_helpers import (
     inject_global_styles,
     metric_card,
     render_empty_state,
-    render_rider_profile_panel,
     render_route_results,
     render_sidebar,
     section_intro,
@@ -1057,8 +1056,6 @@ def main() -> None:
         if os.path.exists(get_local_model_path(selected_model_name))
         else None
     )
-
-    render_rider_profile_panel()
 
     tab_options = ["Plan a Ride", "Chat Planner", "GPX Audit"]
 

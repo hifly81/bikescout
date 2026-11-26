@@ -38,7 +38,7 @@ Streamlit app (app.py) --> page composition + mission orchestration
                        |-- app_llm.py: LangChain adapter, model catalog, cached
                        |   loader and LCEL prompt | chat model | parser chain
                        |-- app_helpers.py: session defaults + intent normalization
-                       `-- app_ui_helpers.py: sidebar, HUD/result renderers, CSS
+                       `-- app_ui_helpers.py: sidebar, rider profile modal, HUD/result renderers, CSS
                        --> process_local_mcp_request / execute_plan_request
                        --> same domain services
 ```
@@ -62,7 +62,7 @@ Resources: `bikescout://altimetry/{filename}`, `bikescout://maps/{filename}`, `b
 - **Server:** `fastmcp>=3.0.0`, `python-dotenv`, `pydantic>=2.0.0`.
 - **Domain services:** `requests`, `polyline`, `geopy`, `astral`, `timezonefinder`, `numpy`, `matplotlib`.
 - **Exports:** `gpxpy`, `staticmap`, `pillow`, `fpdf`.
-- **UI:** `streamlit>=1.35.0`, `watchdog`; theme in `src/bikescout/config.toml`; CSS design tokens in `app_ui_helpers.py`.
+- **UI:** `streamlit>=1.53.0`, `watchdog`; theme in `src/bikescout/config.toml`; CSS design tokens in `app_ui_helpers.py`. The rider profile is edited from a sidebar launcher that opens a native `st.dialog` modal.
 - **Local planner:** `langchain-core>=0.3.0,<1.8.0`, `llama-cpp-python>=0.3.16`, `huggingface_hub>=0.27.0`; GGUF cache in the ignored `models/` directory; `LlamaChatModel` is a `BaseChatModel` adapter over `Llama`, driven by an LCEL chain with a structured response format and thinking disabled on Qwen3.5.
 - **Tests:** `pytest`, `pytest-cov`, `pytest-asyncio` (`asyncio_mode = auto`, `pythonpath = ["src"]`, `testpaths = ["src/bikescout/tests"]`).
 - **Dev gates:** `ruff`, `pyright`, `lefthook` (pre-commit runs lint, format, type check and pytest with 80% coverage).

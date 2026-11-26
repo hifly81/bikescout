@@ -898,99 +898,133 @@ def render_weather_tiles_native(weather_data) -> None:
                 )
 
 
-def render_rider_profile_panel() -> None:
+@st.dialog("Rider profile", icon=":material/person:", width="medium")
+def _render_rider_profile_dialog() -> None:
+    """Render the editable rider defaults inside a modal dialog."""
     profile = st.session_state["rider_profile"]
 
-    section_intro(
-        "Rider profile",
-        "Personal defaults used across planning, fueling, and route recommendations.",
+    st.caption("Personal defaults used across planning, fueling, and route recommendations.")
+    st.caption("Changes apply immediately.")
+
+    rider_col, bike_col = st.columns(2)
+    with rider_col:
+        st.subheader("Rider")
+        fitness_options = ["beginner", "intermediate", "pro"]
+        current_fitness = profile.get("fitness_level", "intermediate")
+        if current_fitness not in fitness_options:
+            current_fitness = "intermediate"
+        profile["fitness_level"] = st.selectbox(
+            "Fitness level",
+            fitness_options,
+            index=fitness_options.index(current_fitness),
+            key="rider_profile_fitness_level",
+        )
+        profile["weight_kg"] = st.number_input(
+            "Weight (kg)",
+            min_value=40.0,
+            max_value=150.0,
+            value=ext_cast(profile.get("weight_kg"), float, 75.0),
+            key="rider_profile_weight",
+        )
+        gender_options = ["male", "female"]
+        current_gender = profile.get("gender", "male")
+        if current_gender not in gender_options:
+            current_gender = "male"
+        profile["gender"] = st.selectbox(
+            "Gender",
+            gender_options,
+            index=gender_options.index(current_gender),
+            key="rider_profile_gender",
+        )
+
+    with bike_col:
+        st.subheader("Default bike")
+        bike_options = ["mtb", "road", "gravel", "e-mtb", "enduro"]
+        current_bike = profile.get("bike_type", "mtb")
+        if current_bike not in bike_options:
+            current_bike = "mtb"
+        profile["bike_type"] = st.selectbox(
+            "Default bike",
+            bike_options,
+            index=bike_options.index(current_bike),
+            key="rider_profile_bike_type",
+        )
+
+        available_tires = ["32", "29", "27.5", "700c", "650b"]
+        current_tire = profile.get("tire_size", "29")
+        if current_tire not in available_tires:
+            current_tire = "29"
+        profile["tire_size"] = st.selectbox(
+            "Default tire size",
+            available_tires,
+            index=available_tires.index(current_tire),
+            key="rider_profile_tire_size",
+        )
+
+    st.divider()
+    st.subheader("Tire setup")
+    default_width = default_tire_width_mm(str(profile.get("bike_type", "mtb")))
+    default_rim = default_rim_internal_width_mm(str(profile.get("bike_type", "mtb")))
+    setup1, setup2, setup3, setup4 = st.columns(4)
+    with setup1:
+        profile["tire_width_mm"] = st.number_input(
+            "Tire width (mm)",
+            min_value=18,
+            max_value=75,
+            value=int(profile.get("tire_width_mm") or default_width),
+            key="rider_profile_tire_width_mm",
+        )
+    with setup2:
+        profile["rim_internal_width_mm"] = st.number_input(
+            "Rim internal (mm)",
+            min_value=10,
+            max_value=45,
+            value=int(profile.get("rim_internal_width_mm") or default_rim),
+            key="rider_profile_rim_internal_width_mm",
+        )
+    with setup3:
+        casing_options = ["xc", "trail", "enduro", "dh"]
+        current_casing = profile.get("casing_type") or default_casing_type(
+            str(profile.get("bike_type", "mtb"))
+        )
+        if current_casing not in casing_options:
+            current_casing = "trail"
+        profile["casing_type"] = st.selectbox(
+            "Casing",
+            casing_options,
+            index=casing_options.index(current_casing),
+            key="rider_profile_casing_type",
+        )
+    with setup4:
+        profile["tubeless"] = st.checkbox(
+            "Tubeless setup",
+            value=bool(profile.get("tubeless", True)),
+            key="rider_profile_tubeless",
+        )
+
+    st.session_state["rider_profile"] = profile
+    if st.button("Done", key="rider_profile_done", type="primary", use_container_width=True):
+        st.rerun()
+
+
+def render_rider_profile_launcher() -> None:
+    """Render the sidebar launcher for the rider profile modal."""
+    profile = st.session_state["rider_profile"]
+    weight_kg = ext_cast(profile.get("weight_kg"), float, 75.0)
+    summary = (
+        f"{profile.get('bike_type', 'mtb')} · {profile.get('tire_size', '29')} · {weight_kg:.0f} kg"
     )
 
-    with st.expander("Open rider settings", expanded=False):
-        c1, c2, c3 = st.columns(3)
+    if st.button(
+        "Rider profile",
+        key="rider_profile_launcher",
+        icon=":material/person:",
+        help="Edit rider defaults",
+        use_container_width=True,
+    ):
+        _render_rider_profile_dialog()
 
-        with c1:
-            profile["bike_type"] = st.selectbox(
-                "Default bike",
-                ["mtb", "road", "gravel", "e-mtb", "enduro"],
-                index=["mtb", "road", "gravel", "e-mtb", "enduro"].index(profile["bike_type"]),
-                key="rider_profile_bike_type",
-            )
-
-            available_tires = ["32", "29", "27.5", "700c", "650b"]
-            current_tire = profile["tire_size"] if profile["tire_size"] in available_tires else "29"
-            profile["tire_size"] = st.selectbox(
-                "Default tire size",
-                available_tires,
-                index=available_tires.index(current_tire),
-                key="rider_profile_tire_size",
-            )
-
-        with c2:
-            profile["fitness_level"] = st.selectbox(
-                "Fitness level",
-                ["beginner", "intermediate", "pro"],
-                index=["beginner", "intermediate", "pro"].index(profile["fitness_level"]),
-                key="rider_profile_fitness_level",
-            )
-
-            profile["weight_kg"] = st.number_input(
-                "Weight (kg)",
-                min_value=40.0,
-                max_value=150.0,
-                value=float(profile["weight_kg"]),
-                key="rider_profile_weight",
-            )
-
-        with c3:
-            profile["gender"] = st.selectbox(
-                "Gender",
-                ["male", "female"],
-                index=["male", "female"].index(profile["gender"]),
-                key="rider_profile_gender",
-            )
-
-            metric_card("Bike", profile["bike_type"], "🚲", "#7c3aed", "Default ride setup")
-            metric_card("Tire", profile["tire_size"], "🛞", "#38bdf8", "Tool-safe normalized value")
-
-        default_width = default_tire_width_mm(profile["bike_type"])
-        default_rim = default_rim_internal_width_mm(profile["bike_type"])
-        setup1, setup2, setup3, setup4 = st.columns(4)
-        with setup1:
-            profile["tire_width_mm"] = st.number_input(
-                "Tire width (mm)",
-                min_value=18,
-                max_value=75,
-                value=int(profile.get("tire_width_mm") or default_width),
-                key="rider_profile_tire_width_mm",
-            )
-        with setup2:
-            profile["rim_internal_width_mm"] = st.number_input(
-                "Rim internal (mm)",
-                min_value=10,
-                max_value=45,
-                value=int(profile.get("rim_internal_width_mm") or default_rim),
-                key="rider_profile_rim_internal_width_mm",
-            )
-        with setup3:
-            casing_options = ["xc", "trail", "enduro", "dh"]
-            current_casing = profile.get("casing_type") or default_casing_type(profile["bike_type"])
-            if current_casing not in casing_options:
-                current_casing = "trail"
-            profile["casing_type"] = st.selectbox(
-                "Casing",
-                casing_options,
-                index=casing_options.index(current_casing),
-                key="rider_profile_casing_type",
-            )
-        with setup4:
-            profile["tubeless"] = st.checkbox(
-                "Tubeless setup",
-                value=bool(profile.get("tubeless", True)),
-                key="rider_profile_tubeless",
-            )
-
-        st.session_state["rider_profile"] = profile
+    st.caption(summary)
 
 
 def render_sidebar() -> tuple[str, int]:
@@ -1004,6 +1038,8 @@ def render_sidebar() -> tuple[str, int]:
             unsafe_allow_html=True,
         )
         st.caption("AI for tactical cycling intelligence")
+
+        render_rider_profile_launcher()
 
         st.subheader("Routing & API")
         ors_key = st.text_input(

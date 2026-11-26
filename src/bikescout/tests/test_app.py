@@ -56,6 +56,33 @@ class TestAppScript:
         assert not at.exception
         assert any("GPX tactical audit" in m.value for m in at.markdown)
 
+    def test_rider_profile_launcher_is_in_sidebar(self, app_test):
+        launcher = app_test.sidebar.button(key="rider_profile_launcher")
+        assert launcher.label == "Rider profile"
+        assert not any(expander.label == "Open rider settings" for expander in app_test.expander)
+
+    def test_rider_profile_modal_edits_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        at = AppTest.from_file(str(APP_PATH))
+        at.session_state["rider_profile_bike_type"] = "gravel"
+        at.session_state["rider_profile_weight"] = 82.0
+        at.run()
+        assert not at.exception
+
+        at.sidebar.button(key="rider_profile_launcher").click().run()
+
+        assert not at.exception
+        assert at.selectbox(key="rider_profile_bike_type").value == "gravel"
+        assert at.number_input(key="rider_profile_weight").value == 82.0
+        assert at.session_state["rider_profile"]["bike_type"] == "gravel"
+        assert at.session_state["rider_profile"]["weight_kg"] == 82.0
+        assert any("Changes apply immediately." in c.value for c in at.caption)
+
+        at.button(key="rider_profile_done").click().run()
+
+        assert not at.exception
+        assert not any(box.key == "rider_profile_bike_type" for box in at.selectbox)
+
 
 FAKE_MISSION_RESULT = {
     "status": "Success",

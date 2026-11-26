@@ -16,12 +16,19 @@
 
 from __future__ import annotations
 
+import os
 import re
-from typing import Any
+from typing import Any, cast
 
 import streamlit as st
+from huggingface_hub import hf_hub_download
 
-from bikescout.app_helpers import ext_cast
+from bikescout.app_helpers import (
+    compute_mission_intensity,
+    compute_readiness_score,
+    ext_cast,
+)
+from bikescout.app_llm import AVAILABLE_MODELS, LOCAL_MODELS_DIR, get_local_model_path
 from bikescout.tools.bike_setup import (
     default_casing_type,
     default_rim_internal_width_mm,
@@ -771,18 +778,6 @@ def section_intro(title: str, subtitle: str = "") -> None:
     )
 
 
-def mini_kpi(label: str, value: str) -> None:
-    st.markdown(
-        f"""
-        <div class="bs-mini-kpi">
-            <div class="k-label">{label}</div>
-            <div class="k-value">{value}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def render_score_card(score: int, status: str, badges: list[str]) -> None:
     color = "#22c55e" if status == "Go" else "#f59e0b" if status == "Caution" else "#ef4444"
     st.markdown(
@@ -793,55 +788,6 @@ def render_score_card(score: int, status: str, badges: list[str]) -> None:
             <div class="bs-score-sub">Decision: <strong>{status}</strong></div>
             <div class="bs-badge-row">
                 {"".join([f'<div class="bs-badge {"safe" if status == "Go" else "warn" if status == "Caution" else "risk"}">{b}</div>' for b in badges[:5]])}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_mission_hud(
-    title: str,
-    bike_type: str,
-    route_mode: str,
-    distance_km: float | None = None,
-    elevation_m: float | None = None,
-    eta_text: str | None = None,
-    weather_text: str | None = None,
-    surface_text: str | None = None,
-) -> None:
-    chips = []
-
-    if distance_km is not None:
-        chips.append(
-            f'<div class="bs-hud-chip"><span>Distance</span><strong>{distance_km:.1f} km</strong></div>'
-        )
-    if elevation_m is not None:
-        chips.append(
-            f'<div class="bs-hud-chip"><span>Elevation</span><strong>{int(elevation_m)} m</strong></div>'
-        )
-    if eta_text:
-        chips.append(f'<div class="bs-hud-chip"><span>ETA</span><strong>{eta_text}</strong></div>')
-    if weather_text:
-        chips.append(
-            f'<div class="bs-hud-chip"><span>Weather</span><strong>{weather_text}</strong></div>'
-        )
-    if surface_text:
-        chips.append(
-            f'<div class="bs-hud-chip"><span>Surface</span><strong>{surface_text}</strong></div>'
-        )
-
-    st.markdown(
-        f"""
-        <div class="bs-hud">
-            <div class="bs-hud-top">
-                <div class="bs-hud-title-wrap">
-                    <div class="bs-hud-kicker">{bike_type.upper()} · {route_mode.upper()}</div>
-                    <div class="bs-hud-title">{title}</div>
-                </div>
-            </div>
-            <div class="bs-hud-grid">
-                {"".join(chips)}
             </div>
         </div>
         """,
@@ -1045,3 +991,707 @@ def render_rider_profile_panel() -> None:
             )
 
         st.session_state["rider_profile"] = profile
+
+
+def render_sidebar() -> tuple[str, int]:
+    with st.sidebar:
+        st.markdown(
+            """
+            <div class="bs-sidebar-brand">
+                <span class="bs-sidebar-bike">Bike</span><span class="bs-sidebar-scout">Scout</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.caption("AI for tactical cycling intelligence")
+
+        st.subheader("Routing & API")
+        ors_key = st.text_input(
+            "OpenRouteService key",
+            value=st.session_state.get("ors_api_key", ""),
+            type="password",
+            help="Required for routing, geocoding, and trail analysis.",
+        )
+        if ors_key:
+            st.session_state["ors_api_key"] = ors_key
+            os.environ["ORS_API_KEY"] = ors_key
+
+        st.subheader("Local model")
+        selected_model_name = cast(str, st.selectbox("Model", list(AVAILABLE_MODELS.keys())))
+        st.caption(AVAILABLE_MODELS[selected_model_name]["description"])
+
+        gpu_enabled = st.toggle("GPU acceleration", value=True)
+        n_layers = -1 if gpu_enabled else 0
+
+        model_path = get_local_model_path(selected_model_name)
+        if not os.path.exists(model_path):
+            if st.button(f"Download {selected_model_name}", use_container_width=True):
+                with st.status("Downloading local model...", expanded=True):
+                    os.makedirs(LOCAL_MODELS_DIR, exist_ok=True)
+                    hf_hub_download(
+                        repo_id=AVAILABLE_MODELS[selected_model_name]["repo"],
+                        filename=AVAILABLE_MODELS[selected_model_name]["file"],
+                        local_dir=LOCAL_MODELS_DIR,
+                    )
+                    st.success("Model downloaded. Reloading...")
+                    st.rerun()
+            st.warning("A local model is required to use the chat planner.")
+
+        if st.button("Clear chat & mission", use_container_width=True):
+            st.session_state["messages"] = []
+            st.session_state["mission_context"] = {}
+            st.session_state["mission_history"] = []
+            st.session_state["last_location_query"] = None
+            st.session_state["last_raw_distance"] = 25.0
+            st.rerun()
+
+        return selected_model_name, n_layers
+
+
+def _is_number(value) -> bool:
+    """Return True for real numbers, excluding booleans."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _format_terrain_value(value, digits: int = 1, suffix: str = "") -> str:
+    """Format an optional terrain number for display."""
+    if not _is_number(value):
+        return "N/A"
+    return f"{float(value):.{digits}f}{suffix}"
+
+
+def _format_terrain_percent(value) -> str:
+    """Format a 0.0-1.0 confidence score as a percentage."""
+    if not _is_number(value):
+        return "N/A"
+    return f"{float(value) * 100:.0f}%"
+
+
+def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list[dict[str, str]]:
+    """Format geometry-detected climbs for the Streamlit climb list table."""
+    climbs = (
+        tactical_briefing.get("climb_list")
+        or terrain_analysis.get("climbs")
+        or terrain_analysis.get("climb_list")
+        or []
+    )
+
+    rows: list[dict[str, str]] = []
+    for number, climb in enumerate(climbs, start=1):
+        if not isinstance(climb, dict):
+            continue
+
+        length_m = climb.get("length_m")
+        length_km = None
+        if isinstance(length_m, (int, float)) and not isinstance(length_m, bool):
+            length_km = length_m / 1000.0
+        rows.append(
+            {
+                "#": str(number),
+                "Category": str(climb.get("category", "N/A")),
+                "Gain (m)": _format_terrain_value(climb.get("gain_m")),
+                "Length (km)": _format_terrain_value(length_km, 2),
+                "Avg grade": _format_terrain_value(climb.get("avg_gradient"), 1, "%"),
+                "Max grade": _format_terrain_value(climb.get("max_gradient"), 1, "%"),
+                "Summit (m)": _format_terrain_value(climb.get("summit_elevation_m")),
+                "FIETS": _format_terrain_value(climb.get("fiets_index"), 2),
+                "Profile samples": f"{climb.get('start_index', '?')}–{climb.get('end_index', '?')}",
+            }
+        )
+    return rows
+
+
+def render_route_results(res_data: dict) -> None:
+    info = res_data.get("info", {}) or {}
+    logistics = res_data.get("logistics", {}) or {}
+    conditions = res_data.get("conditions", {}) or {}
+
+    if not info:
+        st.warning("Route not found.")
+        return
+
+    score, status, badges = compute_readiness_score(info, conditions, logistics)
+
+    intensity_label, intensity_color = compute_mission_intensity(info, conditions, logistics)
+    warning_items = build_warning_ribbon(info, conditions, logistics)
+
+    route_type = str(info.get("route_type", "Round Trip"))
+    distance_km = info.get("distance_km", "N/A")
+    ascent_m = info.get("ascent_m", "N/A")
+    difficulty = info.get("difficulty", "N/A")
+
+    weather_data = (conditions.get("weather") or []) if conditions else []
+    safety_advice = conditions.get("safety_advice", {}) if conditions else {}
+    mud_data = conditions.get("mud_risk", {}) if conditions else {}
+    surface_analysis = info.get("surface_analysis", {}) or {}
+
+    weather_summary = safety_advice.get("status", "Stable") if safety_advice else "Stable"
+    surface_mix = "Mixed terrain" if surface_analysis else "Standard route"
+
+    st.markdown(
+        f"""
+        <div class="bs-hud">
+            <div class="bs-hud-top">
+                <div class="bs-hud-title-wrap">
+                    <div class="bs-hud-kicker">TACTICAL MISSION OVERVIEW</div>
+                    <div class="bs-hud-title">{route_type}</div>
+                </div>
+            </div>
+            <div class="bs-hud-grid">
+                <div class="bs-hud-chip">
+                    <span>Distance</span>
+                    <strong>{distance_km} km</strong>
+                </div>
+                <div class="bs-hud-chip">
+                    <span>Ascent</span>
+                    <strong>{ascent_m} m</strong>
+                </div>
+                <div class="bs-hud-chip">
+                    <span>Difficulty</span>
+                    <strong>{difficulty}</strong>
+                </div>
+                <div class="bs-hud-chip">
+                    <span>Weather</span>
+                    <strong>{weather_summary}</strong>
+                </div>
+                <div class="bs-hud-chip">
+                    <span>Terrain</span>
+                    <strong>{surface_mix}</strong>
+                </div>
+                <div class="bs-hud-chip">
+                    <span>Readiness</span>
+                    <strong>{status}</strong>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    top_left, top_right = st.columns([1, 3])
+    with top_left:
+        render_mission_intensity_badge(intensity_label, intensity_color)
+    with top_right:
+        render_warning_ribbon(warning_items)
+
+    section_intro(
+        "Mission summary",
+        "High-level overview before diving into terrain, weather, mud, and support logistics.",
+    )
+
+    c0, c1 = st.columns([1.05, 2.15])
+    with c0:
+        render_score_card(score, status, badges)
+
+    with c1:
+        g1, g2, g3, g4 = st.columns(4)
+        with g1:
+            metric_card("Distance", f"{distance_km} km", "📏", "#38bdf8", "Target route length")
+        with g2:
+            metric_card("Ascent", f"{ascent_m} m", "⛰️", "#a78bfa", "Total elevation gain")
+        with g3:
+            metric_card("Difficulty", str(difficulty), "⚡", "#f472b6", "Estimated route challenge")
+        with g4:
+            metric_card("Route type", route_type, "🧭", "#22c55e", "Loop or A→B")
+
+    st.markdown('<div class="bs-grid-gap"></div>', unsafe_allow_html=True)
+
+    if surface_analysis:
+        section_intro(
+            "Terrain intelligence", "Surface mix, gradient profile, and tactical setup signals."
+        )
+
+        tactical = surface_analysis.get("tactical_briefing", {}) or {}
+        terrain = tactical.get("terrain_analysis", {}) or {}
+        metadata = surface_analysis.get("metadata", {}) or {}
+        elevation_source = metadata.get("elevation_source")
+
+        max_gradient = tactical.get("max_gradient", terrain.get("max_gradient"))
+        confidence = tactical.get("data_confidence", terrain.get("data_confidence"))
+        technical = (
+            tactical.get("technical_difficulty") or terrain.get("technical_difficulty") or {}
+        )
+        if not isinstance(technical, dict):
+            technical = {}
+
+        noise_floor = terrain.get("noise_floor_m")
+        profile_points = terrain.get("profile_points")
+        profile_length_m = terrain.get("profile_length_m")
+        profile_length_km = None
+        if isinstance(profile_length_m, (int, float)) and not isinstance(profile_length_m, bool):
+            profile_length_km = profile_length_m / 1000.0
+        terrain_warnings = [str(warning) for warning in (terrain.get("warnings", []) or [])]
+
+        r1, r2, r3, r4 = st.columns(4)
+
+        with r1:
+            metric_card(
+                "Avg gradient",
+                str(tactical.get("avg_gradient", "N/A")),
+                "📈",
+                "#2dd4bf",
+                "Overall gradient profile",
+            )
+        with r2:
+            metric_card(
+                "Climb profile",
+                str(tactical.get("climb_category", "N/A")),
+                "🧗",
+                "#fb923c",
+                "Climbing classification",
+            )
+        with r3:
+            metric_card(
+                "Climb gradient",
+                str(tactical.get("avg_climb_gradient", "N/A")),
+                "🔺",
+                "#f87171",
+                "Climbing intensity",
+            )
+        with r4:
+            metric_card(
+                "Max gradient",
+                f"{max_gradient}%" if max_gradient is not None else "N/A",
+                "⚡",
+                "#facc15",
+                "Steepest measured pitch",
+            )
+
+        q1, q2, q3, q4 = st.columns(4)
+
+        with q1:
+            confidence_sub = (
+                f"Noise floor {noise_floor} m"
+                if noise_floor is not None
+                else "Elevation trust score"
+            )
+            metric_card(
+                "Data confidence",
+                _format_terrain_percent(confidence),
+                "🧪",
+                "#22d3ee",
+                confidence_sub,
+            )
+        with q2:
+            tech_confidence = technical.get("confidence")
+            tech_source = str(technical.get("source", ""))
+            tech_sub = "Terrain grade confidence"
+            if _is_number(tech_confidence):
+                tech_sub = f"{_format_terrain_percent(tech_confidence)} confidence"
+                if tech_source:
+                    tech_sub += f" · {tech_source}"
+            metric_card(
+                "Technical grade",
+                str(technical.get("label", "N/A")),
+                "🥷",
+                "#c084fc",
+                tech_sub,
+            )
+        with q3:
+            metric_card(
+                "Profile length",
+                _format_terrain_value(profile_length_km, 2, " km"),
+                "🛰️",
+                "#60a5fa",
+                "Analyzed route geometry",
+            )
+        with q4:
+            metric_card(
+                "Profile points",
+                str(profile_points) if profile_points is not None else "N/A",
+                "🔬",
+                "#fbbf24",
+                "Usable elevation samples",
+            )
+
+        if elevation_source:
+            st.caption(f"Elevation source: {elevation_source}")
+
+        with st.expander("Climb list", expanded=True):
+            climb_rows = _terrain_climb_rows(tactical, terrain)
+            if climb_rows:
+                st.dataframe(climb_rows, hide_index=True)
+            else:
+                st.info("No significant climbs detected or climb data unavailable.")
+
+        if terrain_warnings:
+            with st.expander("Terrain warnings", expanded=True):
+                for warning in terrain_warnings:
+                    st.warning(warning)
+
+        surfaces = surface_analysis.get("surface_breakdown", []) or []
+        if surfaces:
+            with st.expander("Surface breakdown", expanded=True):
+                for s in surfaces:
+                    s_type = s.get("type", "Unknown")
+                    s_pct_str = str(s.get("percentage", "0%"))
+                    icon = get_surface_icon(s_type)
+                    try:
+                        pct_val = float(s_pct_str.replace("%", "").strip()) / 100.0
+                    except Exception:
+                        pct_val = 0.0
+
+                    st.markdown(
+                        f'<div class="bs-surface-row"><strong>{icon} {s_type}</strong></div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.progress(max(0.0, min(1.0, pct_val)), text=s_pct_str)
+
+        mechanical = surface_analysis.get("mechanical_setup", {}) or {}
+        if mechanical:
+            with st.expander("Mechanical setup", expanded=True):
+                setup = normalize_tire_setup(mechanical.get("setup_details"))
+                wheel_label = str(setup.get("wheel_label") or "Standard")
+                tire_width_mm = setup.get("tire_width_mm")
+                tire_label = f"{wheel_label} · {tire_width_mm}mm" if tire_width_mm else wheel_label
+
+                psi_front = setup.get("psi_front")
+                psi_rear = setup.get("psi_rear")
+                pressure_label = (
+                    f"F: {psi_front} / R: {psi_rear} PSI"
+                    if psi_front is not None and psi_rear is not None
+                    else "N/A"
+                )
+                bar_front = setup.get("bar_front")
+                bar_rear = setup.get("bar_rear")
+                bar_label = (
+                    f"≈ {bar_front}/{bar_rear} Bar"
+                    if bar_front is not None and bar_rear is not None
+                    else ""
+                )
+
+                m1, m2, m3 = st.columns(3)
+                with m1:
+                    metric_card("Wheels / tires", tire_label, "🛞", "#60a5fa", "Volume-based setup")
+                with m2:
+                    metric_card("Pressure F / R", pressure_label, "🔩", "#34d399", bar_label)
+                with m3:
+                    metric_card(
+                        "Setup strategy",
+                        str(setup.get("strategy") or "Standard"),
+                        "🧰",
+                        "#f59e0b",
+                        "Terrain optimization",
+                    )
+
+                if setup.get("knob_choice"):
+                    st.caption(f"Tread choice: **{setup['knob_choice']}**")
+
+                advice = [str(item) for item in (setup.get("advice") or [])]
+                if advice:
+                    st.markdown("**Setup intelligence**")
+                    for item in advice:
+                        st.markdown(f"- {item}")
+
+                if not mechanical.get("compatible", True):
+                    st.error(
+                        "This bike/setup may not be fully compatible with the current route profile."
+                    )
+
+                warnings = []
+                for warning in list(setup.get("warnings") or []) + list(
+                    mechanical.get("safety_warnings") or []
+                ):
+                    if warning and warning not in terrain_warnings and warning not in warnings:
+                        warnings.append(warning)
+                for warning in warnings:
+                    st.warning(warning)
+
+        emtb_tactical = surface_analysis.get("emtb_tactical", {}) or {}
+        if emtb_tactical and emtb_tactical.get("status") == "Success":
+            with st.expander("eMTB tactical analytics", expanded=False):
+                advice = emtb_tactical.get("tactical_advice", "No tactical advice available")
+                st.markdown(
+                    f"""
+                    <div class="bs-callout">
+                        <strong>Battery strategy</strong>
+                        {advice}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                b_metrics = emtb_tactical.get("battery_metrics", {}) or {}
+                e1, e2, e3 = st.columns(3)
+                with e1:
+                    metric_card(
+                        "Estimated drain",
+                        f"{b_metrics.get('estimated_drain_wh', 0):.1f} Wh",
+                        "🔋",
+                        "#38bdf8",
+                    )
+                with e2:
+                    metric_card(
+                        "Remaining battery",
+                        f"{b_metrics.get('remaining_battery_pct', 0):.1f}%",
+                        "⚡",
+                        "#22c55e",
+                    )
+                with e3:
+                    metric_card(
+                        "Usable capacity",
+                        f"{b_metrics.get('usable_wh_at_temp', 0):.1f} Wh",
+                        "🌡️",
+                        "#a78bfa",
+                    )
+
+    if weather_data:
+        section_intro(
+            "Weather & safety",
+            "Short-term tactical conditions for confidence, pacing, and kit planning.",
+        )
+
+        with st.expander("Forecast details", expanded=True):
+            peak_temp = None
+            max_rain = None
+
+            for w in weather_data:
+                temp_raw = str(w.get("temp", "N/A"))
+                rain_raw = str(w.get("rain_prob", "N/A"))
+                peak_temp = max(peak_temp or -999, ext_cast(temp_raw, float, -999))
+                max_rain = max(max_rain or -999, ext_cast(rain_raw, float, -999))
+
+            t1, t2, t3 = st.columns(3)
+
+            with t1:
+                metric_card(
+                    "Peak temp",
+                    f"{peak_temp if peak_temp != -999 else 'N/A'} °C",
+                    "🌡️",
+                    "#f97316",
+                    "Max forecast temperature",
+                )
+            with t2:
+                metric_card(
+                    "Max rain prob",
+                    f"{max_rain if max_rain != -999 else 'N/A'} %",
+                    "🌧️",
+                    "#38bdf8",
+                    "Highest rain probability",
+                )
+            with t3:
+                metric_card(
+                    "Wind risk",
+                    f"{safety_advice.get('wind_risk_score', 'N/A')}/10",
+                    "💨",
+                    "#f59e0b",
+                    "Wind exposure indicator",
+                )
+
+            render_weather_tiles_native(weather_data)
+
+            try:
+                import pandas as pd
+
+                chart_data = []
+                for w in weather_data:
+                    try:
+                        t_val = float(str(w.get("temp")).replace("°C", "").replace("C", "").strip())
+                        r_val = float(str(w.get("rain_prob")).replace("%", "").strip())
+                        chart_data.append(
+                            {
+                                "Time": w.get("time"),
+                                "Temp (°C)": t_val,
+                                "Rain Prob (%)": r_val,
+                            }
+                        )
+                    except Exception:
+                        continue
+
+                if chart_data:
+                    st.line_chart(pd.DataFrame(chart_data).set_index("Time"), height=240)
+            except Exception:
+                st.write("Weather chart unavailable.")
+
+            if safety_advice:
+                left, right = st.columns([1, 2])
+                with left:
+                    metric_card(
+                        "Safety status",
+                        str(safety_advice.get("status", "N/A")),
+                        "🛡️",
+                        "#22c55e" if status == "Go" else "#f59e0b",
+                        "Operational decision signal",
+                    )
+                with right:
+                    st.info(
+                        f"**Gear advice:** {safety_advice.get('gear_advice', 'N/A')}  \n\n"
+                        f"**Assessment:** {safety_advice.get('message', 'No message')}"
+                    )
+
+    mud_data = conditions.get("mud_risk", {}) if conditions else {}
+    if mud_data:
+        section_intro(
+            "Mud & environmental risk", "Trail rideability, traction, and preservation signals."
+        )
+
+        tactical_mud = mud_data.get("tactical_analysis", {}) or {}
+        env_context = mud_data.get("environmental_context", {}) or {}
+
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            metric_card(
+                "Mud risk",
+                str(tactical_mud.get("mud_risk_score", "Unknown")),
+                "🟤",
+                "#8b5cf6",
+                "Overall terrain softness",
+            )
+        with m2:
+            metric_card(
+                "Dry time ETA",
+                str(tactical_mud.get("dry_time_eta", "N/A")),
+                "⏳",
+                "#f59e0b",
+                "Estimated recovery window",
+            )
+        with m3:
+            metric_card(
+                "Rain 72h",
+                f"{env_context.get('total_rain_72h_mm', 'N/A')} mm",
+                "🌧️",
+                "#38bdf8",
+                "Recent accumulated rainfall",
+            )
+
+        traction = tactical_mud.get("traction_risk", {}) or {}
+        damage = tactical_mud.get("trail_damage_risk", {}) or {}
+
+        b1, b2 = st.columns(2)
+        with b1:
+            st.markdown(
+                f"""
+                <div class="bs-risk-box">
+                    <div class="bs-risk-title">Traction analysis</div>
+                    <div class="bs-risk-value">{traction.get("level", "N/A")}</div>
+                    <div class="bs-risk-copy">{traction.get("advice", "No advice available.")}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with b2:
+            st.markdown(
+                f"""
+                <div class="bs-risk-box">
+                    <div class="bs-risk-title">Trail integrity</div>
+                    <div class="bs-risk-value">{damage.get("level", "N/A")}</div>
+                    <div class="bs-risk-copy">{damage.get("advice", "No advice available.")}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    pois = logistics.get("nearby_amenities", {}) if logistics else {}
+    if pois:
+        section_intro(
+            "POI & logistics", "Nearby support points for water, food, repairs, safety, and rest."
+        )
+        with st.expander("Amenities on route", expanded=True):
+            for i in range(0, len(pois), 3):
+                cols = st.columns(3)
+                for idx, poi in enumerate(pois[i : i + 3]):
+                    with cols[idx]:
+                        p_name = poi.get("name", "Unknown POI")
+                        p_type = poi.get("type", "Amenity")
+                        p_dist = poi.get("distance_m", 0)
+                        icon, border_color = get_poi_style(p_type)
+
+                        if isinstance(p_dist, (int, float)):
+                            dist_str = (
+                                f"{p_dist / 1000:.1f} km" if p_dist >= 1000 else f"{int(p_dist)} m"
+                            )
+                        else:
+                            dist_str = "N/A"
+
+                        link = None
+                        p_loc = poi.get("location")
+                        if isinstance(p_loc, dict):
+                            lat = p_loc.get("latitude", p_loc.get("lat"))
+                            lon = p_loc.get("longitude", p_loc.get("lon"))
+                            if lat is not None and lon is not None:
+                                link = (
+                                    f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                                )
+
+                        st.markdown(
+                            f"""
+                            <div class="bs-poi-card" style="--poi-accent:{border_color};">
+                                <div class="bs-poi-head">
+                                    <div>
+                                        <div class="bs-poi-title">{icon} {p_name}</div>
+                                        <div class="bs-poi-type">{p_type}</div>
+                                    </div>
+                                </div>
+                                <div class="bs-poi-distance">Distance: {dist_str}</div>
+                                <div class="bs-poi-actions">
+                                    {"<a href='" + link + "' target='_blank'>Open in Maps ↗</a>" if link else "No coordinates available"}
+                                </div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+    nutrition = logistics.get("nutrition_plan", {}) if logistics else {}
+    if nutrition:
+        briefing_nut = nutrition.get("mission_nutrition_briefing", {}) or {}
+        section_intro(
+            "Nutrition & hydration",
+            "Fueling strategy aligned with distance, intensity, and environmental load.",
+        )
+        with st.expander("Fueling details", expanded=True):
+            fluids = briefing_nut.get("fluids", {}) or {}
+            carbs = briefing_nut.get("carbohydrates", {}) or {}
+            sodium = briefing_nut.get("electrolytes", {}) or {}
+
+            n1, n2, n3 = st.columns(3)
+            with n1:
+                metric_card(
+                    "Fluids",
+                    f"{fluids.get('total_liters', 'N/A')} L",
+                    "💧",
+                    "#38bdf8",
+                    f"{fluids.get('hourly_average_ml', 'N/A')} ml/h",
+                )
+            with n2:
+                metric_card(
+                    "Carbs",
+                    f"{carbs.get('total_grams', 'N/A')} g",
+                    "🍌",
+                    "#22c55e",
+                    f"{carbs.get('hourly_target_g', 'N/A')} g/h",
+                )
+            with n3:
+                metric_card(
+                    "Sodium",
+                    f"{sodium.get('total_sodium_mg', 'N/A')} mg",
+                    "🧂",
+                    "#f59e0b",
+                    f"{sodium.get('hourly_sodium_mg', 'N/A')} mg/h",
+                )
+
+            tactical_advice = briefing_nut.get("tactical_advice", []) or []
+            for advice in tactical_advice:
+                st.info(advice)
+
+    map_uri = res_data.get("map_path")
+    alt_uri = res_data.get("elevation_profile_path")
+    if map_uri or alt_uri:
+        section_intro("Visuals", "Route map and elevation profile for tactical validation.")
+        v1, v2 = st.columns(2)
+        if map_uri:
+            v1.image(map_uri, caption="Tactical map", use_container_width=True)
+        if alt_uri:
+            v2.image(alt_uri, caption="Elevation profile", use_container_width=True)
+
+    gpx_path = res_data.get("gpx_export_path")
+    if gpx_path and os.path.exists(gpx_path):
+        dl_col, _ = st.columns([1, 5])
+        with dl_col, open(gpx_path, "rb") as file:
+            st.download_button(
+                "Download GPX",
+                file,
+                file_name="mission.gpx",
+                mime="application/gpx+xml",
+                type="primary",
+                use_container_width=True,
+            )

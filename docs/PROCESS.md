@@ -84,6 +84,8 @@ Agents normalize natural-language constraints to the exact typed parameters in `
 - On reasoning models (`Qwen3.5`), `chat_template_kwargs={"enable_thinking": False}` must stay enabled; `<think>` blocks would consume tokens and corrupt JSON fields.
 - Never override `chat_format` in `Llama(...)`; rely on the GGUF metadata template.
 - `@st.cache_resource` caches loaded `Llama` instances; account for VRAM/reloads when switching models.
+- `app_llm.py` wraps the cached `Llama` in a `BaseChatModel` (`LlamaChatModel`) and exposes the turn as an LCEL chain (`prompt | model | StrOutputParser`). The system prompt is injected as a message so JSON braces in the active mission snapshot are not parsed as template fields.
+- History conversion keeps the UI placeholder filter and the last six turns. Session/mission state keys and the deterministic `process_local_mcp_request` tool dispatch are unchanged; no autonomous LangChain agent is introduced.
 
 ### 4.5 Response and error contract
 

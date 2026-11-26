@@ -16,10 +16,17 @@
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
 import streamlit as st
+
+from bikescout.tools.bike_setup import (
+    default_casing_type,
+    default_rim_internal_width_mm,
+    default_tire_width_mm,
+)
 
 
 def ext_cast(val: Any, to_type, default):
@@ -591,3 +598,104 @@ def normalize_direction_bias(value) -> list[str]:
             normalized.append(item_str)
 
     return normalized
+
+
+def init_session_state() -> None:
+    defaults = {
+        "messages": [],
+        "mission_context": {},
+        "mission_history": [],
+        "ors_api_key": os.getenv("ORS_API_KEY", ""),
+        "last_location_query": None,
+        "last_raw_distance": 25.0,
+        "current_tab": "Plan a Ride",
+        "workspace_tab_selector": "Plan a Ride",
+        "pending_tab_redirect": None,
+        "pending_chat_prompt": None,
+        "pending_chat_hidden": False,
+        "pending_plan_request": None,
+        "rider_profile": {
+            "bike_type": "mtb",
+            "tire_size": "29",
+            "tire_width_mm": default_tire_width_mm("mtb"),
+            "rim_internal_width_mm": default_rim_internal_width_mm("mtb"),
+            "casing_type": default_casing_type("mtb"),
+            "tubeless": True,
+            "fitness_level": "intermediate",
+            "weight_kg": 75.0,
+            "gender": "male",
+        },
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def update_mission_context(
+    location_name: str,
+    lat: float,
+    lon: float,
+    args: dict,
+    distance_km: float,
+    route_mode: str = "round_trip",
+    destination_name: str | None = None,
+    dest_lat: float | None = None,
+    dest_lon: float | None = None,
+):
+    st.session_state["last_location_query"] = location_name
+    ctx = build_mission_snapshot(
+        location_name=location_name,
+        lat=lat,
+        lon=lon,
+        args=args,
+        distance_km=distance_km,
+        route_mode=route_mode,
+        destination_name=destination_name,
+        dest_lat=dest_lat,
+        dest_lon=dest_lon,
+    )
+    st.session_state["mission_context"] = ctx
+
+    history = st.session_state.get("mission_history", [])
+    history = [summarize_mission(ctx)] + history[:4]
+    st.session_state["mission_history"] = history
+
+
+VALID_CASING_TYPES = {"xc", "trail", "enduro", "dh"}
+
+
+def setup_args_from_request(request: dict, profile: dict, bike_type: str) -> dict[str, Any]:
+    """Resolve tire/rim/casing inputs from a plan request and rider defaults."""
+    casing = (
+        str(
+            request.get("casing_type")
+            or profile.get("casing_type")
+            or default_casing_type(bike_type)
+        )
+        .strip()
+        .lower()
+    )
+    if casing not in VALID_CASING_TYPES:
+        casing = default_casing_type(bike_type)
+
+    return {
+        "tire_width_mm": ext_cast(
+            request.get("tire_width_mm", profile.get("tire_width_mm")),
+            int,
+            default_tire_width_mm(bike_type),
+        ),
+        "rim_internal_width_mm": ext_cast(
+            request.get("rim_internal_width_mm", profile.get("rim_internal_width_mm")),
+            int,
+            default_rim_internal_width_mm(bike_type),
+        ),
+        "casing_type": casing,
+        "tubeless": ext_cast(request.get("tubeless", profile.get("tubeless", True)), bool, True),
+    }
+
+
+def append_mission_summary(text: str) -> str:
+    ctx = st.session_state.get("mission_context") or {}
+    if not ctx:
+        return text
+    return f"{text}\n\n[{summarize_mission(ctx)}]"

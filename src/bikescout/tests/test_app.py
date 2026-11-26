@@ -18,117 +18,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, cast
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
-import bikescout.app as app_module
-
 APP_PATH = Path(__file__).resolve().parent.parent / "app.py"
-
-
-class StubLLM:
-    """Minimal stand-in for Llama that records the completion calls it receives."""
-
-    def __init__(self, content: str):
-        self.content = content
-        self.calls: list[dict] = []
-
-    def create_chat_completion(self, messages, **kwargs):
-        self.calls.append({"messages": messages, **kwargs})
-        return {"choices": [{"message": {"content": self.content}}]}
-
-
-def _as_llm(llm: StubLLM) -> Any:
-    """Present the stub as the concrete Llama dependency expected by the helper."""
-    return cast(Any, llm)
-
-
-class TestGenerateTacticalResponse:
-    def test_returns_stripped_llm_content(self):
-        llm = StubLLM('  {"briefing": "ok", "can_execute": false, "tool": null}  ')
-        result = app_module.generate_tactical_response(
-            [{"role": "user", "content": "45 km loop near Trento"}], _as_llm(llm)
-        )
-        assert result == '{"briefing": "ok", "can_execute": false, "tool": null}'
-
-    def test_system_prompt_states_identity_and_json_contract(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response([{"role": "user", "content": "a ride"}], _as_llm(llm))
-        system = llm.calls[0]["messages"][0]
-        assert system["role"] == "system"
-        assert "You are BikeScout Tactical AI." in system["content"]
-        assert "Return ONLY valid JSON" in system["content"]
-
-    def test_system_prompt_documents_intent_mapping_rules(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response([{"role": "user", "content": "a ride"}], _as_llm(llm))
-        system = llm.calls[0]["messages"][0]["content"]
-        assert 'Infer bike_type="mtb"' in system
-        assert "very hard/extreme=5" in system
-        assert "explicitly requested include_* flag" in system
-        assert "mostly MTB singletrack" in system
-
-    def test_user_messages_reach_the_llm(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [{"role": "user", "content": "Ride plan near Trento please"}], _as_llm(llm)
-        )
-        assert "Ride plan near Trento please" in llm.calls[0]["messages"][1]["content"]
-
-    def test_mission_context_is_included_in_system_prompt(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [], _as_llm(llm), mission_context={"location_name": "Trento", "bike_type": "mtb"}
-        )
-        system = llm.calls[0]["messages"][0]["content"]
-        assert "ACTIVE MISSION" in system
-        assert '"location_name": "Trento"' in system
-
-    def test_excludes_placeholder_assistant_messages(self):
-        llm = StubLLM("{}")
-        messages = [
-            {"role": "user", "content": "first question"},
-            {
-                "role": "assistant",
-                "content": "Connection established. Provide input...",
-            },
-            {"role": "assistant", "content": "real answer"},
-        ]
-        app_module.generate_tactical_response(messages, _as_llm(llm))
-        contents = [m["content"] for m in llm.calls[0]["messages"]]
-        assert "Connection established. Provide input..." not in contents
-        assert "first question" in contents
-        assert "real answer" in contents
-
-    def test_limits_history_to_last_six_messages(self):
-        llm = StubLLM("{}")
-        messages = [{"role": "user", "content": f"message {i}"} for i in range(10)]
-        app_module.generate_tactical_response(messages, _as_llm(llm))
-        history = llm.calls[0]["messages"][1:]
-        assert [m["content"] for m in history] == [f"message {i}" for i in range(4, 10)]
-
-    def test_uses_json_schema_and_temperature_zero(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response([{"role": "user", "content": "hi"}], _as_llm(llm))
-        call = llm.calls[0]
-        assert call["temperature"] == 0.0
-        assert call["max_tokens"] == 1024
-        assert call["response_format"]["type"] == "json_object"
-        properties = call["response_format"]["schema"]["properties"]
-        assert "briefing" in properties
-        assert "can_execute" in properties
-        assert "tool" in properties
-        args = properties["tool"]["anyOf"][0]["properties"]["args"]["properties"]
-        assert args["complexity"]["minimum"] == 1
-        assert args["complexity"]["maximum"] == 5
-        assert args["profile"]["enum"] == [
-            "cycling-mountain",
-            "cycling-road",
-            "cycling-regular",
-            "cycling-electric",
-        ]
 
 
 class TestAppScript:

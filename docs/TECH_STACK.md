@@ -34,8 +34,12 @@ Providers & local engines
         v
 Generated artifacts -- ~/.bikescout/{gpx,maps,altimetry}/ (MCP resources)
 
-Streamlit app (app.py) --> local GGUF planner (llama-cpp-python, models/)
-                       --> execute_plan_request / process_local_mcp_request
+Streamlit app (app.py) --> page composition + mission orchestration
+                       |-- app_llm.py: LangChain adapter, model catalog, cached
+                       |   loader and LCEL prompt | chat model | parser chain
+                       |-- app_helpers.py: session defaults + intent normalization
+                       `-- app_ui_helpers.py: sidebar, HUD/result renderers, CSS
+                       --> process_local_mcp_request / execute_plan_request
                        --> same domain services
 ```
 
@@ -59,7 +63,7 @@ Resources: `bikescout://altimetry/{filename}`, `bikescout://maps/{filename}`, `b
 - **Domain services:** `requests`, `polyline`, `geopy`, `astral`, `timezonefinder`, `numpy`, `matplotlib`.
 - **Exports:** `gpxpy`, `staticmap`, `pillow`, `fpdf`.
 - **UI:** `streamlit>=1.35.0`, `watchdog`; theme in `src/bikescout/config.toml`; CSS design tokens in `app_ui_helpers.py`.
-- **Local planner:** `llama-cpp-python>=0.3.16`, `huggingface_hub>=0.27.0`; GGUF cache in the ignored `models/` directory; structured JSON with thinking disabled on Qwen3.5.
+- **Local planner:** `langchain-core>=0.3.0,<1.8.0`, `llama-cpp-python>=0.3.16`, `huggingface_hub>=0.27.0`; GGUF cache in the ignored `models/` directory; `LlamaChatModel` is a `BaseChatModel` adapter over `Llama`, driven by an LCEL chain with a structured response format and thinking disabled on Qwen3.5.
 - **Tests:** `pytest`, `pytest-cov`, `pytest-asyncio` (`asyncio_mode = auto`, `pythonpath = ["src"]`, `testpaths = ["src/bikescout/tests"]`).
 - **Dev gates:** `ruff`, `pyright`, `lefthook` (pre-commit runs lint, format, type check and pytest with 80% coverage).
 
@@ -80,7 +84,7 @@ Client configs under `.claude/`, `.cursor/`, `.codex/`, `.gemini/` and `.codeium
 
 ## 6. Dependency and version policy
 
-- Dependencies use minimum-version constraints (`>=`) in `pyproject.toml`; only `test` and `dev` extras exist.
+- Dependencies use minimum-version constraints (`>=`) in `pyproject.toml`; only `test` and `dev` extras exist. `langchain-core` also caps `<1.8.0` because 1.8 requires Python 3.11 while BikeScout declares `>=3.10`.
 - Adding/upgrading a dependency, adding an extra, or changing a provider endpoint requires approval per `AGENTS.md` §2.
 - `uv.lock` and `.venv/` are git-ignored; `ruff` and `pyright` configuration lives in `pyproject.toml` (DR-09 resolved). Do not introduce a third config location for these tools without updating `PROCESS.md`.
 

@@ -99,7 +99,7 @@ A plain `venv` + `pip install -e .` is enough to run the apps, but **not** to ru
 ## 7. Repo map and entry points
 
 - `src/bikescout/mcp_server.py` — `FastMCP("BikeScout")`; tools: `geocode_location`, `trail_scout`, `trail_scout_simple` (unified orchestrator), `check_trail_weather`, `ride_window_planner`, `hydration_scout`, `analyze_gpx_track`; resources `bikescout://{altimetry,maps,gpx}/{filename}` read from `~/.bikescout`.
-- `src/bikescout/app.py`, `app_helpers.py`, `app_ui_helpers.py` — Streamlit UI, local GGUF planner, overlay helpers, CSS design tokens.
+- `src/bikescout/app.py` — Streamlit page composition and mission orchestration; `app_helpers.py` — session defaults and intent normalization; `app_llm.py` — LangChain adapter, model catalog, cached loader and tactical prompt chain; `app_ui_helpers.py` — reusable renderers and CSS design tokens.
 - `src/bikescout/schemas.py` — Pydantic v2 contracts; tool-facing inputs `RiderProfile`, `BikeSetup`, `MissionConstraints` and six response models.
 - `src/bikescout/tools/` — stateless domain services; ORS-compatible routing/POI (HeiGIT), weather, offline terrain truth, GPX/map/altimetry exports.
 - `src/bikescout/tests/` — pytest suite (`asyncio_mode = auto`, `pythonpath = ["src"]`) with stub LLM and fake HTTP sessions; no live model/network.

@@ -1,21 +1,35 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import pytest
-from datetime import date
 from unittest.mock import patch
 from bikescout.tools.gonogo import calculate_ride_windows, _clean_weather_value
 
-class TestPlanner:
 
+class TestPlanner:
     @pytest.fixture
     def mock_weather_data(self):
         """Genera 24 ore di meteo perfetto."""
         forecast = []
         for h in range(24):
-            forecast.append({
-                "time": f"{h:02d}:00",
-                "rain_prob": "0%",
-                "wind": "10 km/h",
-                "temp": "20C"
-            })
+            forecast.append(
+                {"time": f"{h:02d}:00", "rain_prob": "0%", "wind": "10 km/h", "temp": "20C"}
+            )
         return {"tactical_forecast": forecast}
 
     @patch("bikescout.tools.gonogo.get_weather_forecast")
@@ -44,9 +58,11 @@ class TestPlanner:
     @patch("bikescout.tools.gonogo.get_weather_forecast")
     @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
     def test_extreme_weather_penalties(self, mock_mud, mock_weather):
-        bad_weather = {"tactical_forecast": [
-            {"time": f"{h:02d}:00", "rain_prob": 90, "wind": 50, "temp": 2} for h in range(24)
-        ]}
+        bad_weather = {
+            "tactical_forecast": [
+                {"time": f"{h:02d}:00", "rain_prob": 90, "wind": 50, "temp": 2} for h in range(24)
+            ]
+        }
         mock_weather.return_value = bad_weather
         mock_mud.return_value = {"mud_risk_score": 80}
 
@@ -78,11 +94,13 @@ class TestPlanner:
     @patch("bikescout.tools.gonogo.get_weather_forecast")
     @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
     def test_malformed_forecast_hour_skips(self, mock_mud, mock_weather):
-        malformed_forecast = {"tactical_forecast": [
-            {"time": "ORARIO_NON_VALIDO", "rain_prob": 0, "wind": 10, "temp": 20},
-            {"time": "12:00", "rain_prob": 0, "wind": 10, "temp": 20},
-            {"time": "13:00", "rain_prob": 0, "wind": 10, "temp": 20}
-        ]}
+        malformed_forecast = {
+            "tactical_forecast": [
+                {"time": "ORARIO_NON_VALIDO", "rain_prob": 0, "wind": 10, "temp": 20},
+                {"time": "12:00", "rain_prob": 0, "wind": 10, "temp": 20},
+                {"time": "13:00", "rain_prob": 0, "wind": 10, "temp": 20},
+            ]
+        }
         mock_weather.return_value = malformed_forecast
         mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
 
@@ -94,9 +112,11 @@ class TestPlanner:
     @patch("bikescout.tools.gonogo.get_weather_forecast")
     @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
     def test_scoring_extreme_cold(self, mock_mud, mock_weather):
-        freezing_weather = {"tactical_forecast": [
-            {"time": f"{h:02d}:00", "rain_prob": 0, "wind": 10, "temp": -5} for h in range(24)
-        ]}
+        freezing_weather = {
+            "tactical_forecast": [
+                {"time": f"{h:02d}:00", "rain_prob": 0, "wind": 10, "temp": -5} for h in range(24)
+            ]
+        }
         mock_weather.return_value = freezing_weather
         mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
 
@@ -108,9 +128,11 @@ class TestPlanner:
     @patch("bikescout.tools.gonogo.get_weather_forecast")
     @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
     def test_scoring_extreme_heat(self, mock_mud, mock_weather):
-        scorching_weather = {"tactical_forecast": [
-            {"time": f"{h:02d}:00", "rain_prob": 0, "wind": 10, "temp": 38} for h in range(24)
-        ]}
+        scorching_weather = {
+            "tactical_forecast": [
+                {"time": f"{h:02d}:00", "rain_prob": 0, "wind": 10, "temp": 38} for h in range(24)
+            ]
+        }
         mock_weather.return_value = scorching_weather
         mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
 

@@ -14,12 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import json
 import os
 import random
 import re
 from datetime import date
-from typing import Any
+from typing import Any, Literal, cast
 
 import streamlit as st
 from huggingface_hub import hf_hub_download
@@ -30,6 +32,7 @@ from bikescout.app_helpers import (
     build_mission_snapshot,
     clamp_complexity,
     compute_mission_intensity,
+    difficulty_to_waypoints,
     compute_readiness_score,
     ext_cast,
     extract_avoid_urban_from_text,
@@ -126,7 +129,7 @@ def render_sidebar() -> tuple[str, int]:
             os.environ["ORS_API_KEY"] = ors_key
 
         st.subheader("Local model")
-        selected_model_name = st.selectbox("Model", list(AVAILABLE_MODELS.keys()))
+        selected_model_name = cast(str, st.selectbox("Model", list(AVAILABLE_MODELS.keys())))
         st.caption(AVAILABLE_MODELS[selected_model_name]["description"])
 
         gpu_enabled = st.toggle("GPU acceleration", value=True)
@@ -141,12 +144,10 @@ def render_sidebar() -> tuple[str, int]:
                         repo_id=AVAILABLE_MODELS[selected_model_name]["repo"],
                         filename=AVAILABLE_MODELS[selected_model_name]["file"],
                         local_dir=LOCAL_MODELS_DIR,
-                        local_dir_use_symlinks=False,
                     )
                     st.success("Model downloaded. Reloading...")
                     st.rerun()
             st.warning("A local model is required to use the chat planner.")
-
 
         if st.button("Clear chat & mission", use_container_width=True):
             st.session_state["messages"] = []
@@ -157,6 +158,7 @@ def render_sidebar() -> tuple[str, int]:
             st.rerun()
 
         return selected_model_name, n_layers
+
 
 def init_session_state() -> None:
     defaults = {
@@ -212,7 +214,9 @@ def load_llm(model_name: str, n_gpu_layers: int):
     )
 
 
-def generate_tactical_response(messages_history: list, llm_instance: Llama, mission_context: dict | None = None) -> str:
+def generate_tactical_response(
+    messages_history: list, llm_instance: Llama, mission_context: dict | None = None
+) -> str:
     json_schema = {
         "type": "json_object",
         "schema": {
@@ -255,10 +259,19 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama, miss
                                         "is_ebike": {"type": "boolean"},
                                         "weight_kg": {"type": "number"},
                                         "seed": {"type": "number"},
-                                        "complexity": {"type": "integer", "minimum": 1, "maximum": 5},
+                                        "complexity": {
+                                            "type": "integer",
+                                            "minimum": 1,
+                                            "maximum": 5,
+                                        },
                                         "profile": {
                                             "type": "string",
-                                            "enum": ["cycling-mountain", "cycling-road", "cycling-electric"],
+                                            "enum": [
+                                                "cycling-mountain",
+                                                "cycling-road",
+                                                "cycling-regular",
+                                                "cycling-electric",
+                                            ],
                                         },
                                         "fitness_level": {
                                             "type": "string",
@@ -284,7 +297,11 @@ def generate_tactical_response(messages_history: list, llm_instance: Llama, miss
                                         },
                                         "priority_mode": {
                                             "type": "string",
-                                            "enum": ["balanced", "distance_first", "ride_character_first"],
+                                            "enum": [
+                                                "balanced",
+                                                "distance_first",
+                                                "ride_character_first",
+                                            ],
                                         },
                                     },
                                     "required": ["bike_type", "tire_size", "location_name"],
@@ -352,31 +369,38 @@ Examples:
 
     formatted_messages = [{"role": "system", "content": system_prompt}]
     llm_history = [
-        m for m in messages_history
+        m
+        for m in messages_history
         if m.get("role") == "user"
-           or (m.get("role") == "assistant" and m.get("content") != "Connection established. Provide input...")
+        or (
+            m.get("role") == "assistant"
+            and m.get("content") != "Connection established. Provide input..."
+        )
     ]
     formatted_messages.extend(llm_history[-6:])
 
-    response = llm_instance.create_chat_completion(
-        messages=formatted_messages,
-        response_format=json_schema,
-        temperature=0.0,
-        max_tokens=1024,
+    response = cast(
+        dict[str, Any],
+        llm_instance.create_chat_completion(
+            messages=cast(Any, formatted_messages),
+            response_format=cast(Any, json_schema),
+            temperature=0.0,
+            max_tokens=1024,
+        ),
     )
-    return response["choices"][0]["message"]["content"].strip()
+    return str(response["choices"][0]["message"]["content"]).strip()
 
 
 def _update_mission_context(
-        location_name: str,
-        lat: float,
-        lon: float,
-        args: dict,
-        distance_km: float,
-        route_mode: str = "round_trip",
-        destination_name: str | None = None,
-        dest_lat: float | None = None,
-        dest_lon: float | None = None,
+    location_name: str,
+    lat: float,
+    lon: float,
+    args: dict,
+    distance_km: float,
+    route_mode: str = "round_trip",
+    destination_name: str | None = None,
+    dest_lat: float | None = None,
+    dest_lon: float | None = None,
 ):
     st.session_state["last_location_query"] = location_name
     ctx = build_mission_snapshot(
@@ -402,9 +426,15 @@ VALID_CASING_TYPES = {"xc", "trail", "enduro", "dh"}
 
 def _setup_args_from_request(request: dict, profile: dict, bike_type: str) -> dict[str, Any]:
     """Resolve tire/rim/casing inputs from a plan request and rider defaults."""
-    casing = str(
-        request.get("casing_type") or profile.get("casing_type") or default_casing_type(bike_type)
-    ).strip().lower()
+    casing = (
+        str(
+            request.get("casing_type")
+            or profile.get("casing_type")
+            or default_casing_type(bike_type)
+        )
+        .strip()
+        .lower()
+    )
     if casing not in VALID_CASING_TYPES:
         casing = default_casing_type(bike_type)
 
@@ -420,9 +450,7 @@ def _setup_args_from_request(request: dict, profile: dict, bike_type: str) -> di
             default_rim_internal_width_mm(bike_type),
         ),
         "casing_type": casing,
-        "tubeless": ext_cast(
-            request.get("tubeless", profile.get("tubeless", True)), bool, True
-        ),
+        "tubeless": ext_cast(request.get("tubeless", profile.get("tubeless", True)), bool, True),
     }
 
 
@@ -446,6 +474,7 @@ def _execute_and_store_request(plan_request: dict, history_label: str | None = N
             "content": _append_mission_summary(stored_text),
         }
     )
+
 
 def render_chat_tab(llm):
     section_intro(
@@ -530,7 +559,7 @@ def execute_plan_request(plan_request: dict):
         rider_profile = st.session_state["rider_profile"]
 
         route_mode = plan_request.get("route_mode", "loop")
-        start_location = plan_request.get("start_location")
+        start_location = cast(str, plan_request.get("start_location"))
         destination_location = plan_request.get("destination_location")
         bike_type = plan_request.get("bike_type", rider_profile["bike_type"])
         final_bike, is_ebike = normalize_bike_type(bike_type)
@@ -538,7 +567,7 @@ def execute_plan_request(plan_request: dict):
         tire_size = normalize_tire_size(
             plan_request.get("tire_size") or rider_profile["tire_size"],
             final_bike,
-            )
+        )
 
         setup_args = _setup_args_from_request(plan_request, rider_profile, final_bike)
         complexity_val = clamp_complexity(plan_request.get("complexity", 3))
@@ -574,14 +603,14 @@ def execute_plan_request(plan_request: dict):
             dest_display = getattr(geo_dest, "display_name", destination_location)
 
         _update_mission_context(
-            getattr(geo, "display_name", start_location),
+            cast(str, getattr(geo, "display_name", start_location)),
             geo.lat,
             geo.lon,
             {
                 "bike_type": final_bike,
                 "tire_size": tire_size,
                 **setup_args,
-                "complexity": complexity_val,
+                "complexity": difficulty_to_waypoints(complexity_val),
                 "direction_bias": direction_bias,
                 "avoid_urban": avoid_urban,
                 "prefer_rural": prefer_rural,
@@ -610,7 +639,7 @@ def execute_plan_request(plan_request: dict):
             "weight_kg": ext_cast(rider_profile.get("weight_kg"), float, 75.0),
             "gender": str(rider_profile.get("gender", "male")),
             "seed": random.randint(1, 999999),
-            "complexity": complexity_val,
+            "complexity": difficulty_to_waypoints(complexity_val),
             "bike_type": final_bike,
             "profile": resolve_profile(final_bike),
             "is_ebike": is_ebike,
@@ -623,8 +652,8 @@ def execute_plan_request(plan_request: dict):
         }
 
         if route_mode == "point_to_point":
-            valid_args["dest_latitude"] = float(dest_lat)
-            valid_args["dest_longitude"] = float(dest_lon)
+            valid_args["dest_latitude"] = float(cast(float, dest_lat))
+            valid_args["dest_longitude"] = float(cast(float, dest_lon))
         else:
             valid_args["total_length_km"] = raw_distance
 
@@ -632,7 +661,10 @@ def execute_plan_request(plan_request: dict):
             st.json(valid_args)
 
         result = trail_scout_simple(**valid_args)
-        res_data = result.model_dump() if hasattr(result, "model_dump") else result
+        res_data = cast(
+            dict[str, Any],
+            result.model_dump() if hasattr(result, "model_dump") else result,
+        )
 
         with st.expander("Engine response", expanded=False):
             st.json(res_data)
@@ -687,17 +719,19 @@ def _terrain_climb_rows(tactical_briefing: dict, terrain_analysis: dict) -> list
         length_km = None
         if isinstance(length_m, (int, float)) and not isinstance(length_m, bool):
             length_km = length_m / 1000.0
-        rows.append({
-            "#": str(number),
-            "Category": str(climb.get("category", "N/A")),
-            "Gain (m)": _format_terrain_value(climb.get("gain_m")),
-            "Length (km)": _format_terrain_value(length_km, 2),
-            "Avg grade": _format_terrain_value(climb.get("avg_gradient"), 1, "%"),
-            "Max grade": _format_terrain_value(climb.get("max_gradient"), 1, "%"),
-            "Summit (m)": _format_terrain_value(climb.get("summit_elevation_m")),
-            "FIETS": _format_terrain_value(climb.get("fiets_index"), 2),
-            "Profile samples": f"{climb.get('start_index', '?')}–{climb.get('end_index', '?')}",
-        })
+        rows.append(
+            {
+                "#": str(number),
+                "Category": str(climb.get("category", "N/A")),
+                "Gain (m)": _format_terrain_value(climb.get("gain_m")),
+                "Length (km)": _format_terrain_value(length_km, 2),
+                "Avg grade": _format_terrain_value(climb.get("avg_gradient"), 1, "%"),
+                "Max grade": _format_terrain_value(climb.get("max_gradient"), 1, "%"),
+                "Summit (m)": _format_terrain_value(climb.get("summit_elevation_m")),
+                "FIETS": _format_terrain_value(climb.get("fiets_index"), 2),
+                "Profile samples": f"{climb.get('start_index', '?')}–{climb.get('end_index', '?')}",
+            }
+        )
     return rows
 
 
@@ -797,7 +831,9 @@ def render_route_results(res_data: dict) -> None:
     st.markdown('<div class="bs-grid-gap"></div>', unsafe_allow_html=True)
 
     if surface_analysis:
-        section_intro("Terrain intelligence", "Surface mix, gradient profile, and tactical setup signals.")
+        section_intro(
+            "Terrain intelligence", "Surface mix, gradient profile, and tactical setup signals."
+        )
 
         tactical = surface_analysis.get("tactical_briefing", {}) or {}
         terrain = tactical.get("terrain_analysis", {}) or {}
@@ -806,7 +842,9 @@ def render_route_results(res_data: dict) -> None:
 
         max_gradient = tactical.get("max_gradient", terrain.get("max_gradient"))
         confidence = tactical.get("data_confidence", terrain.get("data_confidence"))
-        technical = tactical.get("technical_difficulty") or terrain.get("technical_difficulty") or {}
+        technical = (
+            tactical.get("technical_difficulty") or terrain.get("technical_difficulty") or {}
+        )
         if not isinstance(technical, dict):
             technical = {}
 
@@ -939,30 +977,26 @@ def render_route_results(res_data: dict) -> None:
                 setup = normalize_tire_setup(mechanical.get("setup_details"))
                 wheel_label = str(setup.get("wheel_label") or "Standard")
                 tire_width_mm = setup.get("tire_width_mm")
-                tire_label = (
-                    f'{wheel_label} · {tire_width_mm}mm' if tire_width_mm else wheel_label
-                )
+                tire_label = f"{wheel_label} · {tire_width_mm}mm" if tire_width_mm else wheel_label
 
                 psi_front = setup.get("psi_front")
                 psi_rear = setup.get("psi_rear")
                 pressure_label = (
-                    f'F: {psi_front} / R: {psi_rear} PSI'
+                    f"F: {psi_front} / R: {psi_rear} PSI"
                     if psi_front is not None and psi_rear is not None
                     else "N/A"
                 )
                 bar_front = setup.get("bar_front")
                 bar_rear = setup.get("bar_rear")
                 bar_label = (
-                    f'≈ {bar_front}/{bar_rear} Bar'
+                    f"≈ {bar_front}/{bar_rear} Bar"
                     if bar_front is not None and bar_rear is not None
                     else ""
                 )
 
                 m1, m2, m3 = st.columns(3)
                 with m1:
-                    metric_card(
-                        "Wheels / tires", tire_label, "🛞", "#60a5fa", "Volume-based setup"
-                    )
+                    metric_card("Wheels / tires", tire_label, "🛞", "#60a5fa", "Volume-based setup")
                 with m2:
                     metric_card("Pressure F / R", pressure_label, "🔩", "#34d399", bar_label)
                 with m3:
@@ -975,7 +1009,7 @@ def render_route_results(res_data: dict) -> None:
                     )
 
                 if setup.get("knob_choice"):
-                    st.caption(f'Tread choice: **{setup["knob_choice"]}**')
+                    st.caption(f"Tread choice: **{setup['knob_choice']}**")
 
                 advice = [str(item) for item in (setup.get("advice") or [])]
                 if advice:
@@ -984,12 +1018,13 @@ def render_route_results(res_data: dict) -> None:
                         st.markdown(f"- {item}")
 
                 if not mechanical.get("compatible", True):
-                    st.error("This bike/setup may not be fully compatible with the current route profile.")
+                    st.error(
+                        "This bike/setup may not be fully compatible with the current route profile."
+                    )
 
                 warnings = []
-                for warning in (
-                    list(setup.get("warnings") or [])
-                    + list(mechanical.get("safety_warnings") or [])
+                for warning in list(setup.get("warnings") or []) + list(
+                    mechanical.get("safety_warnings") or []
                 ):
                     if warning and warning not in terrain_warnings and warning not in warnings:
                         warnings.append(warning)
@@ -1035,7 +1070,10 @@ def render_route_results(res_data: dict) -> None:
                     )
 
     if weather_data:
-        section_intro("Weather & safety", "Short-term tactical conditions for confidence, pacing, and kit planning.")
+        section_intro(
+            "Weather & safety",
+            "Short-term tactical conditions for confidence, pacing, and kit planning.",
+        )
 
         with st.expander("Forecast details", expanded=True):
             peak_temp = None
@@ -1117,7 +1155,9 @@ def render_route_results(res_data: dict) -> None:
 
     mud_data = conditions.get("mud_risk", {}) if conditions else {}
     if mud_data:
-        section_intro("Mud & environmental risk", "Trail rideability, traction, and preservation signals.")
+        section_intro(
+            "Mud & environmental risk", "Trail rideability, traction, and preservation signals."
+        )
 
         tactical_mud = mud_data.get("tactical_analysis", {}) or {}
         env_context = mud_data.get("environmental_context", {}) or {}
@@ -1177,11 +1217,13 @@ def render_route_results(res_data: dict) -> None:
 
     pois = logistics.get("nearby_amenities", {}) if logistics else {}
     if pois:
-        section_intro("POI & logistics", "Nearby support points for water, food, repairs, safety, and rest.")
+        section_intro(
+            "POI & logistics", "Nearby support points for water, food, repairs, safety, and rest."
+        )
         with st.expander("Amenities on route", expanded=True):
             for i in range(0, len(pois), 3):
                 cols = st.columns(3)
-                for idx, poi in enumerate(pois[i:i + 3]):
+                for idx, poi in enumerate(pois[i : i + 3]):
                     with cols[idx]:
                         p_name = poi.get("name", "Unknown POI")
                         p_type = poi.get("type", "Amenity")
@@ -1189,7 +1231,9 @@ def render_route_results(res_data: dict) -> None:
                         icon, border_color = get_poi_style(p_type)
 
                         if isinstance(p_dist, (int, float)):
-                            dist_str = f"{p_dist / 1000:.1f} km" if p_dist >= 1000 else f"{int(p_dist)} m"
+                            dist_str = (
+                                f"{p_dist / 1000:.1f} km" if p_dist >= 1000 else f"{int(p_dist)} m"
+                            )
                         else:
                             dist_str = "N/A"
 
@@ -1199,7 +1243,9 @@ def render_route_results(res_data: dict) -> None:
                             lat = p_loc.get("latitude", p_loc.get("lat"))
                             lon = p_loc.get("longitude", p_loc.get("lon"))
                             if lat is not None and lon is not None:
-                                link = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                                link = (
+                                    f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                                )
 
                         st.markdown(
                             f"""
@@ -1222,7 +1268,10 @@ def render_route_results(res_data: dict) -> None:
     nutrition = logistics.get("nutrition_plan", {}) if logistics else {}
     if nutrition:
         briefing_nut = nutrition.get("mission_nutrition_briefing", {}) or {}
-        section_intro("Nutrition & hydration", "Fueling strategy aligned with distance, intensity, and environmental load.")
+        section_intro(
+            "Nutrition & hydration",
+            "Fueling strategy aligned with distance, intensity, and environmental load.",
+        )
         with st.expander("Fueling details", expanded=True):
             fluids = briefing_nut.get("fluids", {}) or {}
             carbs = briefing_nut.get("carbohydrates", {}) or {}
@@ -1331,7 +1380,6 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             if parsed_priority_mode and not args.get("priority_mode"):
                 args["priority_mode"] = parsed_priority_mode
 
-
             if tool_name != "trail_scout_simple":
                 status_box.update(label="Completed", state="complete")
                 return briefing_text, False
@@ -1351,10 +1399,9 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 return f"Could not geocode: {location_query}", False
 
             if route_mode == "point_to_point":
-                dest_name = (
-                        args.get("destination_name")
-                        or (st.session_state.get("mission_context") or {}).get("destination_name")
-                )
+                dest_name = args.get("destination_name") or (
+                    st.session_state.get("mission_context") or {}
+                ).get("destination_name")
                 if not dest_name:
                     ab = extract_point_to_point(user_input)
                     if ab:
@@ -1390,7 +1437,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             normalized_tire_size = normalize_tire_size(
                 args.get("tire_size") or rider_profile["tire_size"],
                 final_bike,
-                )
+            )
             setup_profile = dict(rider_profile)
             mission_context = st.session_state.get("mission_context") or {}
             for key in ("tire_width_mm", "rim_internal_width_mm", "casing_type", "tubeless"):
@@ -1421,19 +1468,27 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     ext_cast(
                         args.get(
                             "distance_flex_percent",
-                            (st.session_state.get("mission_context") or {}).get("distance_flex_percent", 10),
+                            (st.session_state.get("mission_context") or {}).get(
+                                "distance_flex_percent", 10
+                            ),
                         ),
                         int,
                         10,
                     ),
                 ),
             )
-            priority_mode = str(
-                args.get(
-                    "priority_mode",
-                    (st.session_state.get("mission_context") or {}).get("priority_mode", "balanced"),
+            priority_mode = (
+                str(
+                    args.get(
+                        "priority_mode",
+                        (st.session_state.get("mission_context") or {}).get(
+                            "priority_mode", "balanced"
+                        ),
+                    )
                 )
-            ).strip().lower()
+                .strip()
+                .lower()
+            )
             if priority_mode not in {"balanced", "distance_first", "ride_character_first"}:
                 priority_mode = "balanced"
 
@@ -1460,18 +1515,18 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             )
 
             valid_args = {
-                "latitude": float(args.get("latitude")),
-                "longitude": float(args.get("longitude")),
+                "latitude": float(cast(Any, args.get("latitude"))),
+                "longitude": float(cast(Any, args.get("longitude"))),
                 "tire_size": normalized_tire_size,
                 **setup_args,
                 "include_weather": True,
                 "include_mud_analysis": (
-                        wants_overlay(
-                            user_input,
-                            args.get("include_mud_analysis"),
-                            ("mud", "muddy", "wet trail", "trail condition", "trail conditions"),
-                        )
-                        or (final_bike != "road" and args.get("include_mud_analysis") is not False)
+                    wants_overlay(
+                        user_input,
+                        args.get("include_mud_analysis"),
+                        ("mud", "muddy", "wet trail", "trail condition", "trail conditions"),
+                    )
+                    or (final_bike != "road" and args.get("include_mud_analysis") is not False)
                 ),
                 "include_nutrition_plan": wants_overlay(
                     user_input,
@@ -1493,7 +1548,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                 "weight_kg": ext_cast(args.get("weight_kg"), float, rider_profile["weight_kg"]),
                 "gender": str(args.get("gender") or rider_profile["gender"]),
                 "seed": random.randint(1, 999999),
-                "complexity": complexity_val,
+                "complexity": difficulty_to_waypoints(complexity_val),
                 "bike_type": final_bike,
                 "profile": resolve_profile(final_bike),
                 "is_ebike": is_ebike,
@@ -1531,7 +1586,10 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
                     st.json(args)
 
             result = trail_scout_simple(**valid_args)
-            res_data = result.model_dump() if hasattr(result, "model_dump") else result
+            res_data = cast(
+                dict[str, Any],
+                result.model_dump() if hasattr(result, "model_dump") else result,
+            )
 
             with st.expander("Engine debug - Response", expanded=False):
                 st.json(res_data)
@@ -1539,9 +1597,13 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
             if not res_data or res_data.get("status") != "Success":
                 status_box.update(label="Route planning failed", state="error")
                 if route_mode == "point_to_point":
-                    st.error("No valid A → B route matched the current parameters. Try adjusting start/destination or bike setup.")
+                    st.error(
+                        "No valid A → B route matched the current parameters. Try adjusting start/destination or bike setup."
+                    )
                 else:
-                    st.error("No route matched the current parameters. Try changing location, bike type, or distance.")
+                    st.error(
+                        "No route matched the current parameters. Try changing location, bike type, or distance."
+                    )
                 return "The system could not generate a route for this configuration.", False
 
             status_box.update(label="Analysis complete", state="complete")
@@ -1559,6 +1621,7 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str):
 
     return briefing_text, had_visual_result
 
+
 def render_plan_tab():
     section_intro(
         "Guided ride planning",
@@ -1574,16 +1637,21 @@ def render_plan_tab():
     )
 
     if route_mode == "A → B":
-        st.caption("For point-to-point missions, the engine will compute the real route distance automatically.")
+        st.caption(
+            "For point-to-point missions, the engine will compute the real route distance automatically."
+        )
 
     with st.form("guided_plan_form"):
         top1, top2 = st.columns(2)
 
         with top1:
-            bike_type = st.selectbox(
-                "Bike type",
-                ["mtb", "road", "gravel", "e-mtb", "enduro"],
-                key="guided_bike_type",
+            bike_type = cast(
+                str,
+                st.selectbox(
+                    "Bike type",
+                    ["mtb", "road", "gravel", "e-mtb", "enduro"],
+                    key="guided_bike_type",
+                ),
             )
             complexity = st.slider(
                 "Difficulty",
@@ -1602,10 +1670,13 @@ def render_plan_tab():
                 index=available_tires.index(rider_tire),
                 key="guided_tire_size",
             )
-            goal = st.selectbox(
-                "Ride goal",
-                ["scenic", "training", "technical", "easy", "family"],
-                key="guided_goal",
+            goal = cast(
+                str,
+                st.selectbox(
+                    "Ride goal",
+                    ["scenic", "training", "technical", "easy", "family"],
+                    key="guided_goal",
+                ),
             )
 
         rider_defaults = st.session_state.get("rider_profile", {})
@@ -1638,9 +1709,7 @@ def render_plan_tab():
             )
         with setup3:
             casing_options = ["xc", "trail", "enduro", "dh"]
-            guided_casing = str(
-                rider_defaults.get("casing_type") or default_casing_type(bike_type)
-            )
+            guided_casing = str(rider_defaults.get("casing_type") or default_casing_type(bike_type))
             if guided_casing not in casing_options:
                 guided_casing = "trail"
             casing_type = st.selectbox(
@@ -1839,12 +1908,15 @@ def render_plan_tab():
         st.session_state["pending_tab_redirect"] = "Chat Planner"
         st.rerun()
 
+
 def render_gpx_tab():
     section_intro(
         "GPX tactical audit",
         "Analyze an existing GPX with rider metrics, weather planning, climbs, and performance simulation.",
     )
-    st.caption("Ideal for reviewing a route you already have before race day or a big weekend ride.")
+    st.caption(
+        "Ideal for reviewing a route you already have before race day or a big weekend ride."
+    )
 
     with st.form("gpx_audit_form"):
         gpx_url = st.text_input(
@@ -1855,19 +1927,33 @@ def render_gpx_tab():
         st.markdown("#### Rider & bike setup")
         col1, col2, col3 = st.columns(3)
         with col1:
-            activity_type = st.selectbox("Type", ["road", "mtb"])
-            rider_gender = st.selectbox("Gender", ["male", "female"])
+            activity_type = cast(Literal["road", "mtb"], st.selectbox("Type", ["road", "mtb"]))
+            rider_gender = cast(
+                Literal["male", "female"], st.selectbox("Gender", ["male", "female"])
+            )
         with col2:
-            rider_weight_kg = st.number_input("Rider weight (kg)", min_value=40.0, max_value=130.0, value=75.0, step=0.5)
-            bike_weight_kg = st.number_input("Bike weight (kg)", min_value=5.0, max_value=30.0, value=8.5, step=0.1)
+            rider_weight_kg = st.number_input(
+                "Rider weight (kg)", min_value=40.0, max_value=130.0, value=75.0, step=0.5
+            )
+            bike_weight_kg = st.number_input(
+                "Bike weight (kg)", min_value=5.0, max_value=30.0, value=8.5, step=0.1
+            )
         with col3:
-            rider_fitness_level = st.selectbox("Fitness level", ["beginner", "intermediate", "pro"], index=1)
-            pro_intensity = st.slider("Intensity factor", min_value=1.0, max_value=2.0, value=1.3, step=0.1)
+            rider_fitness_level = cast(
+                Literal["beginner", "intermediate", "pro"],
+                st.selectbox("Fitness level", ["beginner", "intermediate", "pro"], index=1),
+            )
+            pro_intensity = st.slider(
+                "Intensity factor", min_value=1.0, max_value=2.0, value=1.3, step=0.1
+            )
 
         st.markdown("#### Weather planning")
         col4, col5 = st.columns(2)
         with col4:
-            sweat_profile = st.selectbox("Sweat profile", ["low", "standard", "high", "extreme"], index=1)
+            sweat_profile = cast(
+                Literal["low", "standard", "high", "extreme"],
+                st.selectbox("Sweat profile", ["low", "standard", "high", "extreme"], index=1),
+            )
         with col5:
             enable_date = st.checkbox("Schedule date/time")
             if enable_date:
@@ -1906,18 +1992,30 @@ def render_gpx_tab():
                     report=report,
                 )
 
-                res_data = result.model_dump() if hasattr(result, "model_dump") else result
+                res_data = cast(
+                    dict[str, Any],
+                    result.model_dump() if hasattr(result, "model_dump") else result,
+                )
                 st.success("GPX analysis completed.")
 
                 track_metrics = res_data.get("track_metrics", {})
                 if track_metrics:
                     g1, g2, g3 = st.columns(3)
                     with g1:
-                        metric_card("Distance", f"{track_metrics.get('distance_km')} km", "📏", "#38bdf8")
+                        metric_card(
+                            "Distance", f"{track_metrics.get('distance_km')} km", "📏", "#38bdf8"
+                        )
                     with g2:
-                        metric_card("Elevation gain", f"+{track_metrics.get('total_ascent')} m", "⛰️", "#a78bfa")
+                        metric_card(
+                            "Elevation gain",
+                            f"+{track_metrics.get('total_ascent')} m",
+                            "⛰️",
+                            "#a78bfa",
+                        )
                     with g3:
-                        metric_card("Max altitude", f"{track_metrics.get('max_altitude')} m", "🏔️", "#22c55e")
+                        metric_card(
+                            "Max altitude", f"{track_metrics.get('max_altitude')} m", "🏔️", "#22c55e"
+                        )
 
                 planning = res_data.get("planning_tools", {})
                 weather = planning.get("weather_forecast", {})
@@ -1925,19 +2023,23 @@ def render_gpx_tab():
                     with st.expander("Weather forecast", expanded=True):
                         advice = weather.get("safety_advice", {})
                         if advice:
-                            st.info(f"**{advice.get('status', 'Safety')}** — {advice.get('message', '')}")
+                            st.info(
+                                f"**{advice.get('status', 'Safety')}** — {advice.get('message', '')}"
+                            )
 
                 climbs = res_data.get("climb_analysis", [])
                 if climbs:
                     with st.expander("Climb analysis"):
                         climb_df = []
                         for c in climbs:
-                            climb_df.append({
-                                "Start (km)": c["km_start"],
-                                "Length (km)": c["dist_km"],
-                                "Grade (%)": c["avg_grade"],
-                                "Cat": c["category"],
-                            })
+                            climb_df.append(
+                                {
+                                    "Start (km)": c["km_start"],
+                                    "Length (km)": c["dist_km"],
+                                    "Grade (%)": c["avg_grade"],
+                                    "Cat": c["category"],
+                                }
+                            )
                         st.table(climb_df)
 
                 sims = res_data.get("performance_simulation", [])
@@ -1945,12 +2047,14 @@ def render_gpx_tab():
                     with st.expander("Performance simulation"):
                         sim_df = []
                         for s in sims:
-                            sim_df.append({
-                                "Sector": s["climb"].split("@")[0].strip(),
-                                "VAM": s["est_vam"],
-                                "W/kg": s["target_wkg"],
-                                "Time (min)": s["est_time_min"],
-                            })
+                            sim_df.append(
+                                {
+                                    "Sector": s["climb"].split("@")[0].strip(),
+                                    "VAM": s["est_vam"],
+                                    "W/kg": s["target_wkg"],
+                                    "Time (min)": s["est_time_min"],
+                                }
+                            )
                         st.dataframe(sim_df, hide_index=True)
 
                 report_path = res_data.get("report_path")
@@ -1974,7 +2078,11 @@ def main():
     inject_component_styles()
 
     selected_model_name, n_layers = render_sidebar()
-    llm = load_llm(selected_model_name, n_layers) if os.path.exists(get_local_model_path(selected_model_name)) else None
+    llm = (
+        load_llm(selected_model_name, n_layers)
+        if os.path.exists(get_local_model_path(selected_model_name))
+        else None
+    )
 
     render_rider_profile_panel()
 

@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import pytest
 
 import bikescout.tools.nutrition as nutrition_module
@@ -180,7 +198,9 @@ def test_get_nutrition_plan_high_intensity_hot_long_ride(service):
 
     briefing = result["mission_nutrition_briefing"]
     assert briefing["carbohydrates"]["hourly_target_g"] == 120
-    assert briefing["carbohydrates"]["recommended_ratio"] == "2:1 Glucose-to-Fructose (or 1:0.8 ratio)"
+    assert (
+        briefing["carbohydrates"]["recommended_ratio"] == "2:1 Glucose-to-Fructose (or 1:0.8 ratio)"
+    )
     assert briefing["carbohydrates"]["intensity_context"] == "Race / Threshold"
     assert len(briefing["tactical_advice"]) >= 4
 

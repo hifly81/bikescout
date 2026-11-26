@@ -1,3 +1,19 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 from __future__ import annotations
 
 import pytest
@@ -18,8 +34,7 @@ from bikescout.tools.terrain import (
 def geometry_from_elevations(elevations: list[float], step: float = 0.00045) -> list[list[float]]:
     """Build GeoJSON-like coordinates with roughly 60 m between samples."""
     return [
-        [10.0 + index * step, 45.0, float(elevation)]
-        for index, elevation in enumerate(elevations)
+        [10.0 + index * step, 45.0, float(elevation)] for index, elevation in enumerate(elevations)
     ]
 
 
@@ -127,7 +142,9 @@ def test_micro_spike_warning_is_emitted() -> None:
 
 
 def test_implausible_steps_lower_data_confidence() -> None:
-    clean = analyze_terrain_profile(geometry_from_elevations([100.0 + index for index in range(21)]))
+    clean = analyze_terrain_profile(
+        geometry_from_elevations([100.0 + index for index in range(21)])
+    )
     spiky = analyze_terrain_profile(
         geometry_from_elevations([100.0 if index % 2 == 0 else 500.0 for index in range(21)])
     )
@@ -140,10 +157,12 @@ def test_technical_difficulty_inference_sources() -> None:
     tagged = infer_technical_difficulty({"mtb_scale": {"summary": [{"value": 3, "distance": 100}]}})
     assert tagged == {"label": "S3", "confidence": 0.9, "source": "osm:mtb_scale"}
 
-    inferred = infer_technical_difficulty({
-        "surface": {"summary": [{"value": 11, "distance": 100}]},
-        "waytype": {"summary": [{"value": 5, "distance": 100}]},
-    })
+    inferred = infer_technical_difficulty(
+        {
+            "surface": {"summary": [{"value": 11, "distance": 100}]},
+            "waytype": {"summary": [{"value": 5, "distance": 100}]},
+        }
+    )
     assert inferred["source"] == "inferred:surface+waytype"
     assert inferred["confidence"] == 0.55
 

@@ -49,18 +49,18 @@ class RaceAnalysisConfig:
 
 
 def analyze_track(
-        gpx_url: str,
-        rider_weight_kg: float = 75,
-        rider_gender: Literal["male", "female"] = "male",
-        rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
-        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-        bike_weight_kg: float = 8.5,
-        pro_intensity: float = 1.3,
-        activity_type: Literal["road", "mtb"] = "road",
-        target_date: Optional[str] = None,
-        start_hour: Optional[int] = None,
-        end_hour: Optional[int] = None,
-        report: bool = False,
+    gpx_url: str,
+    rider_weight_kg: float = 75,
+    rider_gender: Literal["male", "female"] = "male",
+    rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
+    sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+    bike_weight_kg: float = 8.5,
+    pro_intensity: float = 1.3,
+    activity_type: Literal["road", "mtb"] = "road",
+    target_date: Optional[str] = None,
+    start_hour: Optional[int] = None,
+    end_hour: Optional[int] = None,
+    report: bool = False,
 ) -> Dict[str, Any]:
     return service.analyze_track(
         gpx_url=gpx_url,
@@ -80,17 +80,17 @@ def analyze_track(
 
 class RaceAnalysisService:
     def __init__(
-            self,
-            config: RaceAnalysisConfig | None = None,
-            requests_session: Any | None = None,
-            weather_getter=None,
-            weather_windowing=None,
-            mud_analyzer=None,
-            nutrition_getter=None,
-            stderr_writer=None,
-            date_provider=None,
-            plot_generator=None,
-            pdf_generator=None,
+        self,
+        config: RaceAnalysisConfig | None = None,
+        requests_session: Any | None = None,
+        weather_getter=None,
+        weather_windowing=None,
+        mud_analyzer=None,
+        nutrition_getter=None,
+        stderr_writer=None,
+        date_provider=None,
+        plot_generator=None,
+        pdf_generator=None,
     ) -> None:
         self.config = config or RaceAnalysisConfig()
         self.requests_session = requests_session or requests
@@ -104,19 +104,19 @@ class RaceAnalysisService:
         self.pdf_generator = pdf_generator or _generate_pdf_report
 
     def analyze_track(
-            self,
-            gpx_url: str,
-            rider_weight_kg: float = 75,
-            rider_gender: Literal["male", "female"] = "male",
-            rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
-            sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
-            bike_weight_kg: float = 8.5,
-            pro_intensity: float = 1.3,
-            activity_type: Literal["road", "mtb"] = "road",
-            target_date: Optional[str] = None,
-            start_hour: Optional[int] = None,
-            end_hour: Optional[int] = None,
-            report: bool = False,
+        self,
+        gpx_url: str,
+        rider_weight_kg: float = 75,
+        rider_gender: Literal["male", "female"] = "male",
+        rider_fitness_level: Literal["beginner", "intermediate", "pro"] = "intermediate",
+        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+        bike_weight_kg: float = 8.5,
+        pro_intensity: float = 1.3,
+        activity_type: Literal["road", "mtb"] = "road",
+        target_date: Optional[str] = None,
+        start_hour: Optional[int] = None,
+        end_hour: Optional[int] = None,
+        report: bool = False,
     ) -> Dict[str, Any]:
         try:
             content = self._load_gpx_content(gpx_url)
@@ -133,8 +133,8 @@ class RaceAnalysisService:
                 distance_meters = 0
                 for i in range(len(points) - 1):
                     distance_meters += geodesic(
-                (points[i]["lat"], points[i]["lon"]),
-                      (points[i + 1]["lat"], points[i + 1]["lon"])
+                        (points[i]["lat"], points[i]["lon"]),
+                        (points[i + 1]["lat"], points[i + 1]["lon"]),
                     ).meters
                 distance_km = round(distance_meters / 1000, 2)
 
@@ -145,9 +145,9 @@ class RaceAnalysisService:
                 total_ascent = round(_native_uphill, 1)
             else:
                 _manual_uphill = sum(
-                    max(0.0, points[i+1]["ele"] - points[i]["ele"])
+                    max(0.0, points[i + 1]["ele"] - points[i]["ele"])
                     for i in range(len(points) - 1)
-                    if points[i].get("ele") is not None and points[i+1].get("ele") is not None
+                    if points[i].get("ele") is not None and points[i + 1].get("ele") is not None
                 )
                 total_ascent = round(_manual_uphill, 1)
 
@@ -169,12 +169,16 @@ class RaceAnalysisService:
                 ref_wind_dir = ref_cond.get("wind_dir_degrees", ref_wind_dir)
 
             intensity_score = self._intensity_score(distance_km, total_ascent, pro_intensity)
-            duration_hours, _ = _estimate_ride_duration(distance_km, total_ascent, rider_fitness_level, activity_type)
+            duration_hours, _ = _estimate_ride_duration(
+                distance_km, total_ascent, rider_fitness_level, activity_type
+            )
 
             tactical_alerts = []
             mud_risk = None
             if activity_type.lower() == "road":
-                tactical_alerts = _calculate_aero_risks(analysis_segments, ref_wind_dir, ref_wind_speed)
+                tactical_alerts = _calculate_aero_risks(
+                    analysis_segments, ref_wind_dir, ref_wind_speed
+                )
             else:
                 mapped_surface = "gravel" if "gravel" in activity_type.lower() else "dirt"
                 mud_risk = self.mud_analyzer(start_lat, start_lon, mapped_surface, t_date)
@@ -206,7 +210,11 @@ class RaceAnalysisService:
                 "track_metrics": {
                     "distance_km": distance_km,
                     "total_ascent": total_ascent,
-                    "max_altitude": round(getattr(elev_extremes, "maximum", None) or max((p["ele"] for p in points if p.get("ele") is not None), default=0), 1),
+                    "max_altitude": round(
+                        getattr(elev_extremes, "maximum", None)
+                        or max((p["ele"] for p in points if p.get("ele") is not None), default=0),
+                        1,
+                    ),
                 },
                 "planning_tools": {
                     "weather_forecast": weather_data,
@@ -258,12 +266,14 @@ class RaceAnalysisService:
         for route in gpx.routes:
             for p in route.points:
                 if p.elevation is not None:
-                    points.append({
-                        "lat": p.latitude,
-                        "lon": p.longitude,
-                        "ele": p.elevation,
-                        "time": p.time,
-                    })
+                    points.append(
+                        {
+                            "lat": p.latitude,
+                            "lon": p.longitude,
+                            "ele": p.elevation,
+                            "time": p.time,
+                        }
+                    )
 
         return points
 
@@ -281,7 +291,9 @@ class RaceAnalysisService:
         return 5
 
 
-def _estimate_ride_duration(distance_km: float, total_ascent_m: float, rider_fitness_level: str, activity_type: str):
+def _estimate_ride_duration(
+    distance_km: float, total_ascent_m: float, rider_fitness_level: str, activity_type: str
+):
     base_speeds = {
         "beginner": {"road": 20.0, "gravel": 15.0, "mtb": 12.0},
         "intermediate": {"road": 26.0, "gravel": 20.0, "mtb": 15.0},
@@ -314,7 +326,9 @@ def _process_segments(points: List[Dict], surface: str) -> List[Dict]:
     segments = []
     accum_d, total_elapsed, start_idx = 0.0, 0.0, 0
     for i in range(len(points) - 1):
-        d = geodesic((points[i]["lat"], points[i]["lon"]), (points[i + 1]["lat"], points[i + 1]["lon"])).meters
+        d = geodesic(
+            (points[i]["lat"], points[i]["lon"]), (points[i + 1]["lat"], points[i + 1]["lon"])
+        ).meters
         accum_d += d
         total_elapsed += d
 
@@ -331,7 +345,9 @@ def _process_segments(points: List[Dict], surface: str) -> List[Dict]:
                 [points[i]["lat"], points[i]["lon"], points[i + 1]["lat"], points[i + 1]["lon"]],
             )
             y = math.sin(lon2 - lon1) * math.cos(lat2)
-            x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
+            x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(
+                lon2 - lon1
+            )
             bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
 
             segments.append(
@@ -407,7 +423,9 @@ def _finalize_climb_data(current_climb, all_segments, climbs_list):
         )
 
 
-def _identify_tactical_zones(segments: List[Dict], uci_climbs: List[Dict], total_dist: float) -> Dict:
+def _identify_tactical_zones(
+    segments: List[Dict], uci_climbs: List[Dict], total_dist: float
+) -> Dict:
     pre_climb = []
 
     for c in uci_climbs:
@@ -435,7 +453,9 @@ def _identify_tactical_zones(segments: List[Dict], uci_climbs: List[Dict], total
 
             score = abs_grade * weight
             diff = "high" if abs_grade > 14 else "medium" if abs_grade > 11 else "low"
-            z_type = "Explosive Wall / Attack Point" if s["grade"] > 0 else "Steep Technical Descent"
+            z_type = (
+                "Explosive Wall / Attack Point" if s["grade"] > 0 else "Steep Technical Descent"
+            )
 
             raw_zones.append(
                 {
@@ -487,16 +507,18 @@ def _calculate_performance(climbs, rider_w, bike_w, intensity, temp, wind_speed)
         for _ in range(10):
             f_grav = total_mass * GRAVITY * math.sin(theta)
             f_roll = total_mass * GRAVITY * math.cos(theta) * CRR_ROAD
-            f_aero = 0.5 * AIR_DENSITY * CDA_CLIMB * (v_mps ** 2)
+            f_aero = 0.5 * AIR_DENSITY * CDA_CLIMB * (v_mps**2)
             p_total = v_mps * (f_grav + f_roll + f_aero)
-            dp_dv = f_grav + f_roll + 1.5 * AIR_DENSITY * CDA_CLIMB * (v_mps ** 2)
+            dp_dv = f_grav + f_roll + 1.5 * AIR_DENSITY * CDA_CLIMB * (v_mps**2)
             v_mps = v_mps - (p_total - target_power) / dp_dv
 
         speed_kmh = max(v_mps * 3.6, 5.0)
         time_hours = c["dist_km"] / speed_kmh
         vam = c["gain_m"] / time_hours
 
-        penalty = (target_power * 0.03 if temp > 28 else 0) + (target_power * 0.02 if wind_speed > 15 else 0)
+        penalty = (target_power * 0.03 if temp > 28 else 0) + (
+            target_power * 0.02 if wind_speed > 15 else 0
+        )
         adj_wkg = (target_power + penalty) / rider_w
 
         results.append(
@@ -576,13 +598,15 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
             self.set_y(-15)
             self.set_font("Arial", "I", 8)
             self.set_text_color(128, 128, 128)
-            self.cell(0, 10, "Produced by BikeScout - https://hifly81.github.io/bikescout/", 0, 0, "C")
+            self.cell(
+                0, 10, "Produced by BikeScout - https://hifly81.github.io/bikescout/", 0, 0, "C"
+            )
 
     pdf = BikeScoutPDF()
     pdf.add_page()
 
     pdf.set_font("Arial", "B", 18)
-    pdf.cell(0, 10, txt="BikeScout Pro Race Strategy Report", ln=True, align="C")
+    pdf.cell(0, 10, "BikeScout Pro Race Strategy Report", ln=True, align="C")
     pdf.ln(5)
 
     if os.path.exists(plot_path):
@@ -592,14 +616,16 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
         pdf.ln(10)
 
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, txt="Technical Director Briefing", ln=True)
+    pdf.cell(0, 10, "Technical Director Briefing", ln=True)
     pdf.set_font("Arial", "", 11)
 
     metrics = data.get("track_metrics", {})
     dist = float(metrics.get("distance_km", 0.0))
     asc = float(metrics.get("total_ascent", 0.0))
     zones = data.get("tactical_action_zones", [])
-    weather = data.get("planning_tools", {}).get("weather_forecast", {}).get("reference_conditions", {})
+    weather = (
+        data.get("planning_tools", {}).get("weather_forecast", {}).get("reference_conditions", {})
+    )
 
     profile_ratio = asc / dist if dist > 0 else 0
     is_xc_circuit = dist < 15.0 and profile_ratio > 15.0
@@ -630,9 +656,13 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
         late_zones = [z for z in sorted_zones if z.get("km", 0) >= (dist * 0.5)]
 
         if late_zones:
-            ignition_zone = max(late_zones, key=lambda z: (z.get("difficulty") == "high", abs(z.get("grade", 0))))
+            ignition_zone = max(
+                late_zones, key=lambda z: (z.get("difficulty") == "high", abs(z.get("grade", 0)))
+            )
         else:
-            ignition_zone = max(sorted_zones, key=lambda z: (z.get("difficulty") == "high", abs(z.get("grade", 0))))
+            ignition_zone = max(
+                sorted_zones, key=lambda z: (z.get("difficulty") == "high", abs(z.get("grade", 0)))
+            )
 
         ignite_km = ignition_zone.get("km", 0)
         zone_type = ignition_zone.get("type", "sector").lower()
@@ -657,7 +687,9 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
         if temp >= 28:
             closing = "Heat will spike your HR on this circuit. Use the descents for active cooling and hydration."
         else:
-            closing = "Nail the start loop to avoid traffic. It's a high-intensity battle from the gun."
+            closing = (
+                "Nail the start loop to avoid traffic. It's a high-intensity battle from the gun."
+            )
     else:
         if wind >= 22:
             closing = "The wind is the real enemy today. Stay tucked in and never be the first to break the line."
@@ -671,21 +703,21 @@ def _generate_pdf_report(data: Dict[str, Any], plot_path: str) -> str:
     closing += " Let's go execute."
 
     briefing = intro + wx_str + tactical_str + closing
-    pdf.multi_cell(0, 6, txt=briefing)
+    pdf.multi_cell(0, 6, briefing)
     pdf.ln(10)
 
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, txt="Detailed Tactical Zones", ln=True)
+    pdf.cell(0, 10, "Detailed Tactical Zones", ln=True)
     pdf.set_font("Arial", "", 10)
 
     if not zones:
-        pdf.cell(0, 6, txt="No high-risk tactical zones identified.", ln=True)
+        pdf.cell(0, 6, "No high-risk tactical zones identified.", ln=True)
     for z in zones:
         diff_str = str(z.get("difficulty", "unknown")).upper()
         pdf.cell(
             0,
             6,
-            txt=f"- KM {z.get('km', 0)}: {z.get('type', 'Unknown')} | Grade: {z.get('grade', 0)}% [Severity: {diff_str}]",
+            f"- KM {z.get('km', 0)}: {z.get('type', 'Unknown')} | Grade: {z.get('grade', 0)}% [Severity: {diff_str}]",
             ln=True,
         )
 

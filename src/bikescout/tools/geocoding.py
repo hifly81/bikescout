@@ -52,7 +52,11 @@ class GeocodingConfig:
 
 
 class NominatimProvider(GeocodingProvider):
-    def __init__(self, config: GeocodingConfig | None = None, session: requests.sessions.Session | None = None):
+    def __init__(
+        self,
+        config: GeocodingConfig | None = None,
+        session: requests.sessions.Session | None = None,
+    ):
         self.config = config or GeocodingConfig()
         self.session = session or requests
 
@@ -100,12 +104,12 @@ class NominatimProvider(GeocodingProvider):
 
 class GeoEngine:
     def __init__(
-            self,
-            provider: GeocodingProvider,
-            config: GeocodingConfig | None = None,
-            logger: logging.Logger | None = None,
-            sleep_func: Callable[[float], None] | None = None,
-            time_func: Callable[[], float] | None = None,
+        self,
+        provider: GeocodingProvider,
+        config: GeocodingConfig | None = None,
+        logger: logging.Logger | None = None,
+        sleep_func: Callable[[float], None] | None = None,
+        time_func: Callable[[], float] | None = None,
     ):
         self.provider = provider
         self.config = config or GeocodingConfig()
@@ -133,7 +137,12 @@ class GeoEngine:
             category = str(item.get("class", "") or "")
             sub_type = str(item.get("type", "") or "")
 
-            if category in {"tourism", "leisure"} and sub_type in {"trail", "track", "park", "nature_reserve"}:
+            if category in {"tourism", "leisure"} and sub_type in {
+                "trail",
+                "track",
+                "park",
+                "nature_reserve",
+            }:
                 score += 0.5
             elif category == "place" and sub_type in {"village", "town", "city"}:
                 score += 0.3
@@ -163,10 +172,10 @@ class GeoEngine:
         }
 
     def get_coordinates(
-            self,
-            location_name: str,
-            lang: str | None = None,
-            retries: int | None = None,
+        self,
+        location_name: str,
+        lang: str | None = None,
+        retries: int | None = None,
     ) -> dict[str, Any]:
         effective_lang = self.config.default_language if lang is None else lang
         effective_retries = self.config.max_retries if retries is None else retries
@@ -192,9 +201,12 @@ class GeoEngine:
                 self.logger.debug("Geocoding attempt %s failed: %s", attempt + 1, exc)
 
                 if attempt == effective_retries - 1:
-                    return {"status": "Error", "message": "Max retries exceeded for geocoding service."}
+                    return {
+                        "status": "Error",
+                        "message": "Max retries exceeded for geocoding service.",
+                    }
 
-                wait_time = 2 ** attempt
+                wait_time = 2**attempt
                 self.sleep_func(wait_time)
 
             except Exception as exc:
@@ -203,7 +215,7 @@ class GeoEngine:
                 if attempt == effective_retries - 1:
                     return {"status": "Error", "message": f"Unexpected geocoding failure: {exc}"}
 
-                wait_time = 2 ** attempt
+                wait_time = 2**attempt
                 self.sleep_func(wait_time)
 
         return {"status": "Error", "message": "Max retries exceeded for geocoding service."}

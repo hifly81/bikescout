@@ -1,5 +1,24 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import zoneinfo
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
 import requests
@@ -52,6 +71,7 @@ class FakeSession:
 def fixed_now():
     def _now(tz):
         return datetime(2026, 6, 3, 11, 30, 0, tzinfo=tz)
+
     return _now
 
 
@@ -66,7 +86,9 @@ def service(fixed_now):
 
 
 def test_get_safety_advice_not_recommended():
-    result = get_safety_advice(app_temp=10, rain_prob=10, rain_mm=12.0, wind_speed=20, wind_gusts=20)
+    result = get_safety_advice(
+        app_temp=10, rain_prob=10, rain_mm=12.0, wind_speed=20, wind_gusts=20
+    )
     assert result["status"] == "[NOT RECOMMENDED]"
 
 
@@ -101,7 +123,7 @@ def test_resolve_timezone_name_fallback_to_utc(fixed_now):
     service = WeatherService(
         config=WeatherConfig(),
         requests_session=FakeSession(),
-        timezone_finder=FakeTimezoneFinder(None),
+        timezone_finder=FakeTimezoneFinder(cast(Any, None)),
         now_func=fixed_now,
     )
     assert service._resolve_timezone_name(45.0, 10.0) == "UTC"
@@ -444,16 +466,31 @@ def test_apply_weather_windowing_recomputes_safety_advice_for_ride_window():
     weather_data = {
         "tactical_forecast": [
             {
-                "time": "08:00", "app_temp": "18", "rain_prob": "10", "rain_mm": "0.0",
-                "wind": "60", "gusts": "120", "wind_direction": "180",
+                "time": "08:00",
+                "app_temp": "18",
+                "rain_prob": "10",
+                "rain_mm": "0.0",
+                "wind": "60",
+                "gusts": "120",
+                "wind_direction": "180",
             },
             {
-                "time": "09:00", "app_temp": "19", "rain_prob": "10", "rain_mm": "0.0",
-                "wind": "12", "gusts": "20", "wind_direction": "190",
+                "time": "09:00",
+                "app_temp": "19",
+                "rain_prob": "10",
+                "rain_mm": "0.0",
+                "wind": "12",
+                "gusts": "20",
+                "wind_direction": "190",
             },
             {
-                "time": "20:00", "app_temp": "18", "rain_prob": "10", "rain_mm": "0.0",
-                "wind": "60", "gusts": "120", "wind_direction": "180",
+                "time": "20:00",
+                "app_temp": "18",
+                "rain_prob": "10",
+                "rain_mm": "0.0",
+                "wind": "60",
+                "gusts": "120",
+                "wind_direction": "180",
             },
         ],
         "reference_conditions": {},
@@ -503,7 +540,13 @@ def test_module_level_wrapper(monkeypatch):
 
         def get_weather_forecast(self, **kwargs):
             self.calls.append(kwargs)
-            return {"status": "Success", "metadata": {}, "tactical_forecast": [], "reference_conditions": {}, "safety_advice": {}}
+            return {
+                "status": "Success",
+                "metadata": {},
+                "tactical_forecast": [],
+                "reference_conditions": {},
+                "safety_advice": {},
+            }
 
     fake_service = FakeService()
     monkeypatch.setattr(weather_module, "service", fake_service)

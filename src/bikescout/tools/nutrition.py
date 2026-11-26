@@ -38,22 +38,28 @@ class NutritionService:
         self.config = config or NutritionConfig()
 
     def get_nutrition_plan(
-            self,
-            duration_hours: float,
-            temp_c: float,
-            intensity_score: int,
-            weight_kg: float = 70.0,
-            gender: str = "male",
-            sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+        self,
+        duration_hours: float,
+        temp_c: float,
+        intensity_score: int,
+        weight_kg: float = 70.0,
+        gender: str = "male",
+        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
     ):
-        duration_hours = self._coerce_positive_float(duration_hours, self.config.default_duration_hours)
+        duration_hours = self._coerce_positive_float(
+            duration_hours, self.config.default_duration_hours
+        )
         temp_c = self._coerce_float(temp_c, self.config.default_temp_c)
         intensity_score = self._normalize_intensity_score(intensity_score)
         weight_kg = self._coerce_positive_float(weight_kg, self.config.default_weight_kg)
         gender = self._normalize_gender(gender)
-        sweat_profile = self._normalize_sweat_profile(sweat_profile)
+        normalized_sweat_profile = self._normalize_sweat_profile(sweat_profile)
 
-        gender_factor = self.config.male_gender_factor if gender == "male" else self.config.non_male_gender_factor
+        gender_factor = (
+            self.config.male_gender_factor
+            if gender == "male"
+            else self.config.non_male_gender_factor
+        )
         intensity_factor = self._intensity_factor(intensity_score)
 
         avg_hourly_fluid = self._avg_hourly_fluid_ml(
@@ -67,9 +73,13 @@ class NutritionService:
 
         carb_rate, intensity_label = self._carb_rate_and_label(duration_hours, intensity_factor)
         total_carbs = carb_rate * duration_hours
-        ratios = "2:1 Glucose-to-Fructose (or 1:0.8 ratio)" if carb_rate > 60 else "Standard isotonic or whole foods"
+        ratios = (
+            "2:1 Glucose-to-Fructose (or 1:0.8 ratio)"
+            if carb_rate > 60
+            else "Standard isotonic or whole foods"
+        )
 
-        sodium_concentration = self._sodium_concentration(sweat_profile)
+        sodium_concentration = self._sodium_concentration(normalized_sweat_profile)
         hourly_sodium_mg = (avg_hourly_fluid / 1000.0) * sodium_concentration
         total_sodium_mg = hourly_sodium_mg * duration_hours
 
@@ -106,26 +116,28 @@ class NutritionService:
         }
 
     def _avg_hourly_fluid_ml(
-            self,
-            duration_hours: float,
-            temp_c: float,
-            intensity_factor: float,
-            weight_kg: float,
-            gender_factor: float,
+        self,
+        duration_hours: float,
+        temp_c: float,
+        intensity_factor: float,
+        weight_kg: float,
+        gender_factor: float,
     ) -> float:
         base_rate_mass = weight_kg * 10
         temp_delta_coeff = max(0.0, temp_c - 15.0) * (weight_kg * 0.4)
         intensity_heat_coeff = intensity_factor * (weight_kg * 4)
 
         steady_state_hourly_ml = (
-                                         base_rate_mass + temp_delta_coeff + intensity_heat_coeff
-                                 ) * gender_factor * self.config.sweat_rate_multiplier
+            (base_rate_mass + temp_delta_coeff + intensity_heat_coeff)
+            * gender_factor
+            * self.config.sweat_rate_multiplier
+        )
 
         if duration_hours <= 1.0:
             return steady_state_hourly_ml * 0.75
 
         total_vol = (steady_state_hourly_ml * 0.75 * 1.0) + (
-                steady_state_hourly_ml * (duration_hours - 1.0)
+            steady_state_hourly_ml * (duration_hours - 1.0)
         )
         return total_vol / duration_hours
 
@@ -170,31 +182,41 @@ class NutritionService:
 
     @staticmethod
     def _build_alerts(
-            carb_rate: int,
-            ratios: str,
-            temp_c: float,
-            duration_hours: float,
-            intensity_factor: float,
-            hourly_sodium_mg: float,
-            total_fluid_l: float,
-            weight_kg: float,
+        carb_rate: int,
+        ratios: str,
+        temp_c: float,
+        duration_hours: float,
+        intensity_factor: float,
+        hourly_sodium_mg: float,
+        total_fluid_l: float,
+        weight_kg: float,
     ) -> list[str]:
         alerts = []
 
         if carb_rate > 60:
-            alerts.append(f"FUELING ALERT: High target ({carb_rate}g/hr). Use {ratios} to prevent GI distress.")
+            alerts.append(
+                f"FUELING ALERT: High target ({carb_rate}g/hr). Use {ratios} to prevent GI distress."
+            )
 
         if temp_c > 28:
-            alerts.append("HEAT STRESS: Prioritize liquid carbs and increase electrolyte vigilance.")
+            alerts.append(
+                "HEAT STRESS: Prioritize liquid carbs and increase electrolyte vigilance."
+            )
 
         if duration_hours > 2.5 and intensity_factor >= 0.85:
-            alerts.append("BONK RISK: Prolonged high intensity. Maintain feeding window to avoid glycogen crash.")
+            alerts.append(
+                "BONK RISK: Prolonged high intensity. Maintain feeding window to avoid glycogen crash."
+            )
 
         if hourly_sodium_mg >= 1000:
-            alerts.append(f"ELECTROLYTE CRITICAL: High loss ({int(hourly_sodium_mg)}mg/hr). Supplement bottles with salt.")
+            alerts.append(
+                f"ELECTROLYTE CRITICAL: High loss ({int(hourly_sodium_mg)}mg/hr). Supplement bottles with salt."
+            )
 
         if total_fluid_l > (weight_kg * 0.02 * duration_hours):
-            alerts.append("HYPER-HYDRATION RISK: Fluid targets are high relative to mass. Ensure sodium balance.")
+            alerts.append(
+                "HYPER-HYDRATION RISK: Fluid targets are high relative to mass. Ensure sodium balance."
+            )
 
         return alerts
 
@@ -231,12 +253,12 @@ service = NutritionService()
 
 
 def get_nutrition_plan(
-        duration_hours: float,
-        temp_c: float,
-        intensity_score: int,
-        weight_kg: float = 70.0,
-        gender: str = "male",
-        sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
+    duration_hours: float,
+    temp_c: float,
+    intensity_score: int,
+    weight_kg: float = 70.0,
+    gender: str = "male",
+    sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
 ):
     return service.get_nutrition_plan(
         duration_hours=duration_hours,

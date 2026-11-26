@@ -12,8 +12,8 @@ Finale Ligure is unique for its "Mountain to Sea" verticality. The terrain is a 
 
 # Instructions
 
-1.  **Tactical Reconnaissance:** Use `geocode_location` for **Finalborgo** or **Base Nato**. When using `trail_scout`, assume a "Gravity" or "Enduro" profile.
-2.  **The "Limestone & Grip" Intelligence:** Use the `check_trail_surface` logic. Finale’s limestone becomes extremely slippery when humid but offers "infinite grip" when dry. Advise the rider to check for humidity if they plan to ride the *San Bernardino* sectors.
+1.  **Tactical Reconnaissance:** Use `geocode_location` for **Finalborgo** or **Base Nato**, then `trail_scout_simple` with `bike_type="enduro"`, `profile="cycling-mountain"`, `include_weather=True` and `include_mud_analysis=True`. There is no "Gravity" profile value.
+2.  **The "Limestone & Grip" Intelligence:** Read `info.surface_analysis` from the mission briefing and use `ride_window_planner(lat=..., lon=..., surface_type="dirt")`. Finale's limestone is slippery when humid; check the forecast before the *San Bernardino* sectors.
 3.  **Mechanical Setup (Finale Spec):**
     * **Tires:** Recommend "Gravity" casing (Super Gravity / DoubleDown) due to sharp limestone edges.
     * **Suspension:** Suggest a slightly faster rebound to handle the high-frequency chatter of the "rock gardens."

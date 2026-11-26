@@ -14,14 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from datetime import datetime, date
-from typing import Literal
+from __future__ import annotations
+
+from datetime import date
+from typing import Any, Literal
 from astral import LocationInfo
 from astral.sun import sun
 from timezonefinder import TimezoneFinder
 import zoneinfo
 from bikescout.tools.weather import get_weather_forecast
 from bikescout.tools.mud import get_mud_risk_analysis
+
 
 def get_solar_visibility(lat: float, lon: float, target_date: date) -> tuple:
     """
@@ -44,12 +47,14 @@ def get_solar_visibility(lat: float, lon: float, target_date: date) -> tuple:
     except Exception:
         return (7.0, 18.0)
 
+
 def calculate_ride_windows(
-        lat: float,
-        lon: float,
-        ride_duration_hours: float = 2.0,
-        surface_type: Literal["dirt", "gravel", "asphalt", "sand", "clay"] = "dirt",
-        target_date: str = None):
+    lat: float,
+    lon: float,
+    ride_duration_hours: float = 2.0,
+    surface_type: Literal["dirt", "gravel", "asphalt", "sand", "clay"] = "dirt",
+    target_date: str | None = None,
+) -> dict[str, Any]:
     """
     Tactical Ride Planner v1.1: Optimized for physical safety and solar precision.
     Integrates astral-based visibility and thermal stress scoring.
@@ -73,13 +78,15 @@ def calculate_ride_windows(
         for h in raw_forecasts:
             try:
                 hour_int = int(h.get("time", "00:00").split(":")[0])
-                normalized_forecasts.append({
-                    "time": h.get("time", "N/A"),
-                    "hour": hour_int,
-                    "precip_prob": _clean_weather_value(h.get("rain_prob", 0)),
-                    "wind_speed": _clean_weather_value(h.get("wind", 0)),
-                    "temp": _clean_weather_value(h.get("temp", 15))
-                })
+                normalized_forecasts.append(
+                    {
+                        "time": h.get("time", "N/A"),
+                        "hour": hour_int,
+                        "precip_prob": _clean_weather_value(h.get("rain_prob", 0)),
+                        "wind_speed": _clean_weather_value(h.get("wind", 0)),
+                        "temp": _clean_weather_value(h.get("temp", 15)),
+                    }
+                )
             except Exception:
                 continue
 
@@ -100,10 +107,13 @@ def calculate_ride_windows(
             # SCORING LOGIC
             current_score = 100.0
 
-            if avg_rain > 30: current_score -= (avg_rain - 30) * 3
-            else: current_score -= (avg_rain * 0.5)
+            if avg_rain > 30:
+                current_score -= (avg_rain - 30) * 3
+            else:
+                current_score -= avg_rain * 0.5
 
-            if max_wind > 25: current_score -= (max_wind - 25) * 2
+            if max_wind > 25:
+                current_score -= (max_wind - 25) * 2
 
             if avg_temp <= 0:
                 current_score -= 20
@@ -115,7 +125,7 @@ def calculate_ride_windows(
                 current_score -= (avg_temp - 30) * 5
 
             if surface_type != "asphalt":
-                current_score -= (current_mud_score * 0.6)
+                current_score -= current_mud_score * 0.6
 
             # Update Best Slot
             if current_score > highest_score:
@@ -127,8 +137,8 @@ def calculate_ride_windows(
                     "details": {
                         "rain_avg": f"{round(avg_rain)}%",
                         "wind_max": f"{round(max_wind)} km/h",
-                        "temp_avg": f"{round(avg_temp)}°C"
-                    }
+                        "temp_avg": f"{round(avg_temp)}°C",
+                    },
                 }
 
         if not best_slot:
@@ -137,28 +147,33 @@ def calculate_ride_windows(
                 "metadata": {
                     "analyzed_date": t_date.isoformat(),
                     "surface_type": surface_type,
-                    "solar_window": f"{int(sunrise_h)}:00 - {int(sunset_h)}:00"
+                    "solar_window": f"{int(sunrise_h)}:00 - {int(sunset_h)}:00",
                 },
                 "planner_report": {
                     "verdict": "NO-GO",
                     "tactical_color": "RED",
                     "confidence_score": "0/100",
                     "best_window": "N/A",
-                    "environmental_briefing": {"message": "No safe daylight visibility for the requested duration"},
-                    "mud_risk_impact": f"{current_mud_score}%"
-                }
+                    "environmental_briefing": {
+                        "message": "No safe daylight visibility for the requested duration"
+                    },
+                    "mud_risk_impact": f"{current_mud_score}%",
+                },
             }
 
-        if highest_score > 75: verdict, color = "GO", "GREEN"
-        elif highest_score > 40: verdict, color = "CAUTION", "YELLOW"
-        else: verdict, color = "NO-GO", "RED"
+        if highest_score > 75:
+            verdict, color = "GO", "GREEN"
+        elif highest_score > 40:
+            verdict, color = "CAUTION", "YELLOW"
+        else:
+            verdict, color = "NO-GO", "RED"
 
         return {
             "status": "Success",
             "metadata": {
                 "analyzed_date": t_date.isoformat(),
                 "surface_type": surface_type,
-                "solar_window": f"{int(sunrise_h)}:00 - {int(sunset_h)}:00"
+                "solar_window": f"{int(sunrise_h)}:00 - {int(sunset_h)}:00",
             },
             "planner_report": {
                 "verdict": verdict,
@@ -166,19 +181,20 @@ def calculate_ride_windows(
                 "confidence_score": f"{best_slot['score']}/100",
                 "best_window": f"{best_slot['start']} - {best_slot['end']}",
                 "environmental_briefing": best_slot["details"],
-                "mud_risk_impact": f"{current_mud_score}%"
-            }
+                "mud_risk_impact": f"{current_mud_score}%",
+            },
         }
 
     except Exception as e:
         return {"status": "Error", "message": f"Tactical Planner failed: {str(e)}"}
 
+
 def _clean_weather_value(v) -> float:
     if isinstance(v, (int, float)):
         return float(v)
     if isinstance(v, str):
-        for char in ['°C', 'C', '%', ' km/h']:
-            v = v.replace(char, '')
+        for char in ["°C", "C", "%", " km/h"]:
+            v = v.replace(char, "")
         try:
             return float(v.strip())
         except ValueError:

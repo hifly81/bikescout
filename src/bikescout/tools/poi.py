@@ -43,11 +43,11 @@ class PoiScoutConfig:
 
 class PoiScoutService:
     def __init__(
-            self,
-            config: PoiScoutConfig | None = None,
-            session: requests.sessions.Session | None = None,
-            logger: logging.Logger | None = None,
-            stderr=None,
+        self,
+        config: PoiScoutConfig | None = None,
+        session: requests.sessions.Session | None = None,
+        logger: logging.Logger | None = None,
+        stderr=None,
     ) -> None:
         self.config = config or PoiScoutConfig()
         self.session = session or requests
@@ -55,11 +55,11 @@ class PoiScoutService:
         self.stderr = stderr if stderr is not None else sys.stderr
 
     def get_poi_scout(
-            self,
-            api_key: str,
-            lat: float,
-            lon: float,
-            total_length_km: float,
+        self,
+        api_key: str,
+        lat: float,
+        lon: float,
+        total_length_km: float,
     ) -> dict[str, Any]:
         try:
             self._validate_inputs(api_key, lat, lon, total_length_km)
@@ -109,7 +109,9 @@ class PoiScoutService:
                 "message": f"Internal Engine failure: {str(exc)}",
             }
 
-    def _validate_inputs(self, api_key: str, lat: float, lon: float, total_length_km: float) -> None:
+    def _validate_inputs(
+        self, api_key: str, lat: float, lon: float, total_length_km: float
+    ) -> None:
         if not api_key or not api_key.strip():
             raise PoiScoutError("API key must not be empty.")
 
@@ -118,7 +120,9 @@ class PoiScoutService:
             lon_f = float(lon)
             total_f = float(total_length_km)
         except (TypeError, ValueError) as exc:
-            raise PoiScoutError("Latitude, longitude, and total_length_km must be numeric.") from exc
+            raise PoiScoutError(
+                "Latitude, longitude, and total_length_km must be numeric."
+            ) from exc
 
         if not (-90.0 <= lat_f <= 90.0):
             raise PoiScoutError("Latitude must be between -90 and 90.")
@@ -199,10 +203,7 @@ class PoiScoutService:
                 distance_m = 0
 
             name = (
-                    osm_tags.get("name")
-                    or osm_tags.get("amenity")
-                    or osm_tags.get("operator")
-                    or label
+                osm_tags.get("name") or osm_tags.get("amenity") or osm_tags.get("operator") or label
             )
 
             all_amenities.append(

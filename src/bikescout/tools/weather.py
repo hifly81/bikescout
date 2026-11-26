@@ -27,7 +27,9 @@ from timezonefinder import TimezoneFinder
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 
-def get_safety_advice(app_temp: float, rain_prob: int, rain_mm: float, wind_speed: float, wind_gusts: float) -> dict:
+def get_safety_advice(
+    app_temp: float, rain_prob: int, rain_mm: float, wind_speed: float, wind_gusts: float
+) -> dict:
     wind_risk_score = (wind_speed * 0.4) + (wind_gusts * 0.6)
 
     if rain_mm > 10.0 or wind_risk_score > 55:
@@ -35,10 +37,14 @@ def get_safety_advice(app_temp: float, rain_prob: int, rain_mm: float, wind_spee
         status_msg = "Critical risk: Heavy rain volume or dangerous wind gusts. Riding is unsafe."
     elif rain_mm > 2.0 or wind_risk_score > 35:
         status_label = "[CAUTION]"
-        status_msg = "Significant hazards: Moderate rain or strong crosswinds expected. Use extreme care."
+        status_msg = (
+            "Significant hazards: Moderate rain or strong crosswinds expected. Use extreme care."
+        )
     elif rain_prob > 30 or wind_speed > 25:
         status_label = "[WATCH]"
-        status_msg = "Sub-optimal: Light rain possible or stiff breeze. Manageable for experienced riders."
+        status_msg = (
+            "Sub-optimal: Light rain possible or stiff breeze. Manageable for experienced riders."
+        )
     else:
         status_label = "[GO]"
         status_msg = "Ideal conditions: Low wind, dry, and safe."
@@ -68,18 +74,20 @@ class WeatherConfig:
 
 class WeatherService:
     def __init__(
-            self,
-            config: WeatherConfig | None = None,
-            requests_session: Any | None = None,
-            timezone_finder: Any | None = None,
-            now_func=None,
+        self,
+        config: WeatherConfig | None = None,
+        requests_session: Any | None = None,
+        timezone_finder: Any | None = None,
+        now_func=None,
     ) -> None:
         self.config = config or WeatherConfig()
         self.requests_session = requests_session or requests
         self.timezone_finder = timezone_finder or TimezoneFinder()
         self.now_func = now_func or (lambda tz: datetime.now(tz))
 
-    def get_weather_forecast(self, lat: float, lon: float, target_date: str = None, target_hour: int = 9) -> Dict[str, Any]:
+    def get_weather_forecast(
+        self, lat: float, lon: float, target_date: str | None = None, target_hour: int = 9
+    ) -> Dict[str, Any]:
         try:
             lat = self._coerce_float(lat, 0.0)
             lon = self._coerce_float(lon, 0.0)
@@ -149,7 +157,9 @@ class WeatherService:
         tz_name = self.timezone_finder.timezone_at(lng=lon, lat=lat)
         return tz_name or "UTC"
 
-    def _target_datetime(self, local_tz: zoneinfo.ZoneInfo, target_date: str | None, target_hour: int) -> datetime:
+    def _target_datetime(
+        self, local_tz: zoneinfo.ZoneInfo, target_date: str | None, target_hour: int
+    ) -> datetime:
         if target_date:
             return datetime.combine(
                 date.fromisoformat(target_date),
@@ -160,7 +170,9 @@ class WeatherService:
         return now_local.replace(hour=target_hour, minute=0, second=0, microsecond=0)
 
     @staticmethod
-    def _build_forecast_params(lat: float, lon: float, tz_name: str, target_dt_local: datetime) -> dict[str, Any]:
+    def _build_forecast_params(
+        lat: float, lon: float, tz_name: str, target_dt_local: datetime
+    ) -> dict[str, Any]:
         return {
             "latitude": lat,
             "longitude": lon,
@@ -261,7 +273,9 @@ class WeatherService:
                 peak_wind = wind
                 peak_gusts = gusts
 
-            coldest_app_temp = app_temp if coldest_app_temp is None else min(coldest_app_temp, app_temp)
+            coldest_app_temp = (
+                app_temp if coldest_app_temp is None else min(coldest_app_temp, app_temp)
+            )
             max_rain_prob = max(max_rain_prob, rain_prob)
             max_rain_mm = max(max_rain_mm, rain_mm)
 
@@ -292,7 +306,9 @@ class WeatherService:
 service = WeatherService()
 
 
-def get_weather_forecast(lat: float, lon: float, target_date: str = None, target_hour: int = 9) -> Dict[str, Any]:
+def get_weather_forecast(
+    lat: float, lon: float, target_date: str | None = None, target_hour: int = 9
+) -> Dict[str, Any]:
     return service.get_weather_forecast(
         lat=lat,
         lon=lon,
@@ -337,7 +353,5 @@ def apply_weather_windowing(weather_data: Dict, start: int, end: int) -> Dict:
 
     weather_data["tactical_forecast"] = filtered_forecast
     if filtered_forecast:
-        weather_data["safety_advice"] = WeatherService._worst_case_safety_advice(
-            filtered_forecast
-        )
+        weather_data["safety_advice"] = WeatherService._worst_case_safety_advice(filtered_forecast)
     return weather_data

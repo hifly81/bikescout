@@ -1,5 +1,24 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import zoneinfo
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
 
@@ -51,6 +70,7 @@ class FakeSession:
 def fixed_now():
     def _now(tz):
         return datetime(2026, 6, 3, 12, 0, 0, tzinfo=tz)
+
     return _now
 
 
@@ -78,7 +98,7 @@ def test_resolve_timezone_name_fallback_to_utc(fixed_now):
     service = MudAnalysisService(
         config=MudAnalysisConfig(),
         requests_session=FakeSession(),
-        timezone_finder=FakeTimezoneFinder(None),
+        timezone_finder=FakeTimezoneFinder(cast(Any, None)),
         solar_altitude_func=lambda lat, lon, dt: 0.0,
         now_func=fixed_now,
     )
@@ -358,7 +378,9 @@ def test_get_mud_risk_analysis_uses_surface_fallback_and_coerced_coords(fixed_no
         now_func=fixed_now,
     )
 
-    result = service.get_mud_risk_analysis("bad", "bad", None, None)
+    result = service.get_mud_risk_analysis(
+        cast(Any, "bad"), cast(Any, "bad"), cast(Any, None), None
+    )
 
     assert result["status"] == "Success"
     assert result["tactical_analysis"]["surface_type"] == "dirt"
@@ -371,7 +393,12 @@ def test_module_level_wrapper(monkeypatch):
 
         def get_mud_risk_analysis(self, **kwargs):
             self.calls.append(kwargs)
-            return {"status": "Success", "metadata": {}, "environmental_context": {}, "tactical_analysis": {}}
+            return {
+                "status": "Success",
+                "metadata": {},
+                "environmental_context": {},
+                "tactical_analysis": {},
+            }
 
     fake_service = FakeService()
     monkeypatch.setattr(mud_module, "service", fake_service)

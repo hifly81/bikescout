@@ -56,13 +56,13 @@ def _extract_dominant_surface(surface_extra, surface_map):
 
 class SurfaceAnalyzerService:
     def __init__(
-            self,
-            config: SurfaceAnalyzerConfig | None = None,
-            http_session: Any | None = None,
-            mud_analyzer=None,
-            compatibility_analyzer=None,
-            tire_setup_getter=None,
-            battery_drain_calculator=None,
+        self,
+        config: SurfaceAnalyzerConfig | None = None,
+        http_session: Any | None = None,
+        mud_analyzer=None,
+        compatibility_analyzer=None,
+        tire_setup_getter=None,
+        battery_drain_calculator=None,
     ) -> None:
         self.config = config or SurfaceAnalyzerConfig()
         self.http_session = http_session or requests
@@ -72,15 +72,15 @@ class SurfaceAnalyzerService:
         self.battery_drain_calculator = battery_drain_calculator or calculate_battery_drain
 
     def get_surface_analyzer(
-            self,
-            api_key,
-            lat,
-            lon,
-            rider,
-            bike,
-            mission,
-            target_date: str | None = None,
-            route_feature: dict[str, Any] | None = None,
+        self,
+        api_key,
+        lat,
+        lon,
+        rider,
+        bike,
+        mission,
+        target_date: str | None = None,
+        route_feature: dict[str, Any] | None = None,
     ):
         """
         Analyze surface, terrain and mechanical setup for a cycling route.
@@ -201,9 +201,7 @@ class SurfaceAnalyzerService:
                 climb_cat = terrain["climb_category"]
                 avg_grad = terrain["avg_climb_gradient"]
                 setup_warnings = self._tire_setup_warnings(tire_display)
-                tactical_warnings = (
-                    list(warnings) + list(terrain["warnings"]) + setup_warnings
-                )
+                tactical_warnings = list(warnings) + list(terrain["warnings"]) + setup_warnings
 
                 emtb_analysis = self._emtb_analysis(
                     bike=bike,
@@ -238,8 +236,12 @@ class SurfaceAnalyzerService:
                         "mud_intelligence": {
                             "score": mud_score_val,
                             "label": t_analysis.get("mud_risk_score", "Unknown"),
-                            "traction_risk": t_analysis.get("traction_risk", {}).get("level", "Unknown"),
-                            "trail_damage_risk": t_analysis.get("trail_damage_risk", {}).get("level", "Unknown"),
+                            "traction_risk": t_analysis.get("traction_risk", {}).get(
+                                "level", "Unknown"
+                            ),
+                            "trail_damage_risk": t_analysis.get("trail_damage_risk", {}).get(
+                                "level", "Unknown"
+                            ),
                             "dry_time_eta": t_analysis.get("dry_time_eta", "N/A"),
                         },
                     },
@@ -351,7 +353,9 @@ class SurfaceAnalyzerService:
         except (ValueError, KeyError, AttributeError):
             return {}
 
-    def _emtb_analysis(self, bike, rider, mission, clean_ascent, real_dist_m, breakdown, mud_score_val):
+    def _emtb_analysis(
+        self, bike, rider, mission, clean_ascent, real_dist_m, breakdown, mud_score_val
+    ):
         emtb_analysis = None
 
         bike_type_str = str(getattr(bike, "bike_type", "")).upper()
@@ -384,14 +388,14 @@ service = SurfaceAnalyzerService()
 
 
 def get_surface_analyzer(
-        api_key,
-        lat,
-        lon,
-        rider,
-        bike,
-        mission,
-        target_date: str | None = None,
-        route_feature: dict[str, Any] | None = None,
+    api_key,
+    lat,
+    lon,
+    rider,
+    bike,
+    mission,
+    target_date: str | None = None,
+    route_feature: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return service.get_surface_analyzer(
         api_key=api_key,

@@ -1,3 +1,22 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -125,10 +144,15 @@ class TestMcpServer:
         }
 
         response = trail_scout(
-            latitude=45.0, longitude=9.0, rider=None, bike=None, mission=None
+            latitude=45.0,
+            longitude=9.0,
+            rider=cast(Any, None),
+            bike=cast(Any, None),
+            mission=cast(Any, None),
         )
 
         assert response.status == "Success"
+        assert response.info is not None
         assert response.info.distance_km == 30.0
 
     @patch("bikescout.mcp_server.get_complete_trail_scout")
@@ -136,7 +160,11 @@ class TestMcpServer:
     def test_trail_scout_missing_api_key_error(self, m_scout):
 
         response = trail_scout(
-            latitude=45.0, longitude=9.0, rider=None, bike=None, mission=None
+            latitude=45.0,
+            longitude=9.0,
+            rider=cast(Any, None),
+            bike=cast(Any, None),
+            mission=cast(Any, None),
         )
 
         m_scout.assert_not_called()
@@ -325,9 +353,7 @@ class TestMcpServer:
             ),
         ],
     )
-    def test_tools_log_exception_traceback(
-        self, service_target, tool_call, tool_name, capsys
-    ):
+    def test_tools_log_exception_traceback(self, service_target, tool_call, tool_name, capsys):
         with patch(service_target, side_effect=RuntimeError("boom")):
             response = tool_call()
 

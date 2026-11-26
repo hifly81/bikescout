@@ -1,3 +1,23 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
+from typing import Any, cast
+
 import pytest
 import requests
 
@@ -76,7 +96,7 @@ def config():
 def test_nominatim_provider_success(config):
     response = FakeResponse(payload=[{"lat": "45.0", "lon": "10.0"}])
     session = FakeSession(response=response)
-    provider = NominatimProvider(config=config, session=session)
+    provider = NominatimProvider(config=config, session=cast(Any, session))
 
     result = provider.geocode("Verona", "it")
 
@@ -90,7 +110,7 @@ def test_nominatim_provider_success(config):
 
 
 def test_nominatim_provider_rejects_empty_query(config):
-    provider = NominatimProvider(config=config, session=FakeSession())
+    provider = NominatimProvider(config=config, session=cast(Any, FakeSession()))
 
     with pytest.raises(GeocodingError):
         provider.geocode("", "en")
@@ -98,7 +118,7 @@ def test_nominatim_provider_rejects_empty_query(config):
 
 def test_nominatim_provider_wraps_request_exception(config):
     session = FakeSession(exc=requests.RequestException("network down"))
-    provider = NominatimProvider(config=config, session=session)
+    provider = NominatimProvider(config=config, session=cast(Any, session))
 
     with pytest.raises(GeocodingError, match="Geocoding request failed"):
         provider.geocode("Verona", "en")
@@ -107,7 +127,7 @@ def test_nominatim_provider_wraps_request_exception(config):
 def test_nominatim_provider_wraps_http_error(config):
     response = FakeResponse(status_exc=requests.HTTPError("500 error"))
     session = FakeSession(response=response)
-    provider = NominatimProvider(config=config, session=session)
+    provider = NominatimProvider(config=config, session=cast(Any, session))
 
     with pytest.raises(GeocodingError, match="Geocoding request failed"):
         provider.geocode("Verona", "en")
@@ -116,7 +136,7 @@ def test_nominatim_provider_wraps_http_error(config):
 def test_nominatim_provider_wraps_invalid_json(config):
     response = FakeResponse(json_exc=ValueError("bad json"))
     session = FakeSession(response=response)
-    provider = NominatimProvider(config=config, session=session)
+    provider = NominatimProvider(config=config, session=cast(Any, session))
 
     with pytest.raises(GeocodingError, match="invalid JSON"):
         provider.geocode("Verona", "en")
@@ -125,7 +145,7 @@ def test_nominatim_provider_wraps_invalid_json(config):
 def test_nominatim_provider_rejects_non_list_payload(config):
     response = FakeResponse(payload={"lat": "45.0", "lon": "10.0"})
     session = FakeSession(response=response)
-    provider = NominatimProvider(config=config, session=session)
+    provider = NominatimProvider(config=config, session=cast(Any, session))
 
     with pytest.raises(GeocodingError, match="unexpected payload format"):
         provider.geocode("Verona", "en")
@@ -134,7 +154,7 @@ def test_nominatim_provider_rejects_non_list_payload(config):
 def test_nominatim_provider_filters_non_dict_items(config):
     response = FakeResponse(payload=[{"lat": "45.0", "lon": "10.0"}, "bad-item", 123])
     session = FakeSession(response=response)
-    provider = NominatimProvider(config=config, session=session)
+    provider = NominatimProvider(config=config, session=cast(Any, session))
 
     result = provider.geocode("Verona", "en")
 
@@ -214,7 +234,7 @@ def test_rank_results_prefers_trail_over_shop(config):
 
     best = engine._rank_results(results)
 
-    assert best["display_name"] == "Trail"
+    assert cast(dict[str, Any], best)["display_name"] == "Trail"
 
 
 def test_rank_results_handles_invalid_importance(config):
@@ -227,7 +247,7 @@ def test_rank_results_handles_invalid_importance(config):
 
     best = engine._rank_results(results)
 
-    assert best["display_name"] == "Town"
+    assert cast(dict[str, Any], best)["display_name"] == "Town"
 
 
 def test_build_success_result_success(config):
@@ -302,7 +322,9 @@ def test_get_coordinates_uses_default_language_and_retries(config):
         ]
     )
 
-    engine = GeoEngine(provider=provider, config=config, sleep_func=lambda _: None, time_func=lambda: 100.0)
+    engine = GeoEngine(
+        provider=provider, config=config, sleep_func=lambda _: None, time_func=lambda: 100.0
+    )
     result = engine.get_coordinates("X", lang=None, retries=None)
 
     assert result["status"] == "Success"
@@ -406,6 +428,7 @@ def test_get_coordinates_returns_max_retries_when_best_match_has_invalid_lat_lon
     assert len(sleeps) == 2
     assert 1 in sleeps
     assert 1.1 in sleeps
+
 
 def test_module_level_wrapper(monkeypatch):
     class FakeEngine:

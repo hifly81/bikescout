@@ -111,16 +111,12 @@ def _bike_key(bike_type: Any) -> str:
 
 def default_tire_width_mm(bike_type: str) -> int:
     """Return the reference tire width for a bike category."""
-    return REFERENCE_TIRE_WIDTH_MM.get(
-        _bike_key(bike_type), REFERENCE_TIRE_WIDTH_MM["road"]
-    )
+    return REFERENCE_TIRE_WIDTH_MM.get(_bike_key(bike_type), REFERENCE_TIRE_WIDTH_MM["road"])
 
 
 def default_rim_internal_width_mm(bike_type: str) -> int:
     """Return the reference rim internal width for a bike category."""
-    return REFERENCE_RIM_INTERNAL_MM.get(
-        _bike_key(bike_type), REFERENCE_RIM_INTERNAL_MM["road"]
-    )
+    return REFERENCE_RIM_INTERNAL_MM.get(_bike_key(bike_type), REFERENCE_RIM_INTERNAL_MM["road"])
 
 
 def default_casing_type(bike_type: str) -> str:
@@ -213,9 +209,7 @@ class BikeSetupService:
 
             breakdown.append({"type": name, "percentage": f"{percentage}%"})
 
-        breakdown.sort(
-            key=lambda x: float(x["percentage"].replace("%", "")), reverse=True
-        )
+        breakdown.sort(key=lambda x: float(x["percentage"].replace("%", "")), reverse=True)
 
         rim_mm = self._coerce_optional_int(rim_internal_width_mm)
         if rim_mm is not None:
@@ -298,9 +292,7 @@ class BikeSetupService:
 
         effective_width_mm = self._coerce_optional_int(tire_width_mm)
         if effective_width_mm is None:
-            effective_width_mm = (
-                default_tire_width_mm(normalized_bike_type) or fallback_width_mm
-            )
+            effective_width_mm = default_tire_width_mm(normalized_bike_type) or fallback_width_mm
 
         rim_mm = self._coerce_optional_int(rim_internal_width_mm)
         if rim_mm is None:
@@ -311,9 +303,7 @@ class BikeSetupService:
         technical_level = self._technical_difficulty_level(technical_difficulty)
         clean_ascent_m = self._coerce_nonnegative_float(ascent_m)
 
-        reference_width_mm = REFERENCE_TIRE_WIDTH_MM.get(
-            normalized_bike_type, fallback_width_mm
-        )
+        reference_width_mm = REFERENCE_TIRE_WIDTH_MM.get(normalized_bike_type, fallback_width_mm)
         reference_rim_mm = REFERENCE_RIM_INTERNAL_MM.get(
             normalized_bike_type, default_rim_internal_width_mm(normalized_bike_type)
         )
@@ -331,18 +321,11 @@ class BikeSetupService:
 
         # Pressure required to support the load before grip/compliance tuning.
         support_psi = (
-            base_psi
-            * mass_factor
-            * volume_factor
-            * rim_factor
-            * casing_factor
-            * tube_factor
+            base_psi * mass_factor * volume_factor * rim_factor * casing_factor * tube_factor
         )
 
         rocky_surface = (
-            any(
-                keyword in normalized_surface_type for keyword in ROCKY_SURFACE_KEYWORDS
-            )
+            any(keyword in normalized_surface_type for keyword in ROCKY_SURFACE_KEYWORDS)
             or technical_level >= TECHNICAL_ADVICE_MIN_LEVEL
             or self._rocky_surface_from_analysis(surface_analysis)
         )
@@ -364,9 +347,7 @@ class BikeSetupService:
             grip_factor = SMOOTH_SURFACE_FACTOR
             strategy = "Efficiency"
 
-        front_share = FRONT_LOAD_SHARE.get(
-            normalized_bike_type, FRONT_LOAD_SHARE["road"]
-        )
+        front_share = FRONT_LOAD_SHARE.get(normalized_bike_type, FRONT_LOAD_SHARE["road"])
         rear_share = 1.0 - front_share
         front_load_factor = (front_share / 0.5) ** LOAD_DISTRIBUTION_EXPONENT
         rear_load_factor = (rear_share / 0.5) ** LOAD_DISTRIBUTION_EXPONENT
@@ -411,9 +392,7 @@ class BikeSetupService:
         if technical_level >= TECHNICAL_ADVICE_MIN_LEVEL:
             advice.append("Tire Inserts Recommended (rear wheel first) for S3+ terrain")
             if is_tubeless:
-                advice.append(
-                    "Verify sealant and tubeless setup before technical riding"
-                )
+                advice.append("Verify sealant and tubeless setup before technical riding")
             else:
                 advice.append("Tubeless Conversion Recommended for S3+ terrain")
         if normalized_mud_index > MUD_FLOTATION_THRESHOLD:
@@ -457,9 +436,7 @@ class BikeSetupService:
             tactical_display=tactical_display,
         )
 
-    def _aggregate_surface_summary(
-        self, extras: Any, surface_map: Any
-    ) -> dict[str, float]:
+    def _aggregate_surface_summary(self, extras: Any, surface_map: Any) -> dict[str, float]:
         if not isinstance(extras, dict):
             return {}
         if not isinstance(surface_map, dict):
@@ -610,13 +587,9 @@ class BikeSetupService:
             match = re.search(r"\b([0-5])\b", label)
         return int(match.group(1)) if match else 0
 
-    def _rim_width_recommendation(
-        self, bike_type: str, tire_mm: int
-    ) -> tuple[int, int]:
+    def _rim_width_recommendation(self, bike_type: str, tire_mm: int) -> tuple[int, int]:
         normalized = self._normalize_bike_type(bike_type)
-        min_ratio, max_ratio = RIM_WIDTH_RATIO_RANGE.get(
-            normalized, RIM_WIDTH_RATIO_RANGE["road"]
-        )
+        min_ratio, max_ratio = RIM_WIDTH_RATIO_RANGE.get(normalized, RIM_WIDTH_RATIO_RANGE["road"])
         return round(tire_mm * min_ratio), round(tire_mm * max_ratio)
 
     @staticmethod

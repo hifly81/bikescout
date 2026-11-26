@@ -14,8 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import re
 from typing import Any
+
+import streamlit as st
 
 
 def ext_cast(val: Any, to_type, default):
@@ -26,22 +30,22 @@ def ext_cast(val: Any, to_type, default):
         match = re.search(r"[-+]?\d*\.?\d+", val)
         if match and to_type in (float, int):
             val = match.group()
-        elif to_type == bool:
+        elif to_type is bool:
             return val.strip().lower() in ["true", "1", "t", "y", "yes"]
         elif not match and to_type in (float, int):
             return default
 
     try:
-        if to_type == bool:
+        if to_type is bool:
             return str(val).lower() in ["true", "1", "t", "y", "yes"]
-        if to_type == int:
+        if to_type is int:
             return int(float(val))
         return to_type(val)
     except (ValueError, TypeError):
         return default
 
 
-def extract_location_hint(text: str) -> str | None:
+def extract_location_hint(text: str | None) -> str | None:
     if not text:
         return None
 
@@ -194,6 +198,24 @@ def clamp_complexity(raw_complexity: Any) -> int:
     return max(1, min(5, value))
 
 
+def difficulty_to_waypoints(raw_difficulty: Any) -> int:
+    """
+    Map the UI difficulty scale (1-5) to valid MissionConstraints waypoint counts.
+
+    The tool exposes 3-10 ORS waypoints, while the UI and planner use a 1-5
+    difficulty scale. Difficulty 4 and 5 are preserved as 4 and 5 so the
+    existing difficulty boost in scouting keeps working; 1-3 map to the
+    default of 3 waypoints. This keeps the tool's public schema unchanged.
+
+    Args:
+        raw_difficulty: Difficulty value coming from the UI or the planner.
+
+    Returns:
+        An integer in the 3-5 range accepted by trail_scout_simple.
+    """
+    return max(3, clamp_complexity(raw_difficulty))
+
+
 _WHEEL_SIZE_PATTERNS = (
     r'\b29\s*-?\s*(?:er\b|"|inch(?:es)?\b|in\b|pollici\b)',
     r'\b27[.,]5\s*-?\s*(?:er\b|"|inch(?:es)?\b|in\b|pollici\b)',
@@ -227,7 +249,15 @@ def extract_bike_type_from_text(user_input: str) -> str | None:
 
     if any(
         keyword in text
-        for keyword in ("e-mtb", "emtb", "e bike", "e-bike", "ebike", "electric bike", "bici elettrica")
+        for keyword in (
+            "e-mtb",
+            "emtb",
+            "e bike",
+            "e-bike",
+            "ebike",
+            "electric bike",
+            "bici elettrica",
+        )
     ):
         return "e-mtb"
     if "downhill" in text or "enduro" in text:
@@ -294,16 +324,16 @@ def apply_text_overrides(args: dict[str, Any], user_input: str) -> dict[str, Any
 
 
 def build_mission_snapshot(
-        *,
-        location_name: str,
-        lat: float,
-        lon: float,
-        args: dict,
-        distance_km: float,
-        route_mode: str = "round_trip",
-        destination_name: str | None = None,
-        dest_lat: float | None = None,
-        dest_lon: float | None = None,
+    *,
+    location_name: str,
+    lat: float,
+    lon: float,
+    args: dict,
+    distance_km: float,
+    route_mode: str = "round_trip",
+    destination_name: str | None = None,
+    dest_lat: float | None = None,
+    dest_lon: float | None = None,
 ) -> dict:
     ctx = {
         "route_mode": route_mode,
@@ -336,28 +366,25 @@ def summarize_mission(ctx: dict) -> str:
         return "No active mission"
 
     if ctx.get("route_mode") == "point_to_point" and ctx.get("destination_name"):
-        return (
-            f"{ctx['location_name']} → {ctx['destination_name']} · "
-            f"{ctx.get('bike_type', 'mtb')}"
-        )
+        return f"{ctx['location_name']} → {ctx['destination_name']} · {ctx.get('bike_type', 'mtb')}"
 
     return (
-        f"{ctx['location_name']} · "
-        f"{ctx.get('distance_km', '?')} km · "
-        f"{ctx.get('bike_type', 'mtb')}"
+        f"{ctx['location_name']} · {ctx.get('distance_km', '?')} km · {ctx.get('bike_type', 'mtb')}"
     )
 
 
 def resolve_location_query(args: dict, user_input: str) -> str | None:
     return (
-            args.get("location_name")
-            or st.session_state.get("last_location_query")
-            or extract_location_hint(user_input)
-            or (st.session_state.get("mission_context") or {}).get("location_name")
+        args.get("location_name")
+        or st.session_state.get("last_location_query")
+        or extract_location_hint(user_input)
+        or (st.session_state.get("mission_context") or {}).get("location_name")
     )
 
 
-def compute_readiness_score(info: dict, conditions: dict, logistics: dict) -> tuple[int, str, list[str]]:
+def compute_readiness_score(
+    info: dict, conditions: dict, logistics: dict
+) -> tuple[int, str, list[str]]:
     score = 82
     badges: list[str] = []
 
@@ -500,30 +527,39 @@ def extract_prefer_offroad_from_text(user_input: str) -> bool:
 def extract_distance_flex_from_text(user_input: str) -> tuple[int, str | None]:
     text = (user_input or "").lower()
 
-    if any(p in text for p in [
-        "exactly",
-        "as close as possible",
-        "precisely",
-        "exact distance",
-    ]):
+    if any(
+        p in text
+        for p in [
+            "exactly",
+            "as close as possible",
+            "precisely",
+            "exact distance",
+        ]
+    ):
         return 0, "distance_first"
 
-    if any(p in text for p in [
-        "doesn't have to be exact",
-        "does not have to be exact",
-        "roughly",
-        "around",
-        "about",
-        "approximately",
-    ]):
+    if any(
+        p in text
+        for p in [
+            "doesn't have to be exact",
+            "does not have to be exact",
+            "roughly",
+            "around",
+            "about",
+            "approximately",
+        ]
+    ):
         return 10, "balanced"
 
-    if any(p in text for p in [
-        "ride character matters more",
-        "vibe matters more",
-        "more about the ride quality",
-        "prefer the character of the ride",
-    ]):
+    if any(
+        p in text
+        for p in [
+            "ride character matters more",
+            "vibe matters more",
+            "more about the ride quality",
+            "prefer the character of the ride",
+        ]
+    ):
         return 15, "ride_character_first"
 
     return 10, None

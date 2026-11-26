@@ -108,8 +108,10 @@ Contributions are what make the open-source community such an amazing place to l
    - Fork the Project.
    - Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
    - Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-   - Push to the Branch (`git checkout origin feature/AmazingFeature`).
+   - Push the branch (`git push -u origin feature/AmazingFeature`). AI agents must never push.
    - Open a Pull Request.
+
+Development gates require `uv sync --extra test --extra dev` and `uv run lefthook install`; see `AGENTS.md` and `docs/PROCESS.md`. Set `ORS_API_KEY` in a local, untracked `.env` — never in committed client configs.
 
 ### Coding Standards
 - Please follow [PEP 8](https://peps.python.org/pep-0008/) for Python code.

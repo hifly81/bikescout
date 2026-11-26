@@ -169,14 +169,10 @@ def geocode_location(location_name: str, language: str = "en") -> GeocodingRespo
     try:
         data = get_coordinates(location_name, language)
         if data.get("status") == "Error":
-            return _tool_error_response(
-                GeocodingResponse, tool_name="geocode_location", data=data
-            )
+            return _tool_error_response(GeocodingResponse, tool_name="geocode_location", data=data)
         return GeocodingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
     except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
-        return _tool_error_response(
-            GeocodingResponse, tool_name="geocode_location", exception=exc
-        )
+        return _tool_error_response(GeocodingResponse, tool_name="geocode_location", exception=exc)
 
 
 @mcp.tool()
@@ -205,7 +201,7 @@ def trail_scout(
     Supports both single-point Round Trips and A->B separate destinations.
     If target_date is None, it defaults to the current date.
     OPERATIONAL NOTE FOR AGENTS:
-    - If the user requests a 'circular' route of a specific length (target_distance_km),
+    - If the user requests a 'circular' route of a specific length (total_length_km),
       a variance of ±10% is considered a SUCCESSFUL MATCH.
     - DO NOT re-invoke the tool or attempt to refine the 'total_length_km' if the
       returned route falls within this 10% tolerance window.
@@ -277,16 +273,12 @@ def trail_scout(
             include_nutrition_plan,
         )
         if data.get("status") == "Error":
-            return _error_mission_response(
-                reason=_error_reason(data), tool_name="trail_scout"
-            )
-        return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION, **data
+            return _error_mission_response(reason=_error_reason(data), tool_name="trail_scout")
+        return FullMissionBriefingResponse.model_validate(
+            {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
         )
     except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
-        return _error_mission_response(
-            reason=str(exc), exception=exc, tool_name="trail_scout"
-        )
+        return _error_mission_response(reason=str(exc), exception=exc, tool_name="trail_scout")
 
 
 @mcp.tool()
@@ -317,9 +309,7 @@ def trail_scout_simple(
     avoid_urban: bool = False,
     prefer_rural: bool = False,
     distance_flex_percent: int = 10,
-    priority_mode: Literal[
-        "balanced", "distance_first", "ride_character_first"
-    ] = "balanced",
+    priority_mode: Literal["balanced", "distance_first", "ride_character_first"] = "balanced",
     dest_latitude: float | None = None,
     dest_longitude: float | None = None,
     style: Literal["sparkline", "filled", "bars"] = "filled",
@@ -336,9 +326,8 @@ def trail_scout_simple(
     Use this for quick route generation with sensible defaults.
     Only lat and lon are strictly required.
     Supports both single-point Round Trips and A->B separate destinations.
-    If target_date is None, it defaults to the current date.
     OPERATIONAL NOTE FOR AGENTS:
-    - If the user requests a 'circular' route of a specific length (target_distance_km),
+    - If the user requests a 'circular' route of a specific length (total_length_km),
       a variance of ±10% is considered a SUCCESSFUL MATCH.
     - DO NOT re-invoke the tool or attempt to refine the 'total_length_km' if the
       returned route falls within this 10% tolerance window.
@@ -366,7 +355,7 @@ def trail_scout_simple(
         total_length_km: The total distance of the round trip in kilometers (e.g., 25.0).
         profile: Routing engine profile (e.g., 'cycling-mountain' for trails, 'cycling-road' for asphalt).
         surface_preference: Bias towards paved or unpaved roads.
-        complexity: Route complexity factor (1-5). Higher values allow more turns and technical segments.
+        complexity: Number of ORS waypoints shaping the loop (3-10). Higher values add turns; the Streamlit UI maps its 1-5 difficulty scale to 3-5.
         seed: Random seed for route generation consistency.
         assist_mode: E-bike motor support level (affects range estimation).
         direction_bias: Preferred route quadrant bias, e.g. ["south", "east"].
@@ -431,7 +420,9 @@ def trail_scout_simple(
             complexity=complexity,
             seed=seed,
             assist_mode=assist_mode,
-            direction_bias=direction_bias or [],
+            direction_bias=cast(
+                list[Literal["north", "south", "east", "west"]], direction_bias or []
+            ),
             avoid_urban=avoid_urban,
             prefer_rural=prefer_rural,
             distance_flex_percent=distance_flex_percent,
@@ -529,14 +520,14 @@ def ride_window_planner(
     """
 
     try:
-        data = calculate_ride_windows(
-            lat, lon, ride_duration_hours, surface_type, target_date
-        )
+        data = calculate_ride_windows(lat, lon, ride_duration_hours, surface_type, target_date)
         if data.get("status") == "Error":
             return _tool_error_response(
                 StrategicPlannerResponse, tool_name="ride_window_planner", data=data
             )
-        return StrategicPlannerResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+        return StrategicPlannerResponse.model_validate(
+            {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
+        )
     except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
         return _tool_error_response(
             StrategicPlannerResponse, tool_name="ride_window_planner", exception=exc
@@ -617,13 +608,9 @@ def hydration_scout(
             )
 
         context = WeatherContext(
-            date_referenced=weather_data.get("metadata", {}).get(
-                "date_analyzed", target_date
-            ),
+            date_referenced=weather_data.get("metadata", {}).get("date_analyzed", target_date),
             max_temp_detected=f"{max_temp}°C",
-            is_future_event=weather_data.get("metadata", {}).get(
-                "is_future_planning", False
-            ),
+            is_future_event=weather_data.get("metadata", {}).get("is_future_planning", False),
         )
 
         return HydrationScoutResponse(

@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import re
 from typing import Any
 
@@ -50,9 +52,7 @@ def normalize_tire_setup(details: Any) -> dict[str, Any]:
     if hasattr(data, "model_dump"):
         data = data.model_dump()
     if isinstance(data, dict):
-        normalized.update(
-            {key: value for key, value in data.items() if key in normalized}
-        )
+        normalized.update({key: value for key, value in data.items() if key in normalized})
         return normalized
 
     if isinstance(data, (list, tuple)) and len(data) > 1 and isinstance(data[1], str):
@@ -792,7 +792,7 @@ def render_score_card(score: int, status: str, badges: list[str]) -> None:
             <div class="bs-score-value" style="color:{color};">{score}/100</div>
             <div class="bs-score-sub">Decision: <strong>{status}</strong></div>
             <div class="bs-badge-row">
-                {''.join([f'<div class="bs-badge {"safe" if status=="Go" else "warn" if status=="Caution" else "risk"}">{b}</div>' for b in badges[:5]])}
+                {"".join([f'<div class="bs-badge {"safe" if status == "Go" else "warn" if status == "Caution" else "risk"}">{b}</div>' for b in badges[:5]])}
             </div>
         </div>
         """,
@@ -801,27 +801,35 @@ def render_score_card(score: int, status: str, badges: list[str]) -> None:
 
 
 def render_mission_hud(
-        title: str,
-        bike_type: str,
-        route_mode: str,
-        distance_km: float | None = None,
-        elevation_m: float | None = None,
-        eta_text: str | None = None,
-        weather_text: str | None = None,
-        surface_text: str | None = None,
+    title: str,
+    bike_type: str,
+    route_mode: str,
+    distance_km: float | None = None,
+    elevation_m: float | None = None,
+    eta_text: str | None = None,
+    weather_text: str | None = None,
+    surface_text: str | None = None,
 ) -> None:
     chips = []
 
     if distance_km is not None:
-        chips.append(f'<div class="bs-hud-chip"><span>Distance</span><strong>{distance_km:.1f} km</strong></div>')
+        chips.append(
+            f'<div class="bs-hud-chip"><span>Distance</span><strong>{distance_km:.1f} km</strong></div>'
+        )
     if elevation_m is not None:
-        chips.append(f'<div class="bs-hud-chip"><span>Elevation</span><strong>{int(elevation_m)} m</strong></div>')
+        chips.append(
+            f'<div class="bs-hud-chip"><span>Elevation</span><strong>{int(elevation_m)} m</strong></div>'
+        )
     if eta_text:
         chips.append(f'<div class="bs-hud-chip"><span>ETA</span><strong>{eta_text}</strong></div>')
     if weather_text:
-        chips.append(f'<div class="bs-hud-chip"><span>Weather</span><strong>{weather_text}</strong></div>')
+        chips.append(
+            f'<div class="bs-hud-chip"><span>Weather</span><strong>{weather_text}</strong></div>'
+        )
     if surface_text:
-        chips.append(f'<div class="bs-hud-chip"><span>Surface</span><strong>{surface_text}</strong></div>')
+        chips.append(
+            f'<div class="bs-hud-chip"><span>Surface</span><strong>{surface_text}</strong></div>'
+        )
 
     st.markdown(
         f"""
@@ -833,7 +841,7 @@ def render_mission_hud(
                 </div>
             </div>
             <div class="bs-hud-grid">
-                {''.join(chips)}
+                {"".join(chips)}
             </div>
         </div>
         """,
@@ -916,7 +924,7 @@ def render_weather_tiles_native(weather_data) -> None:
     if not weather_data:
         return
 
-    rows = [weather_data[i:i + 5] for i in range(0, len(weather_data), 5)]
+    rows = [weather_data[i : i + 5] for i in range(0, len(weather_data), 5)]
 
     for row in rows:
         cols = st.columns(len(row))

@@ -102,7 +102,9 @@ def segment_distances_m(geometry: list[Any]) -> list[float]:
     return distances
 
 
-def _extract_profile(geometry: list[Any], config: TerrainConfig) -> tuple[list[float], list[float], int]:
+def _extract_profile(
+    geometry: list[Any], config: TerrainConfig
+) -> tuple[list[float], list[float], int]:
     """
     Extract a numeric elevation series and cap implausible jumps.
 
@@ -158,7 +160,7 @@ def _extrapolate_edges(values: np.ndarray, half_window: int) -> np.ndarray:
         return values
 
     left_slope = _edge_slope(values[: min(half_window, len(values))])
-    right_slope = _edge_slope(values[-min(half_window, len(values)):])
+    right_slope = _edge_slope(values[-min(half_window, len(values)) :])
     left_pad = [values[0] - left_slope * step for step in range(half_window, 0, -1)]
     right_pad = [values[-1] + right_slope * step for step in range(1, half_window + 1)]
     return np.concatenate([np.asarray(left_pad), values, np.asarray(right_pad)])
@@ -257,11 +259,13 @@ def _refine_turn_index(elevations: list[float], index: int, radius: int, find_ma
     """
     low = max(0, index - radius)
     high = min(len(elevations) - 1, index + radius)
-    window = elevations[low:high + 1]
+    window = elevations[low : high + 1]
     if not window:
         return index
-    offset = max(range(len(window)), key=window.__getitem__) if find_max else min(
-        range(len(window)), key=window.__getitem__
+    offset = (
+        max(range(len(window)), key=window.__getitem__)
+        if find_max
+        else min(range(len(window)), key=window.__getitem__)
     )
     return low + offset
 
@@ -276,7 +280,9 @@ def _cumulative_distances(distances: list[float], sample_count: int) -> list[flo
     return cumulative
 
 
-def _segment_gradient(elevations: list[float], cumulative: list[float], start: int, end: int) -> float:
+def _segment_gradient(
+    elevations: list[float], cumulative: list[float], start: int, end: int
+) -> float:
     """Return the steepest positive gradient inside a segment, capped at 45%."""
     steepest = 0.0
     for index in range(start + 1, end + 1):
@@ -315,7 +321,9 @@ def _dominant_extra_value(extra: Any) -> Any:
         return None
 
 
-def infer_technical_difficulty(extras: dict[str, Any] | None, max_gradient: float = 0.0) -> dict[str, Any]:
+def infer_technical_difficulty(
+    extras: dict[str, Any] | None, max_gradient: float = 0.0
+) -> dict[str, Any]:
     """
     Derive a technical grade from OSM tags, with an explicit confidence score.
 
@@ -358,7 +366,9 @@ def infer_technical_difficulty(extras: dict[str, Any] | None, max_gradient: floa
     }
 
 
-def _data_confidence(sample_count: int, distances: list[float], capped_steps: int, config: TerrainConfig) -> float:
+def _data_confidence(
+    sample_count: int, distances: list[float], capped_steps: int, config: TerrainConfig
+) -> float:
     """Score how trustworthy the derived terrain metrics are (0.0 to 1.0)."""
     if sample_count < config.min_profile_points:
         return 0.0
@@ -376,10 +386,10 @@ class TerrainService:
         self.config = config or TerrainConfig()
 
     def analyze_profile(
-            self,
-            geometry: list[Any],
-            bike_type: str = "",
-            extras: dict[str, Any] | None = None,
+        self,
+        geometry: list[Any],
+        bike_type: str = "",
+        extras: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Derive ascent, gradients and significant climbs from an elevation profile.
@@ -428,7 +438,9 @@ class TerrainService:
         previous_end = 0
 
         for start, end in _detect_segments(smoothed, noise_floor):
-            raw_start = max(previous_end, _refine_turn_index(elevations, start, radius, find_max=False))
+            raw_start = max(
+                previous_end, _refine_turn_index(elevations, start, radius, find_max=False)
+            )
             raw_end = _refine_turn_index(elevations, end, radius, find_max=True)
             if raw_end <= raw_start:
                 continue
@@ -439,28 +451,33 @@ class TerrainService:
             if gain <= 0 or length <= 0:
                 continue
             avg_gradient = gain / length * 100.0
-            if gain >= self.config.min_ascent_gain_m and avg_gradient >= self.config.min_ascent_gradient_percent:
+            if (
+                gain >= self.config.min_ascent_gain_m
+                and avg_gradient >= self.config.min_ascent_gradient_percent
+            ):
                 total_ascent += gain
             if (
-                    gain < self.config.min_climb_gain_m
-                    or avg_gradient < self.config.min_climb_gradient_percent
-                    or length < self.config.min_climb_length_m
+                gain < self.config.min_climb_gain_m
+                or avg_gradient < self.config.min_climb_gradient_percent
+                or length < self.config.min_climb_length_m
             ):
                 continue
 
             summit_elevation = float(elevations[raw_end])
-            fiets_index = gain ** 2 / (length * 10.0) + max(0.0, (summit_elevation - 1000.0) / 1000.0)
-            climbs.append({
-                "start_index": raw_start,
-                "end_index": raw_end,
-                "length_m": round(length, 1),
-                "gain_m": round(gain, 1),
-                "avg_gradient": round(avg_gradient, 1),
-                "max_gradient": _segment_gradient(elevations, cumulative, raw_start, raw_end),
-                "summit_elevation_m": round(summit_elevation, 1),
-                "fiets_index": round(fiets_index, 2),
-                "category": _fiets_category(fiets_index),
-            })
+            fiets_index = gain**2 / (length * 10.0) + max(0.0, (summit_elevation - 1000.0) / 1000.0)
+            climbs.append(
+                {
+                    "start_index": raw_start,
+                    "end_index": raw_end,
+                    "length_m": round(length, 1),
+                    "gain_m": round(gain, 1),
+                    "avg_gradient": round(avg_gradient, 1),
+                    "max_gradient": _segment_gradient(elevations, cumulative, raw_start, raw_end),
+                    "summit_elevation_m": round(summit_elevation, 1),
+                    "fiets_index": round(fiets_index, 2),
+                    "category": _fiets_category(fiets_index),
+                }
+            )
 
         total_ascent = round(total_ascent, 1)
         avg_gradient = total_ascent / profile_length_m * 100.0 if profile_length_m > 0 else 0.0
@@ -479,7 +496,9 @@ class TerrainService:
 
         warnings: list[str] = []
         if max_gradient >= 20.0:
-            warnings.append(f"Micro-pitch up to {max_gradient}%: expect hike-a-bike or high battery drain.")
+            warnings.append(
+                f"Micro-pitch up to {max_gradient}%: expect hike-a-bike or high battery drain."
+            )
 
         return {
             "total_ascent_m": total_ascent,
@@ -502,9 +521,9 @@ service = TerrainService()
 
 
 def analyze_terrain_profile(
-        geometry: list[Any],
-        bike_type: str = "",
-        extras: dict[str, Any] | None = None,
+    geometry: list[Any],
+    bike_type: str = "",
+    extras: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Analyze a GeoJSON elevation profile using the shared terrain service.

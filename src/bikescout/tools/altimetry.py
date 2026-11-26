@@ -24,15 +24,15 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Literal, Sequence
+from typing import Any, Iterable, Literal, Sequence
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 
 PlotStyle = Literal["sparkline", "filled", "bars"]
@@ -74,7 +74,9 @@ class AltimetryStorageResult:
 
 
 class AltimetryService:
-    def __init__(self, config: AltimetryConfig | None = None, logger: logging.Logger | None = None) -> None:
+    def __init__(
+        self, config: AltimetryConfig | None = None, logger: logging.Logger | None = None
+    ) -> None:
         self.config = config or AltimetryConfig()
         self.logger = logger or logging.getLogger(__name__)
 
@@ -85,11 +87,11 @@ class AltimetryService:
         return Path.home() / ".bikescout" / "altimetry"
 
     def generate_plot(
-            self,
-            geometry: Iterable[Sequence[object]],
-            width: int | None = None,
-            height: int | None = None,
-            style: PlotStyle = "filled",
+        self,
+        geometry: Iterable[Sequence[object]],
+        width: int | None = None,
+        height: int | None = None,
+        style: PlotStyle = "filled",
     ) -> AltimetryPlotResult:
         effective_width = self.config.default_width_in if width is None else width
         effective_height = self.config.default_height_in if height is None else height
@@ -108,15 +110,15 @@ class AltimetryService:
         return AltimetryPlotResult(
             image_base64=image_base64,
             total_distance_km=float(distances_m[-1] / 1000.0),
-    )
+        )
 
     def create_profile_image(
-            self,
-            geometry_obj: object,
-            uuid_input: str | None,
-            width: int | None = None,
-            height: int | None = None,
-            style: PlotStyle = "filled",
+        self,
+        geometry_obj: object,
+        uuid_input: str | None,
+        width: int | None = None,
+        height: int | None = None,
+        style: PlotStyle = "filled",
     ) -> dict[str, object]:
         try:
             if not hasattr(geometry_obj, "coordinates"):
@@ -125,7 +127,7 @@ class AltimetryService:
             effective_width = self.config.default_width_in if width is None else width
             effective_height = self.config.default_height_in if height is None else height
 
-            coordinates = geometry_obj.coordinates
+            coordinates = getattr(geometry_obj, "coordinates")
             result = self.generate_plot(
                 geometry=coordinates,
                 width=effective_width,
@@ -164,12 +166,17 @@ class AltimetryService:
         now = time.time()
         for file_path in directory.glob("*.png"):
             try:
-                if file_path.is_file() and (now - file_path.stat().st_mtime) > self.config.cleanup_max_age_seconds:
+                if (
+                    file_path.is_file()
+                    and (now - file_path.stat().st_mtime) > self.config.cleanup_max_age_seconds
+                ):
                     file_path.unlink()
             except OSError:
                 self.logger.debug("Could not remove stale PNG: %s", file_path, exc_info=True)
 
-    def _build_profile_arrays(self, geometry: Iterable[Sequence[object]]) -> tuple[np.ndarray, np.ndarray]:
+    def _build_profile_arrays(
+        self, geometry: Iterable[Sequence[object]]
+    ) -> tuple[np.ndarray, np.ndarray]:
         coords = self._normalize_geometry(geometry)
         lons = coords[:, 0]
         lats = coords[:, 1]
@@ -180,7 +187,7 @@ class AltimetryService:
         elevations = self._clean_elevations(raw_elevations, segment_distances_m)
         return cumulative_distances_m, elevations
 
-    def _normalize_geometry(self, geometry: Iterable[Sequence[object]]) -> np.ndarray:
+    def _normalize_geometry(self, geometry: Iterable[Sequence[Any]]) -> np.ndarray:
         points: list[list[float]] = []
 
         for point in geometry:
@@ -204,11 +211,12 @@ class AltimetryService:
 
         return np.array(points, dtype=float)
 
-    def _clean_elevations(self, elevations: np.ndarray, segment_distances_m: np.ndarray) -> np.ndarray:
+    def _clean_elevations(
+        self, elevations: np.ndarray, segment_distances_m: np.ndarray
+    ) -> np.ndarray:
         cleaned = elevations.astype(float).copy()
-        valid_mask = (
-                (cleaned >= self.config.abs_min_elevation_m)
-                & (cleaned <= self.config.abs_max_elevation_m)
+        valid_mask = (cleaned >= self.config.abs_min_elevation_m) & (
+            cleaned <= self.config.abs_max_elevation_m
         )
 
         if len(cleaned) >= 3 and len(segment_distances_m) >= 2:
@@ -221,9 +229,8 @@ class AltimetryService:
             prev_grade_ratio = prev_delta / prev_dist
             next_grade_ratio = next_delta / next_dist
 
-            spike_mask = (
-                    (prev_grade_ratio > self.config.spike_grade_ratio_threshold)
-                    & (next_grade_ratio > self.config.spike_grade_ratio_threshold)
+            spike_mask = (prev_grade_ratio > self.config.spike_grade_ratio_threshold) & (
+                next_grade_ratio > self.config.spike_grade_ratio_threshold
             )
             valid_mask[1:-1] &= ~spike_mask
 
@@ -242,9 +249,9 @@ class AltimetryService:
         return np.interp(np.arange(len(values)), xp, fp)
 
     def _compute_segment_grades_percent(
-            self,
-            elevations: np.ndarray,
-            segment_distances_m: np.ndarray,
+        self,
+        elevations: np.ndarray,
+        segment_distances_m: np.ndarray,
     ) -> np.ndarray:
         if len(elevations) < 2:
             return np.array([], dtype=float)
@@ -255,12 +262,12 @@ class AltimetryService:
         return np.clip(grades, -25.0, 25.0)
 
     def _render_plot(
-            self,
-            distances_m: np.ndarray,
-            elevations: np.ndarray,
-            width: int,
-            height: int,
-            style: PlotStyle,
+        self,
+        distances_m: np.ndarray,
+        elevations: np.ndarray,
+        width: int,
+        height: int,
+        style: PlotStyle,
     ) -> str:
         dist_km = distances_m / 1000.0
         segment_distances_m = np.diff(distances_m)
@@ -301,20 +308,22 @@ class AltimetryService:
                 color=colors,
                 align="edge",
                 linewidth=0,
-                )
+            )
             ax.plot(dist_km, elevations, color="#2c3e50", linewidth=0.7, alpha=0.7)
 
         else:
             for i in range(len(dist_km) - 1):
-                x = dist_km[i:i + 2]
-                y = elevations[i:i + 2]
+                x = dist_km[i : i + 2]
+                y = elevations[i : i + 2]
                 grade = abs(grades[i]) if i < len(grades) else 0.0
                 ax.fill_between(x, y, baseline, color=cmap(norm(grade)), alpha=0.8)
             ax.plot(dist_km, elevations, color="#2c3e50", linewidth=1.5)
 
         if style != "sparkline":
             ax.set_facecolor("#ffffff")
-            ax.set_title(f"{self.config.title_prefix} ({style.capitalize()})", fontsize=10, fontweight="bold")
+            ax.set_title(
+                f"{self.config.title_prefix} ({style.capitalize()})", fontsize=10, fontweight="bold"
+            )
             ax.set_xlabel("Distance (km)", fontsize=8)
             ax.set_ylabel("Elevation (m)", fontsize=8)
             ax.grid(True, linestyle="--", alpha=0.3)
@@ -355,7 +364,7 @@ class AltimetryService:
         if not raw:
             return fallback
         cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", raw)
-        return (cleaned[:64] or fallback)
+        return cleaned[:64] or fallback
 
     @staticmethod
     def _validate_dimensions(width: int, height: int) -> None:
@@ -369,11 +378,11 @@ class AltimetryService:
 
 
 def get_elevation_profile_image(
-        geometry: object,
-        uuid_input: str | None,
-        width: int = 8,
-        height: int = 3,
-        style: PlotStyle = "filled",
+    geometry: object,
+    uuid_input: str | None,
+    width: int = 8,
+    height: int = 3,
+    style: PlotStyle = "filled",
 ) -> dict[str, object]:
     service = AltimetryService()
     return service.create_profile_image(

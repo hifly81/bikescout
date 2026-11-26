@@ -22,7 +22,7 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Literal, Sequence
+from typing import Literal, Sequence
 
 import matplotlib.colors as mcolors
 from staticmap import CircleMarker, Line, StaticMap
@@ -64,7 +64,9 @@ class TacticalMapService:
         ["#2ecc71", "#f1c40f", "#e74c3c"],
     )
 
-    def __init__(self, config: TacticalMapConfig | None = None, logger: logging.Logger | None = None) -> None:
+    def __init__(
+        self, config: TacticalMapConfig | None = None, logger: logging.Logger | None = None
+    ) -> None:
         self.config = config or TacticalMapConfig()
         self.logger = logger or logging.getLogger(__name__)
         self._grade_norm = mcolors.Normalize(
@@ -79,18 +81,22 @@ class TacticalMapService:
         return Path.home() / ".bikescout" / "maps"
 
     def save_local_tactical_map(
-            self,
-            filename_part: str,
-            geojson_data: dict,
-            use_gradient: bool = True,
-            line_color: str | None = None,
-            line_width: int | None = None,
+        self,
+        filename_part: str,
+        geojson_data: dict,
+        use_gradient: bool = True,
+        line_color: str | None = None,
+        line_width: int | None = None,
     ) -> dict[str, object]:
         try:
             normalized_points = self._extract_linestring_points(geojson_data)
 
-            effective_line_color = self.config.default_line_color if line_color is None else line_color
-            effective_line_width = self.config.default_line_width if line_width is None else line_width
+            effective_line_color = (
+                self.config.default_line_color if line_color is None else line_color
+            )
+            effective_line_width = (
+                self.config.default_line_width if line_width is None else line_width
+            )
 
             if effective_line_width <= 0:
                 raise TacticalMapError("Line width must be positive.")
@@ -118,7 +124,9 @@ class TacticalMapService:
                 "message": "Tactical map created successfully.",
                 "mcp_resource_uri": f"bikescout://maps/{filename}",
                 "file_location": str(file_path),
-                "style_applied": "gradient" if self._should_use_gradient(normalized_points, use_gradient) else "solid",
+                "style_applied": "gradient"
+                if self._should_use_gradient(normalized_points, use_gradient)
+                else "solid",
             }
 
         except TacticalMapError as exc:
@@ -131,17 +139,20 @@ class TacticalMapService:
         now = time.time()
         for file_path in directory.glob("*.png"):
             try:
-                if file_path.is_file() and (now - file_path.stat().st_mtime) > self.config.cleanup_max_age_seconds:
+                if (
+                    file_path.is_file()
+                    and (now - file_path.stat().st_mtime) > self.config.cleanup_max_age_seconds
+                ):
                     file_path.unlink()
             except OSError:
                 self.logger.debug("Could not remove stale PNG: %s", file_path, exc_info=True)
 
     def _build_map(
-            self,
-            points: list[tuple[float, float, float | None]],
-            use_gradient: bool,
-            line_color: str,
-            line_width: int,
+        self,
+        points: list[tuple[float, float, float | None]],
+        use_gradient: bool,
+        line_color: str,
+        line_width: int,
     ) -> StaticMap:
         map_obj = StaticMap(
             self.config.image_width_px,
@@ -170,7 +181,9 @@ class TacticalMapService:
 
         return map_obj
 
-    def _extract_linestring_points(self, geojson_data: dict) -> list[tuple[float, float, float | None]]:
+    def _extract_linestring_points(
+        self, geojson_data: dict
+    ) -> list[tuple[float, float, float | None]]:
         if not isinstance(geojson_data, dict):
             raise TacticalMapError("GeoJSON payload must be a dictionary.")
 
@@ -217,26 +230,26 @@ class TacticalMapService:
         return points
 
     def _should_use_gradient(
-            self,
-            points: Sequence[tuple[float, float, float | None]],
-            requested: bool,
+        self,
+        points: Sequence[tuple[float, float, float | None]],
+        requested: bool,
     ) -> bool:
         if not requested:
             return False
         return all(point[2] is not None for point in points)
 
     def _segment_color_from_points(
-            self,
-            p1: tuple[float, float, float | None],
-            p2: tuple[float, float, float | None],
+        self,
+        p1: tuple[float, float, float | None],
+        p2: tuple[float, float, float | None],
     ) -> str:
         grade = self._compute_segment_grade_percent(p1, p2)
         return self._get_gradient_color(grade)
 
     def _compute_segment_grade_percent(
-            self,
-            p1: tuple[float, float, float | None],
-            p2: tuple[float, float, float | None],
+        self,
+        p1: tuple[float, float, float | None],
+        p2: tuple[float, float, float | None],
     ) -> float:
         if p1[2] is None or p2[2] is None:
             return 0.0
@@ -251,8 +264,8 @@ class TacticalMapService:
 
     @staticmethod
     def _approx_segment_run_m(
-            p1: tuple[float, float, float | None],
-            p2: tuple[float, float, float | None],
+        p1: tuple[float, float, float | None],
+        p2: tuple[float, float, float | None],
     ) -> float:
         lat_rad = math.radians(p1[1])
         dx = (p2[0] - p1[0]) * math.cos(lat_rad) * 111111.0
@@ -273,11 +286,11 @@ class TacticalMapService:
 
 
 def save_local_tactical_map(
-        filename_part: str,
-        geojson_data: dict,
-        use_gradient: bool = True,
-        line_color: str = "red",
-        line_width: int = 7,
+    filename_part: str,
+    geojson_data: dict,
+    use_gradient: bool = True,
+    line_color: str = "red",
+    line_width: int = 7,
 ) -> dict[str, object]:
     service = TacticalMapService()
     return service.save_local_tactical_map(

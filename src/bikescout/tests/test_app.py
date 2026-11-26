@@ -1,5 +1,24 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -21,19 +40,22 @@ class StubLLM:
         return {"choices": [{"message": {"content": self.content}}]}
 
 
+def _as_llm(llm: StubLLM) -> Any:
+    """Present the stub as the concrete Llama dependency expected by the helper."""
+    return cast(Any, llm)
+
+
 class TestGenerateTacticalResponse:
     def test_returns_stripped_llm_content(self):
         llm = StubLLM('  {"briefing": "ok", "can_execute": false, "tool": null}  ')
         result = app_module.generate_tactical_response(
-            [{"role": "user", "content": "45 km loop near Trento"}], llm
+            [{"role": "user", "content": "45 km loop near Trento"}], _as_llm(llm)
         )
         assert result == '{"briefing": "ok", "can_execute": false, "tool": null}'
 
     def test_system_prompt_states_identity_and_json_contract(self):
         llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [{"role": "user", "content": "a ride"}], llm
-        )
+        app_module.generate_tactical_response([{"role": "user", "content": "a ride"}], _as_llm(llm))
         system = llm.calls[0]["messages"][0]
         assert system["role"] == "system"
         assert "You are BikeScout Tactical AI." in system["content"]
@@ -41,9 +63,7 @@ class TestGenerateTacticalResponse:
 
     def test_system_prompt_documents_intent_mapping_rules(self):
         llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [{"role": "user", "content": "a ride"}], llm
-        )
+        app_module.generate_tactical_response([{"role": "user", "content": "a ride"}], _as_llm(llm))
         system = llm.calls[0]["messages"][0]["content"]
         assert 'Infer bike_type="mtb"' in system
         assert "very hard/extreme=5" in system
@@ -53,14 +73,14 @@ class TestGenerateTacticalResponse:
     def test_user_messages_reach_the_llm(self):
         llm = StubLLM("{}")
         app_module.generate_tactical_response(
-            [{"role": "user", "content": "Ride plan near Trento please"}], llm
+            [{"role": "user", "content": "Ride plan near Trento please"}], _as_llm(llm)
         )
         assert "Ride plan near Trento please" in llm.calls[0]["messages"][1]["content"]
 
     def test_mission_context_is_included_in_system_prompt(self):
         llm = StubLLM("{}")
         app_module.generate_tactical_response(
-            [], llm, mission_context={"location_name": "Trento", "bike_type": "mtb"}
+            [], _as_llm(llm), mission_context={"location_name": "Trento", "bike_type": "mtb"}
         )
         system = llm.calls[0]["messages"][0]["content"]
         assert "ACTIVE MISSION" in system
@@ -76,7 +96,7 @@ class TestGenerateTacticalResponse:
             },
             {"role": "assistant", "content": "real answer"},
         ]
-        app_module.generate_tactical_response(messages, llm)
+        app_module.generate_tactical_response(messages, _as_llm(llm))
         contents = [m["content"] for m in llm.calls[0]["messages"]]
         assert "Connection established. Provide input..." not in contents
         assert "first question" in contents
@@ -85,13 +105,13 @@ class TestGenerateTacticalResponse:
     def test_limits_history_to_last_six_messages(self):
         llm = StubLLM("{}")
         messages = [{"role": "user", "content": f"message {i}"} for i in range(10)]
-        app_module.generate_tactical_response(messages, llm)
+        app_module.generate_tactical_response(messages, _as_llm(llm))
         history = llm.calls[0]["messages"][1:]
         assert [m["content"] for m in history] == [f"message {i}" for i in range(4, 10)]
 
     def test_uses_json_schema_and_temperature_zero(self):
         llm = StubLLM("{}")
-        app_module.generate_tactical_response([{"role": "user", "content": "hi"}], llm)
+        app_module.generate_tactical_response([{"role": "user", "content": "hi"}], _as_llm(llm))
         call = llm.calls[0]
         assert call["temperature"] == 0.0
         assert call["max_tokens"] == 1024
@@ -100,6 +120,15 @@ class TestGenerateTacticalResponse:
         assert "briefing" in properties
         assert "can_execute" in properties
         assert "tool" in properties
+        args = properties["tool"]["anyOf"][0]["properties"]["args"]["properties"]
+        assert args["complexity"]["minimum"] == 1
+        assert args["complexity"]["maximum"] == 5
+        assert args["profile"]["enum"] == [
+            "cycling-mountain",
+            "cycling-road",
+            "cycling-regular",
+            "cycling-electric",
+        ]
 
 
 class TestAppScript:
@@ -175,9 +204,7 @@ FAKE_MISSION_RESULT = {
                     ],
                 },
             },
-            "metadata": {
-                "elevation_source": "ORS geometry elevation (offline terrain engine)"
-            },
+            "metadata": {"elevation_source": "ORS geometry elevation (offline terrain engine)"},
             "surface_breakdown": [{"type": "Paved", "percentage": "60%"}],
             "mechanical_setup": {
                 "setup_details": {
@@ -254,17 +281,18 @@ class TestPlanFlow:
     def test_plan_tab_submit_renders_mission_results(self, tmp_path, monkeypatch):
         # Stub the network layer so the full plan-tab -> chat-planner flow runs offline.
         monkeypatch.chdir(tmp_path)
-        fake_geo = SimpleNamespace(
-            status="Success", lat=45.51, lon=11.90, display_name="Trento"
-        )
+        fake_geo = SimpleNamespace(status="Success", lat=45.51, lon=11.90, display_name="Trento")
         monkeypatch.setattr(
             "bikescout.mcp_server.geocode_location",
             lambda location_name, language="en": fake_geo,
         )
-        monkeypatch.setattr(
-            "bikescout.mcp_server.trail_scout_simple",
-            lambda **kwargs: FAKE_MISSION_RESULT,
-        )
+        scout_calls = []
+
+        def fake_scout(**kwargs):
+            scout_calls.append(kwargs)
+            return FAKE_MISSION_RESULT
+
+        monkeypatch.setattr("bikescout.mcp_server.trail_scout_simple", fake_scout)
 
         at = AppTest.from_file(str(APP_PATH)).run()
         assert not at.exception
@@ -277,17 +305,16 @@ class TestPlanFlow:
         assert "Trento" in at.session_state["mission_history"][0]
         assert at.session_state["messages"]
         assert at.session_state["messages"][-1]["role"] == "assistant"
-        assert (
-            "Mission generated successfully"
-            in at.session_state["messages"][-1]["content"]
-        )
+        assert "Mission generated successfully" in at.session_state["messages"][-1]["content"]
         assert any("TACTICAL MISSION OVERVIEW" in m.value for m in at.markdown)
         assert any("Trento Fountain" in m.value for m in at.markdown)
 
         markdown_values = [m.value for m in at.markdown]
         assert any("Max gradient" in value and "22.5%" in value for value in markdown_values)
         assert any("Data confidence" in value and "82%" in value for value in markdown_values)
-        assert any("Technical grade" in value and "S2 - Technical" in value for value in markdown_values)
+        assert any(
+            "Technical grade" in value and "S2 - Technical" in value for value in markdown_values
+        )
         assert any("Profile points" in value and "240" in value for value in markdown_values)
 
         caption_values = [caption.value for caption in at.caption]
@@ -307,3 +334,5 @@ class TestPlanFlow:
         climb_row = climb_tables[0].iloc[0]
         assert climb_row["Gain (m)"] == "120.0"
         assert climb_row["Length (km)"] == "1.80"
+        assert scout_calls
+        assert 3 <= scout_calls[0]["complexity"] <= 5

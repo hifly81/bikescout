@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import inspect
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,7 +24,12 @@ from typing import Any, cast
 import requests
 
 import bikescout.tools.scouting as scouting_module
-from bikescout.schemas import TireSetupRecommendation
+from bikescout.schemas import (
+    BikeSetup,
+    MissionConstraints,
+    RiderProfile,
+    TireSetupRecommendation,
+)
 from bikescout.tools.scouting import (
     TrailScoutConfig,
     TrailScoutService,
@@ -51,45 +74,54 @@ class FakeSession:
         return self.response
 
 
-def make_rider(weight_kg=75.0, fitness_level="intermediate", gender="male", sweat_profile="standard"):
-    return SimpleNamespace(
-        weight_kg=weight_kg,
-        fitness_level=fitness_level,
-        gender=gender,
-        sweat_profile=sweat_profile,
+def make_rider(
+    weight_kg=75.0, fitness_level="intermediate", gender="male", sweat_profile="standard"
+) -> RiderProfile:
+    return cast(
+        RiderProfile,
+        SimpleNamespace(
+            weight_kg=weight_kg,
+            fitness_level=fitness_level,
+            gender=gender,
+            sweat_profile=sweat_profile,
+        ),
     )
 
 
-def make_bike(bike_type="gravel", is_ebike=False):
-    return SimpleNamespace(
-        bike_type=bike_type,
-        is_ebike=is_ebike,
+def make_bike(bike_type="gravel", is_ebike=False) -> BikeSetup:
+    return cast(
+        BikeSetup,
+        SimpleNamespace(
+            bike_type=bike_type,
+            is_ebike=is_ebike,
+        ),
     )
 
 
 def make_mission(
-        profile="cycling-regular",
-        total_length_km=40.0,
-        seed=42,
-        direction_bias=None,
-        avoid_urban=False,
-        prefer_rural=False,
-        distance_flex_percent=10,
-        priority_mode="balanced",
-        complexity=3,
-        bike_type="gravel",
-):
-    return SimpleNamespace(
-        profile=profile,
-        bike_type=bike_type,
-        total_length_km=total_length_km,
-        seed=seed,
-        direction_bias=direction_bias or [],
-        avoid_urban=avoid_urban,
-        prefer_rural=prefer_rural,
-        distance_flex_percent=distance_flex_percent,
-        priority_mode=priority_mode,
-        complexity=complexity,
+    profile="cycling-regular",
+    total_length_km=40.0,
+    seed=42,
+    direction_bias=None,
+    avoid_urban=False,
+    prefer_rural=False,
+    distance_flex_percent=10,
+    priority_mode="balanced",
+    complexity=3,
+) -> MissionConstraints:
+    return cast(
+        MissionConstraints,
+        SimpleNamespace(
+            profile=profile,
+            total_length_km=total_length_km,
+            seed=seed,
+            direction_bias=direction_bias or [],
+            avoid_urban=avoid_urban,
+            prefer_rural=prefer_rural,
+            distance_flex_percent=distance_flex_percent,
+            priority_mode=priority_mode,
+            complexity=complexity,
+        ),
     )
 
 
@@ -98,7 +130,10 @@ def test_calculate_detailed_difficulty_unknown():
 
 
 def test_calculate_detailed_difficulty_expert():
-    assert calculate_detailed_difficulty(60, 200) == "Expert (Challenging distance or very steep climbs)"
+    assert (
+        calculate_detailed_difficulty(60, 200)
+        == "Expert (Challenging distance or very steep climbs)"
+    )
 
 
 def test_calculate_detailed_difficulty_advanced():
@@ -110,7 +145,10 @@ def test_calculate_detailed_difficulty_moderate():
 
 
 def test_calculate_detailed_difficulty_beginner():
-    assert calculate_detailed_difficulty(10, 100) == "Beginner (Short and relatively flat, ideal for everyone)"
+    assert (
+        calculate_detailed_difficulty(10, 100)
+        == "Beginner (Short and relatively flat, ideal for everyone)"
+    )
 
 
 def test_calculate_detailed_difficulty_honors_requested_complexity():
@@ -272,6 +310,7 @@ def test_routing_payload_a_to_b():
     assert payload["coordinates"] == [[10.0, 45.0], [11.0, 46.0]]
     assert "options" not in payload
 
+
 def test_build_directional_anchor_south_east():
     mission = make_mission(
         total_length_km=60.0,
@@ -416,17 +455,28 @@ def test_offroad_share_accepts_ors_amount_and_legacy_distance():
 
 def test_route_candidate_score_prefers_offroad_when_requested():
     mission = make_mission(
-        bike_type="mtb",
         avoid_urban=True,
         prefer_rural=True,
         priority_mode="ride_character_first",
     )
+    bike = make_bike("mtb")
     offroad = _route_with_surface([{"value": 5, "amount": 40000}])
     paved = _route_with_surface([{"value": 1, "amount": 40000}])
 
-    assert TrailScoutService._route_candidate_score(offroad, mission, None) < (
-        TrailScoutService._route_candidate_score(paved, mission, None)
+    assert TrailScoutService._route_candidate_score(offroad, mission, None, bike) < (
+        TrailScoutService._route_candidate_score(paved, mission, None, bike)
     )
+
+
+def test_prefers_offroad_reads_bike_type_from_bike_setup():
+    mission = make_mission(
+        avoid_urban=True,
+        prefer_rural=True,
+        priority_mode="ride_character_first",
+    )
+    assert not hasattr(mission, "bike_type")
+    assert TrailScoutService._prefers_offroad(mission, make_bike("mtb"))
+    assert not TrailScoutService._prefers_offroad(mission, make_bike("road"))
 
 
 def test_route_candidate_score_ignores_surface_without_offroad_preference():
@@ -449,7 +499,6 @@ def test_get_complete_trail_scout_reports_offroad_share_without_extra_routing():
     session = FakeSession(response=FakeResponse(payload=payload))
     service = make_service(session)
     mission = make_mission(
-        bike_type="mtb",
         avoid_urban=True,
         prefer_rural=True,
         priority_mode="ride_character_first",
@@ -477,7 +526,6 @@ def test_get_complete_trail_scout_warns_when_offroad_target_is_not_met():
     payload = _route_with_surface([{"value": 1, "amount": 40000}])
     service = make_service(FakeSession(response=FakeResponse(payload=payload)))
     mission = make_mission(
-        bike_type="mtb",
         avoid_urban=True,
         prefer_rural=True,
         priority_mode="ride_character_first",
@@ -533,7 +581,7 @@ def test_select_best_route_candidate_uses_multiple_seeds_and_picks_best_anchor_m
 
         def post(self, url, json=None, headers=None, timeout=None):
             self.calls.append(json)
-            seed = json["options"]["round_trip"]["seed"]
+            seed = cast(dict[str, Any], json)["options"]["round_trip"]["seed"]
 
             if seed == 42:
                 return FakeResponse(payload=payload_seed_42)
@@ -608,7 +656,7 @@ def test_select_best_route_candidate_falls_back_when_all_multi_seed_attempts_fai
 
         def post(self, url, json=None, headers=None, timeout=None):
             self.calls.append(json)
-            seed = json["options"]["round_trip"]["seed"]
+            seed = cast(dict[str, Any], json)["options"]["round_trip"]["seed"]
             if seed in {42, 59, 85}:
                 raise requests.exceptions.RequestException("temporary failure")
             return FakeResponse(
@@ -665,13 +713,24 @@ def test_dominant_surface_from_breakdown():
     breakdown = [{"type": "Gravel", "percentage": "70%"}, {"type": "Asphalt", "percentage": "30%"}]
     assert TrailScoutService._dominant_surface_from_breakdown(breakdown) == "Gravel"
     assert TrailScoutService._dominant_surface_from_breakdown([]) == "Unknown"
-    assert TrailScoutService._dominant_surface_from_breakdown([{"type": "Gravel", "percentage": None}]) == "Unknown"
+    assert (
+        TrailScoutService._dominant_surface_from_breakdown([{"type": "Gravel", "percentage": None}])
+        == "Unknown"
+    )
 
 
 def test_weather_snapshot_list():
     weather_report = {
         "tactical_forecast": [
-            {"time": "09:00", "temp": 20, "app_temp": 19, "rain_prob": 10, "rain_mm": 0.0, "wind": 12, "gusts": 20},
+            {
+                "time": "09:00",
+                "temp": 20,
+                "app_temp": 19,
+                "rain_prob": 10,
+                "rain_mm": 0.0,
+                "wind": 12,
+                "gusts": 20,
+            },
             {"hour": "10:00", "temp": 21},
         ]
     }
@@ -703,7 +762,17 @@ def make_service(session):
         },
         weather_getter=lambda lat, lon, target_date=None: {
             "status": "Success",
-            "tactical_forecast": [{"time": "09:00", "temp": 20, "app_temp": 19, "rain_prob": 10, "rain_mm": 0.0, "wind": 12, "gusts": 20}],
+            "tactical_forecast": [
+                {
+                    "time": "09:00",
+                    "temp": 20,
+                    "app_temp": 19,
+                    "rain_prob": 10,
+                    "rain_mm": 0.0,
+                    "wind": 12,
+                    "gusts": 20,
+                }
+            ],
             "reference_conditions": {"temp_max": 24},
             "safety_advice": {"status": "? [GO]"},
         },
@@ -856,8 +925,14 @@ def test_get_complete_trail_scout_uses_selected_route_for_surface_and_exports():
     seen: dict[str, Any] = {}
 
     def recording_surface(
-            api_key, latitude, longitude, rider, bike, mission,
-            target_date=None, route_feature=None,
+        api_key,
+        latitude,
+        longitude,
+        rider,
+        bike,
+        mission,
+        target_date=None,
+        route_feature=None,
     ):
         seen["route_feature"] = route_feature
         return {
@@ -988,7 +1063,7 @@ def test_get_complete_trail_scout_does_not_fetch_second_route_for_surface():
         latitude=45.0,
         longitude=10.0,
         rider=make_rider(),
-        bike=bike,
+        bike=cast(BikeSetup, bike),
         mission=make_mission(),
     )
 
@@ -996,7 +1071,10 @@ def test_get_complete_trail_scout_does_not_fetch_second_route_for_surface():
     assert result["info"]["surface_analysis"]["status"] == "Success"
     assert len(routing_session.calls) == 1
     assert surface_session.calls == []
-    assert result["info"]["distance_km"] == result["info"]["surface_analysis"]["tactical_briefing"]["distance_km"]
+    assert (
+        result["info"]["distance_km"]
+        == result["info"]["surface_analysis"]["tactical_briefing"]["distance_km"]
+    )
 
 
 def test_get_complete_trail_scout_surface_failure_weather_unavailable():
@@ -1015,7 +1093,11 @@ def test_get_complete_trail_scout_surface_failure_weather_unavailable():
         surface_analyzer=lambda *args, **kwargs: {"status": "Error"},
         weather_getter=lambda *args, **kwargs: {"status": "Error"},
         weather_windowing=lambda x, start, end: x,
-        gpx_generator=lambda *args, **kwargs: {"status": "Success", "file_location": "/tmp/x.gpx", "mcp_resource_uri": "uri"},
+        gpx_generator=lambda *args, **kwargs: {
+            "status": "Success",
+            "file_location": "/tmp/x.gpx",
+            "mcp_resource_uri": "uri",
+        },
         uuid_func=lambda: "fixedid",
     )
 
@@ -1053,7 +1135,11 @@ def test_get_complete_trail_scout_weather_exception():
         surface_analyzer=lambda *args, **kwargs: {"status": "Error"},
         weather_getter=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
         weather_windowing=lambda x, start, end: x,
-        gpx_generator=lambda *args, **kwargs: {"status": "Success", "file_location": "/tmp/x.gpx", "mcp_resource_uri": "uri"},
+        gpx_generator=lambda *args, **kwargs: {
+            "status": "Success",
+            "file_location": "/tmp/x.gpx",
+            "mcp_resource_uri": "uri",
+        },
         uuid_func=lambda: "fixedid",
     )
 

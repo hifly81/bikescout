@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import base64
 import os
 import time
@@ -250,11 +268,13 @@ def test_none_elevation_becomes_zero(service):
     result = service._normalize_geometry(geometry)
     assert result[0, 2] == 0.0
 
+
 def test_generate_plot_uses_default_dimensions_when_none(service, valid_geometry_3d):
     result = service.generate_plot(valid_geometry_3d, width=None, height=None)
     assert result.total_distance_km > 0
     assert isinstance(result.image_base64, str)
     assert len(result.image_base64) > 0
+
 
 def test_interpolate_invalid_with_empty_array(service):
     values = np.array([], dtype=float)
@@ -322,6 +342,7 @@ def test_cleanup_old_png_files_ignores_oserror(service, monkeypatch):
     os.utime(target, (old_time, old_time))
 
     from pathlib import Path
+
     original_unlink = Path.unlink
 
     def fake_unlink(self):
@@ -355,6 +376,7 @@ def test_generate_plot_with_none_dimensions_uses_defaults(service, valid_geometr
 
     assert result.total_distance_km > 0
     assert len(result.image_base64) > 0
+
 
 def test_render_plot_bars_uses_fallback_colors_when_grades_empty(service):
     distances_m = np.array([0.0])

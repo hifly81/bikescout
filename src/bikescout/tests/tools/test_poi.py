@@ -1,4 +1,23 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import io
+from typing import Any, cast
 
 import pytest
 import requests
@@ -65,7 +84,7 @@ def stderr_buffer():
 
 @pytest.fixture
 def service(config, stderr_buffer):
-    return PoiScoutService(config=config, session=FakeSession(), stderr=stderr_buffer)
+    return PoiScoutService(config=config, session=cast(Any, FakeSession()), stderr=stderr_buffer)
 
 
 def test_validate_inputs_accepts_valid_values(service):
@@ -264,7 +283,7 @@ def test_get_poi_scout_success(config, stderr_buffer):
     }
 
     session = FakeSession(response=FakeResponse(ok=True, payload=payload))
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+    service = PoiScoutService(config=config, session=cast(Any, session), stderr=stderr_buffer)
 
     result = service.get_poi_scout("key", 45.0, 10.0, 1.5)
 
@@ -278,10 +297,8 @@ def test_get_poi_scout_success(config, stderr_buffer):
 
 
 def test_get_poi_scout_returns_api_error(config, stderr_buffer):
-    session = FakeSession(
-        response=FakeResponse(ok=False, status_code=429, text="rate limit")
-    )
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+    session = FakeSession(response=FakeResponse(ok=False, status_code=429, text="rate limit"))
+    service = PoiScoutService(config=config, session=cast(Any, session), stderr=stderr_buffer)
 
     result = service.get_poi_scout("key", 45.0, 10.0, 1.0)
 
@@ -290,10 +307,8 @@ def test_get_poi_scout_returns_api_error(config, stderr_buffer):
 
 
 def test_get_poi_scout_returns_domain_error_on_invalid_json(config, stderr_buffer):
-    session = FakeSession(
-        response=FakeResponse(ok=True, json_exc=ValueError("bad json"))
-    )
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+    session = FakeSession(response=FakeResponse(ok=True, json_exc=ValueError("bad json")))
+    service = PoiScoutService(config=config, session=cast(Any, session), stderr=stderr_buffer)
 
     result = service.get_poi_scout("key", 45.0, 10.0, 1.0)
 
@@ -308,7 +323,7 @@ def test_get_poi_scout_returns_domain_error_on_invalid_input(service):
 
 def test_get_poi_scout_handles_unexpected_exception(config, stderr_buffer):
     session = FakeSession(exc=requests.RequestException("network boom"))
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+    service = PoiScoutService(config=config, session=cast(Any, session), stderr=stderr_buffer)
 
     result = service.get_poi_scout("key", 45.0, 10.0, 1.0)
 

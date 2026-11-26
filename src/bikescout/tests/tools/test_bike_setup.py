@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import pytest
 
 import bikescout.tools.bike_setup as bike_setup_module
@@ -122,17 +140,12 @@ def test_aggregate_surface_summary_skips_invalid_items(service, surface_map):
     assert service._aggregate_surface_summary(extras, surface_map) == {"Gravel": 2.0}
 
 
-def test_aggregate_surface_summary_returns_empty_for_invalid_extras(
-    service, surface_map
-):
+def test_aggregate_surface_summary_returns_empty_for_invalid_extras(service, surface_map):
     assert service._aggregate_surface_summary([], surface_map) == {}
     assert service._aggregate_surface_summary(None, surface_map) == {}
     assert service._aggregate_surface_summary({}, []) == {}
     assert service._aggregate_surface_summary({"surface": "bad"}, surface_map) == {}
-    assert (
-        service._aggregate_surface_summary({"surface": {"summary": "bad"}}, surface_map)
-        == {}
-    )
+    assert service._aggregate_surface_summary({"surface": {"summary": "bad"}}, surface_map) == {}
 
 
 def test_base_setup_for_known_bike_type(service):
@@ -143,9 +156,7 @@ def test_base_setup_for_unknown_bike_type_defaults_to_road(service):
     assert service._base_setup_for_bike_type("weird-bike") == (85.0, 25, "700c")
 
 
-def test_analyze_compatibility_gravel_critical_for_narrow_road_tires(
-    service, surface_map
-):
+def test_analyze_compatibility_gravel_critical_for_narrow_road_tires(service, surface_map):
     extras = {"surface": {"summary": [{"value": "gravel_code", "amount": 20.0}]}}
 
     breakdown, warnings, is_compatible = service.analyze_compatibility(
@@ -171,9 +182,7 @@ def test_analyze_compatibility_gravel_caution(service, surface_map):
 
 
 @pytest.mark.parametrize("surface_key", ["stone_code", "pebbles_code", "cobble_code"])
-def test_analyze_compatibility_stones_warning_variants(
-    service, surface_map, surface_key
-):
+def test_analyze_compatibility_stones_warning_variants(service, surface_map, surface_key):
     extras = {"surface": {"summary": [{"value": surface_key, "amount": 30.0}]}}
 
     _, warnings, is_compatible = service.analyze_compatibility(
@@ -185,9 +194,7 @@ def test_analyze_compatibility_stones_warning_variants(
 
 
 @pytest.mark.parametrize("surface_key", ["grass_code", "mud_code", "earth_code"])
-def test_analyze_compatibility_soft_terrain_warning_variants(
-    service, surface_map, surface_key
-):
+def test_analyze_compatibility_soft_terrain_warning_variants(service, surface_map, surface_key):
     extras = {"surface": {"summary": [{"value": surface_key, "amount": 30.0}]}}
 
     _, warnings, is_compatible = service.analyze_compatibility(
@@ -228,9 +235,7 @@ def test_analyze_compatibility_sorts_breakdown_desc(service, surface_map):
     assert [entry["type"] for entry in breakdown] == ["Asphalt", "Gravel", "Grass"]
 
 
-def test_analyze_compatibility_invalid_tire_width_falls_back_to_25(
-    service, surface_map
-):
+def test_analyze_compatibility_invalid_tire_width_falls_back_to_25(service, surface_map):
     extras = {"surface": {"summary": [{"value": "gravel_code", "amount": 20.0}]}}
 
     _, warnings, is_compatible = service.analyze_compatibility(
@@ -256,9 +261,7 @@ def test_analyze_compatibility_rim_width_mismatch_is_warning_only(service, surfa
 
     assert breakdown == []
     assert is_compatible is True
-    assert any(
-        "Rim-Width Mismatch" in warning and "19mm" in warning for warning in warnings
-    )
+    assert any("Rim-Width Mismatch" in warning and "19mm" in warning for warning in warnings)
 
 
 def test_analyze_compatibility_accepts_valid_rim_width(service, surface_map):
@@ -300,9 +303,7 @@ def test_get_tire_setup_for_unknown_bike_type_defaults_to_road(service):
         ("gravel", "weird", "700c", 40),
     ],
 )
-def test_get_tire_setup_wheel_labels(
-    service, bike_type, tire_size, expected_label, expected_width
-):
+def test_get_tire_setup_wheel_labels(service, bike_type, tire_size, expected_label, expected_width):
     setup = service.get_tire_setup(bike_type, tire_size, rider_weight_kg=85.0)
 
     assert setup.wheel_label == expected_label
@@ -311,9 +312,7 @@ def test_get_tire_setup_wheel_labels(
 
 def test_get_tire_setup_mud_flotation(service):
     baseline = service.get_tire_setup("gravel", "700c", rider_weight_kg=85.0)
-    muddy = service.get_tire_setup(
-        "gravel", "700c", mud_index=0.9, rider_weight_kg=85.0
-    )
+    muddy = service.get_tire_setup("gravel", "700c", mud_index=0.9, rider_weight_kg=85.0)
 
     assert muddy.strategy == "Mud Flotation"
     assert muddy.knob_choice == "Mud Spikes"
@@ -363,16 +362,12 @@ def test_get_tire_setup_invalid_weight_falls_back_to_default(service):
 
 
 def test_get_tire_setup_invalid_mud_index_falls_back_to_zero(service):
-    setup = service.get_tire_setup(
-        "gravel", "700c", mud_index="bad", rider_weight_kg=85.0
-    )
+    setup = service.get_tire_setup("gravel", "700c", mud_index="bad", rider_weight_kg=85.0)
     assert setup.strategy == "Standard"
 
 
 def test_get_tire_setup_non_string_surface_type_falls_back_to_mixed(service):
-    setup = service.get_tire_setup(
-        "road", "700c", surface_type=None, rider_weight_kg=85.0
-    )
+    setup = service.get_tire_setup("road", "700c", surface_type=None, rider_weight_kg=85.0)
     assert setup.strategy == "Standard"
 
 
@@ -405,12 +400,8 @@ def test_get_tire_setup_differentiates_front_rear_for_all_profiles(
 
 
 def test_get_tire_setup_casing_stiffness_reduces_pressure(service):
-    lightweight = service.get_tire_setup(
-        "mtb", "29", rider_weight_kg=85.0, casing_type="xc"
-    )
-    downhill = service.get_tire_setup(
-        "mtb", "29", rider_weight_kg=85.0, casing_type="dh"
-    )
+    lightweight = service.get_tire_setup("mtb", "29", rider_weight_kg=85.0, casing_type="xc")
+    downhill = service.get_tire_setup("mtb", "29", rider_weight_kg=85.0, casing_type="dh")
 
     assert downhill.psi_rear < lightweight.psi_rear
 

@@ -70,12 +70,12 @@ class MudAnalysisConfig:
 
 class MudAnalysisService:
     def __init__(
-            self,
-            config: MudAnalysisConfig | None = None,
-            requests_session: Any | None = None,
-            timezone_finder: Any | None = None,
-            solar_altitude_func: Callable[[float, float, datetime], float] | None = None,
-            now_func: Callable[[zoneinfo.ZoneInfo], datetime] | None = None,
+        self,
+        config: MudAnalysisConfig | None = None,
+        requests_session: Any | None = None,
+        timezone_finder: Any | None = None,
+        solar_altitude_func: Callable[[float, float, datetime], float] | None = None,
+        now_func: Callable[[zoneinfo.ZoneInfo], datetime] | None = None,
     ) -> None:
         self.config = config or MudAnalysisConfig()
         self.requests_session = requests_session or requests
@@ -84,11 +84,11 @@ class MudAnalysisService:
         self.now_func = now_func or (lambda tz: datetime.now(tz))
 
     def get_mud_risk_analysis(
-            self,
-            lat: float,
-            lon: float,
-            surface_type: str = "dirt",
-            target_date: str | None = None,
+        self,
+        lat: float,
+        lon: float,
+        surface_type: str = "dirt",
+        target_date: str | None = None,
     ) -> dict[str, Any]:
         try:
             lat = self._coerce_float(lat, 0.0)
@@ -106,7 +106,9 @@ class MudAnalysisService:
             url = self.config.forecast_url if is_predictive else self.config.archive_url
             params = self._build_weather_params(lat, lon, start_date, end_date, tz_name)
 
-            response = self.requests_session.get(url, params=params, timeout=self.config.request_timeout_seconds)
+            response = self.requests_session.get(
+                url, params=params, timeout=self.config.request_timeout_seconds
+            )
             response.raise_for_status()
             payload = response.json()
             data = payload.get("hourly", {}) if isinstance(payload, dict) else {}
@@ -129,7 +131,7 @@ class MudAnalysisService:
             recent_dt_sum = 0.0
 
             for current_dt, rain, temp, wind, cloud in self._iter_hourly_points(
-                    times, precips, temps, winds, clouds, local_tz
+                times, precips, temps, winds, clouds, local_tz
             ):
                 if current_dt < start_date or current_dt > end_date:
                     continue
@@ -147,7 +149,7 @@ class MudAnalysisService:
 
                 solar_factor = 1.0
                 if solar_alt > 20:
-                    solar_factor += ((solar_alt / 90.0) * (1.0 - (cloud / 100.0)))
+                    solar_factor += (solar_alt / 90.0) * (1.0 - (cloud / 100.0))
                     pet_hours += 1
 
                 Dt = temp_factor * wind_factor * solar_factor
@@ -215,7 +217,9 @@ class MudAnalysisService:
         return self.now_func(local_tz)
 
     @staticmethod
-    def _build_weather_params(lat: float, lon: float, start_date: datetime, end_date: datetime, tz_name: str) -> dict[str, Any]:
+    def _build_weather_params(
+        lat: float, lon: float, start_date: datetime, end_date: datetime, tz_name: str
+    ) -> dict[str, Any]:
         return {
             "latitude": lat,
             "longitude": lon,
@@ -263,7 +267,9 @@ class MudAnalysisService:
             yield current_dt, rain, temp, wind, cloud
 
     @staticmethod
-    def _dry_time_eta(moisture: float, base_k: float, avg_recent_dt: float, surface_type: str) -> int:
+    def _dry_time_eta(
+        moisture: float, base_k: float, avg_recent_dt: float, surface_type: str
+    ) -> int:
         dry_threshold = 2.0
         eta_hours = 0
         sim_M = moisture
@@ -277,8 +283,8 @@ class MudAnalysisService:
 
     @staticmethod
     def _traction_risk(
-            traction_index: float,
-            surface_type: str = "dirt",
+        traction_index: float,
+        surface_type: str = "dirt",
     ) -> tuple[str, str]:
         """Translate the raw slip index into a surface-aware grip briefing.
 
@@ -327,17 +333,33 @@ def _get_seasonal_saturation_bias(reference_date: datetime, lat: float) -> float
 
     if is_northern_hemisphere:
         seasonal_map = {
-            12: 18.0, 1: 20.0, 2: 18.0,
-            3: 12.0, 4: 8.0, 5: 4.0,
-            6: 1.0, 7: 0.0, 8: 0.0,
-            9: 2.0, 10: 6.0, 11: 14.0,
+            12: 18.0,
+            1: 20.0,
+            2: 18.0,
+            3: 12.0,
+            4: 8.0,
+            5: 4.0,
+            6: 1.0,
+            7: 0.0,
+            8: 0.0,
+            9: 2.0,
+            10: 6.0,
+            11: 14.0,
         }
     else:
         seasonal_map = {
-            6: 18.0, 7: 20.0, 8: 18.0,
-            9: 12.0, 10: 8.0, 11: 4.0,
-            12: 1.0, 1: 0.0, 2: 0.0,
-            3: 2.0, 4: 6.0, 5: 14.0,
+            6: 18.0,
+            7: 20.0,
+            8: 18.0,
+            9: 12.0,
+            10: 8.0,
+            11: 4.0,
+            12: 1.0,
+            1: 0.0,
+            2: 0.0,
+            3: 2.0,
+            4: 6.0,
+            5: 14.0,
         }
 
     return float(seasonal_map.get(month, 0.0))
@@ -347,10 +369,10 @@ service = MudAnalysisService()
 
 
 def get_mud_risk_analysis(
-        lat: float,
-        lon: float,
-        surface_type: str = "dirt",
-        target_date: str | None = None,
+    lat: float,
+    lon: float,
+    surface_type: str = "dirt",
+    target_date: str | None = None,
 ) -> dict[str, Any]:
     return service.get_mud_risk_analysis(
         lat=lat,

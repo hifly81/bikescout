@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import pytest
 
 import bikescout.tools.battery as battery_module
@@ -64,26 +82,33 @@ def test_weighted_crr_default_for_invalid_input(service):
 
 
 def test_weighted_crr_computes_weighted_value(service):
-    result = service._weighted_crr({
-        "Asphalt": 50,
-        "Gravel": 50,
-    })
+    result = service._weighted_crr(
+        {
+            "Asphalt": 50,
+            "Gravel": 50,
+        }
+    )
     assert result == pytest.approx(0.0095)
 
 
 def test_weighted_crr_uses_unknown_surface_default(service):
-    result = service._weighted_crr({
-        "Unknown Surface": 100,
-    })
+    result = service._weighted_crr(
+        {
+            "Unknown Surface": 100,
+        }
+    )
     assert result == pytest.approx(0.020)
 
 
 def test_weighted_crr_handles_invalid_percentages(service):
-    result = service._weighted_crr({
-        "Asphalt": "bad",
-        "Gravel": 50,
-    })
+    result = service._weighted_crr(
+        {
+            "Asphalt": "bad",
+            "Gravel": 50,
+        }
+    )
     assert result == pytest.approx(0.0075)
+
 
 def test_battery_status(service):
     assert service._battery_status(50) == "SAFE"
@@ -221,7 +246,12 @@ def test_module_level_wrapper(monkeypatch):
 
         def calculate_battery_drain(self, **kwargs):
             self.calls.append(kwargs)
-            return {"status": "Success", "battery_metrics": {}, "power_breakdown_w": {}, "tactical_advice": "Pace maintained"}
+            return {
+                "status": "Success",
+                "battery_metrics": {},
+                "power_breakdown_w": {},
+                "tactical_advice": "Pace maintained",
+            }
 
     fake_service = FakeService()
     monkeypatch.setattr(battery_module, "service", fake_service)
@@ -238,6 +268,7 @@ def test_module_level_wrapper(monkeypatch):
 
     assert result["status"] == "Success"
     assert len(fake_service.calls) == 1
+
 
 def test_motor_efficiency_base(service):
     assert service._motor_efficiency(0.05, 20.0) == pytest.approx(0.85)

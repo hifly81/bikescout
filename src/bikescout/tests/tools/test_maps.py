@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import os
 import time
 from pathlib import Path
@@ -410,7 +428,9 @@ def test_build_map_solid_adds_one_line_and_markers(service, patched_staticmap):
     assert len(map_obj.markers) == 4
 
 
-def test_save_local_tactical_map_success_gradient(service, geojson_linestring_3d, patched_staticmap):
+def test_save_local_tactical_map_success_gradient(
+    service, geojson_linestring_3d, patched_staticmap
+):
     result = service.save_local_tactical_map(
         filename_part="test-map",
         geojson_data=geojson_linestring_3d,
@@ -424,7 +444,9 @@ def test_save_local_tactical_map_success_gradient(service, geojson_linestring_3d
     assert Path(result["file_location"]).exists()
 
 
-def test_save_local_tactical_map_success_solid_for_2d(service, geojson_linestring_2d, patched_staticmap):
+def test_save_local_tactical_map_success_solid_for_2d(
+    service, geojson_linestring_2d, patched_staticmap
+):
     result = service.save_local_tactical_map(
         filename_part="test-map",
         geojson_data=geojson_linestring_2d,
@@ -438,18 +460,9 @@ def test_save_local_tactical_map_success_solid_for_2d(service, geojson_linestrin
     assert Path(result["file_location"]).exists()
 
 
-def test_save_local_tactical_map_rejects_non_positive_line_width(service, geojson_linestring_3d):
-    result = service.save_local_tactical_map(
-        filename_part="bad-width",
-        geojson_data=geojson_linestring_3d,
-        line_width=0,
-    )
-
-    assert result["status"] == "Error"
-    assert "Line width must be positive" in result["message"]
-
-
-def test_save_local_tactical_map_sanitizes_filename(service, geojson_linestring_3d, patched_staticmap):
+def test_save_local_tactical_map_sanitizes_filename(
+    service, geojson_linestring_3d, patched_staticmap
+):
     result = service.save_local_tactical_map(
         filename_part="bad/name:value",
         geojson_data=geojson_linestring_3d,
@@ -469,7 +482,9 @@ def test_save_local_tactical_map_handles_domain_error(service):
     assert "No features found" in result["message"]
 
 
-def test_save_local_tactical_map_handles_unexpected_exception(service, geojson_linestring_3d, monkeypatch):
+def test_save_local_tactical_map_handles_unexpected_exception(
+    service, geojson_linestring_3d, monkeypatch
+):
     def boom(*args, **kwargs):
         raise RuntimeError("boom")
 
@@ -541,8 +556,11 @@ def test_extract_linestring_points_skips_bad_coordinate_entries(service):
 
     assert len(points) == 2
 
+
 @pytest.mark.parametrize("line_width", [0, -1, -5])
-def test_save_local_tactical_map_rejects_non_positive_line_width(service, geojson_linestring_3d, line_width):
+def test_save_local_tactical_map_rejects_non_positive_line_width(
+    service, geojson_linestring_3d, line_width
+):
     result = service.save_local_tactical_map(
         filename_part="bad-width",
         geojson_data=geojson_linestring_3d,
@@ -552,7 +570,10 @@ def test_save_local_tactical_map_rejects_non_positive_line_width(service, geojso
     assert result["status"] == "Error"
     assert "Line width must be positive" in result["message"]
 
-def test_save_local_tactical_map_uses_default_line_width_when_none(service, geojson_linestring_3d, patched_staticmap):
+
+def test_save_local_tactical_map_uses_default_line_width_when_none(
+    service, geojson_linestring_3d, patched_staticmap
+):
     result = service.save_local_tactical_map(
         filename_part="default-width",
         geojson_data=geojson_linestring_3d,

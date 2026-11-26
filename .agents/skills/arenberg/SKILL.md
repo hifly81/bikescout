@@ -11,8 +11,8 @@ The Trouée d'Arenberg (Tranchée de Wallers-Arenberg) is a 2.3km sector of anci
 
 # Instructions
 
-1.  **Strategic Scouting:** Use `geocode_location` for **Wallers** or **Arenberg**. When using `trail_scout`, ensure the profile is set to `cycling-regular` or `cycling-mountain` to account for the extreme rolling resistance of the cobbles.
-2.  **The "Mud & Moss" Intelligence:** Use the `check_trail_soil_condition` and `check_trail_weather` tools. If humidity has been >80% in the last 48 hours, warn the rider that the central crown of the pavé will be "Level 5: Ice-like".
+1.  **Strategic Scouting:** Use `geocode_location` for **Wallers** or **Arenberg**, then call `trail_scout_simple` with the returned coordinates, `bike_type="road"` (or `"gravel"`) and `profile="cycling-road"` (or `"cycling-mountain"` for the rough sectors). `trail_scout` is only for typed `RiderProfile`/`BikeSetup`/`MissionConstraints` payloads.
+2.  **The "Mud & Moss" Intelligence:** Use `ride_window_planner(lat=..., lon=..., surface_type="clay")` and `check_trail_weather(lat=..., lon=...)`; set `include_weather=True` and `include_mud_analysis=True` on the mission call. No humidity-history tool is registered, so never claim past humidity values.
 3.  **Mechanical Setup (The Roubaix Protocol):**
     * **Tires:** Recommend a minimum of 30mm-32mm for Road/Gravel. Tubeless is mandatory.
     * **Pressure:** Suggest a specific "Cobble Pressure" (typically 0.5 to 1.0 bar lower than standard asphalt) but warn about the risk of bottoming out on the square-edged stones.

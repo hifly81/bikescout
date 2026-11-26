@@ -23,3 +23,7 @@ models/
 
 .agents/skills/developing-with-streamlit
 uv.lock
+
+# Local contributor/agent harness, kept outside the published repository
+AGENTS.md
+docs/

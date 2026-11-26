@@ -103,19 +103,19 @@ Contributions are what make the open-source community such an amazing place to l
 ### How to Contribute
 
 1. **Report Bugs**: Found a glitch? Open an [Issue](https://github.com/hifly81/bikescout/issues) with a detailed description and steps to reproduce.
-2. **Feature Requests**: Have an idea to make BikeScout better? Open an issue to discuss it!
+2. **Feature Requests**: Have an idea to make BikeScout better? Open an issue to discuss it first.
 3. **Pull Requests**:
-   - Fork the Project.
-   - Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-   - Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-   - Push the branch (`git push -u origin feature/AmazingFeature`). AI agents must never push.
-   - Open a Pull Request.
+   - Fork the repository and create a feature branch (`git checkout -b feature/AmazingFeature`).
+   - Make a focused change with clear commits. Keep comments in English.
+   - If you touch Python under `src/`, run `uv run ruff check`, `uv run ruff format --check`, `uv run pyright` and `uv run pytest --cov=src/bikescout --cov-fail-under=80` before opening the PR.
+   - Push the branch (`git push -u origin feature/AmazingFeature`) and open a Pull Request describing the change and the checks you ran.
+   - Discuss changes to public MCP tool signatures, tool names or Streamlit session keys in an issue before opening the PR.
 
-Development gates require `uv sync --extra test --extra dev` and `uv run lefthook install`; see `AGENTS.md` and `docs/PROCESS.md`. Set `ORS_API_KEY` in a local, untracked `.env` — never in committed client configs.
+Development setup: `uv sync --extra test --extra dev`. Set `ORS_API_KEY` in a local, untracked `.env` — never in committed client configs.
 
 ### Coding Standards
 - Please follow [PEP 8](https://peps.python.org/pep-0008/) for Python code.
-- Ensure all new tools are documented in the `README.md`.
+- Document new tools and schema changes in `site/documentation/api-reference.html`, with tests.
 - Keep comments in English for international collaboration.
 
 *By contributing, you agree that your contributions will be licensed under the project's AGPLv3 License.*

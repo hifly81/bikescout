@@ -68,6 +68,7 @@ from bikescout.app_ui_helpers import (
 from bikescout.mcp_server import (
     analyze_gpx_track,
     geocode_location,
+    ride_window_planner,
     trail_scout_simple,
 )
 from bikescout.tools.bike_setup import (
@@ -83,6 +84,37 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+
+def _gonogo_surface_for_bike(
+    bike_type: str,
+) -> Literal["dirt", "gravel", "asphalt", "sand", "clay"]:
+    if bike_type == "road":
+        return "asphalt"
+    if bike_type == "gravel":
+        return "gravel"
+    return "dirt"
+
+
+def _run_gonogo_for_request(
+    request: dict[str, Any], *, lat: float, lon: float, bike_type: str
+) -> tuple[dict[str, Any] | None, str | None]:
+    duration = ext_cast(request.get("gonogo_duration_hours"), float, 2.0)
+    target_date = request.get("gonogo_target_date") or request.get("target_date")
+    try:
+        result = ride_window_planner(
+            lat=float(lat),
+            lon=float(lon),
+            ride_duration_hours=float(duration),
+            surface_type=_gonogo_surface_for_bike(str(bike_type)),
+            target_date=str(target_date) if target_date else None,
+        )
+        data = cast(
+            dict[str, Any], result.model_dump() if hasattr(result, "model_dump") else result
+        )
+        return data, None
+    except Exception as exc:  # noqa: BLE001 - UI should surface tool failure
+        return None, f"{type(exc).__name__}: {exc}"
 
 
 def _execute_and_store_request(plan_request: dict) -> None:
@@ -300,6 +332,14 @@ def execute_plan_request(plan_request: dict) -> tuple[str, bool]:
 
         if not res_data or res_data.get("status") != "Success":
             return "The system could not generate a route for this configuration.", False
+
+        gonogo_data, gonogo_error = _run_gonogo_for_request(
+            plan_request, lat=float(geo.lat), lon=float(geo.lon), bike_type=final_bike
+        )
+        if gonogo_data is not None:
+            res_data["ride_window_planner"] = gonogo_data
+        if gonogo_error:
+            res_data["ride_window_planner_error"] = gonogo_error
 
         reset_climb_profile_state()
         render_route_results(res_data)
@@ -577,6 +617,23 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
                 result.model_dump() if hasattr(result, "model_dump") else result,
             )
 
+            status_box.update(label="Checking ride window...", state="running")
+            gonogo_target = args.get("gonogo_target_date") or args.get("target_date")
+            gonogo_duration = ext_cast(args.get("gonogo_duration_hours"), float, 2.0)
+            gonogo_result, gonogo_error = _run_gonogo_for_request(
+                {
+                    "gonogo_duration_hours": gonogo_duration,
+                    "gonogo_target_date": gonogo_target,
+                },
+                lat=float(cast(Any, args.get("latitude"))),
+                lon=float(cast(Any, args.get("longitude"))),
+                bike_type=final_bike,
+            )
+            if gonogo_result is not None:
+                res_data["ride_window_planner"] = gonogo_result
+            if gonogo_error:
+                res_data["ride_window_planner_error"] = gonogo_error
+
             with st.expander("Engine debug - Response", expanded=False):
                 st.json(res_data)
 
@@ -796,6 +853,30 @@ def render_plan_tab() -> None:
             include_nutrition = st.checkbox("Nutrition plan", value=True, key="guided_nutrition")
             include_altimetry = st.checkbox("Altimetry", value=True, key="guided_altimetry")
 
+        st.markdown("#### Go/No-Go window")
+        g1, g2 = st.columns(2)
+        with g1:
+            gonogo_duration_hours = st.number_input(
+                "Ride duration (h)",
+                min_value=0.5,
+                max_value=12.0,
+                value=2.0,
+                step=0.5,
+                key="guided_gonogo_duration",
+                help="Used by the automatic Go/No-Go report.",
+            )
+        with g2:
+            gonogo_use_date = st.checkbox(
+                "Set target date", value=False, key="guided_gonogo_use_date"
+            )
+            gonogo_target_date = st.date_input(
+                "Target date",
+                value=date.today(),
+                key="guided_gonogo_target_date",
+                disabled=not gonogo_use_date,
+                help="Optional target date for the Go/No-Go report.",
+            )
+
         submitted = st.form_submit_button("Generate ride plan", type="primary")
 
     if submitted:
@@ -888,6 +969,8 @@ def render_plan_tab() -> None:
             "include_nutrition": include_nutrition,
             "include_gpx": include_gpx,
             "include_altimetry": include_altimetry,
+            "gonogo_duration_hours": float(gonogo_duration_hours),
+            "gonogo_target_date": gonogo_target_date.isoformat() if gonogo_use_date else None,
         }
 
         st.session_state["pending_plan_request"] = plan_request

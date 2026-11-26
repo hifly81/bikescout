@@ -16,39 +16,49 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
-from bikescout.tools.gonogo import calculate_ride_windows, _clean_weather_value
+
+import pytest
+
+from bikescout.tools.gonogo import _duration_slots, calculate_ride_windows, _clean_weather_value
 
 
 class TestPlanner:
     @pytest.fixture
     def mock_weather_data(self):
-        """Genera 24 ore di meteo perfetto."""
-        forecast = []
-        for h in range(24):
-            forecast.append(
+        return {
+            "status": "Success",
+            "tactical_forecast": [
                 {"time": f"{h:02d}:00", "rain_prob": "0%", "wind": "10 km/h", "temp": "20C"}
-            )
-        return {"tactical_forecast": forecast}
+                for h in range(24)
+            ],
+        }
 
     @patch("bikescout.tools.gonogo.get_weather_forecast")
     @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
     def test_perfect_day_go_verdict(self, mock_mud, mock_weather, mock_weather_data):
         mock_weather.return_value = mock_weather_data
-        mock_mud.return_value = {"mud_risk_score": 0}
+        mock_mud.return_value = {
+            "status": "Success",
+            "tactical_analysis": {"mud_risk_numeric": 0.0},
+            "metadata": {"model_confidence": "low"},
+        }
 
         result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2, surface_type="asphalt")
 
         assert result["status"] == "Success"
         assert result["planner_report"]["verdict"] == "GO"
         assert result["planner_report"]["tactical_color"] == "GREEN"
+        mock_mud.assert_called_once_with(41.9, 12.4, "asphalt", target_date=None)
 
     @patch("bikescout.tools.gonogo.get_weather_forecast")
     @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
     def test_night_ride_no_go(self, mock_mud, mock_weather, mock_weather_data):
         mock_weather.return_value = mock_weather_data
-        mock_mud.return_value = {"mud_risk_score": 0}
+        mock_mud.return_value = {
+            "status": "Success",
+            "tactical_analysis": {"mud_risk_numeric": 0.0},
+        }
 
         result = calculate_ride_windows(45.0, 9.0, ride_duration_hours=12, target_date="2026-12-21")
 
@@ -58,18 +68,80 @@ class TestPlanner:
     @patch("bikescout.tools.gonogo.get_weather_forecast")
     @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
     def test_extreme_weather_penalties(self, mock_mud, mock_weather):
-        bad_weather = {
+        mock_weather.return_value = {
+            "status": "Success",
             "tactical_forecast": [
                 {"time": f"{h:02d}:00", "rain_prob": 90, "wind": 50, "temp": 2} for h in range(24)
-            ]
+            ],
         }
-        mock_weather.return_value = bad_weather
-        mock_mud.return_value = {"mud_risk_score": 80}
+        mock_mud.return_value = {
+            "status": "Success",
+            "tactical_analysis": {"mud_risk_numeric": 20.0},
+        }
 
         result = calculate_ride_windows(45.0, 9.0, ride_duration_hours=2, surface_type="dirt")
 
         assert result["planner_report"]["tactical_color"] == "RED"
         assert result["planner_report"]["verdict"] == "NO-GO"
+        assert result["planner_report"]["mud_risk_impact"] == "20.0mm"
+
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
+    def test_mud_penalty_is_applied(self, mock_mud, mock_weather, mock_weather_data):
+        mock_weather.return_value = mock_weather_data
+        mock_mud.return_value = {
+            "status": "Success",
+            "tactical_analysis": {"mud_risk_numeric": 80.0},
+        }
+
+        result = calculate_ride_windows(45.0, 9.0, ride_duration_hours=2, surface_type="dirt")
+
+        assert result["planner_report"]["verdict"] == "CAUTION"
+        assert result["planner_report"]["mud_risk_impact"] == "80.0mm"
+
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
+    def test_mud_error_downgrades_go_to_caution(self, mock_mud, mock_weather, mock_weather_data):
+        mock_weather.return_value = mock_weather_data
+        mock_mud.return_value = {"status": "Error", "message": "mud unavailable"}
+
+        result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2, surface_type="dirt")
+
+        assert result["planner_report"]["verdict"] == "CAUTION"
+        assert result["planner_report"]["mud_risk_impact"] == "Unavailable"
+        assert result["planner_report"]["environmental_briefing"]["mud_available"] is False
+
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    def test_weather_error_returns_actionable_error(self, mock_weather):
+        mock_weather.return_value = {"status": "Error", "message": "provider down"}
+
+        result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2)
+
+        assert result["status"] == "Error"
+        assert "Weather forecast unavailable" in result["message"]
+        assert result["next_step"]
+
+    @patch("bikescout.tools.gonogo.get_weather_forecast")
+    @patch("bikescout.tools.gonogo.get_mud_risk_analysis")
+    def test_duration_is_rounded_up(self, mock_mud, mock_weather, mock_weather_data):
+        mock_weather.return_value = mock_weather_data
+        mock_mud.return_value = {
+            "status": "Success",
+            "tactical_analysis": {"mud_risk_numeric": 0.0},
+        }
+
+        result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2.5, surface_type="asphalt")
+
+        assert result["status"] == "Success"
+        assert result["metadata"]["requested_duration_hours"] == 2.5
+        # 2.5h should require 3 hourly slots, so window spans 2 hours difference in labels.
+        start, end = result["planner_report"]["best_window"].split(" - ")
+        assert int(end.split(":")[0]) - int(start.split(":")[0]) == 2
+
+    def test_duration_slots_helper(self):
+        assert _duration_slots(2.5, 24) == 3
+        assert _duration_slots(0, 24) == 1
+        assert _duration_slots(99, 5) == 5
 
     def test_weather_cleaning_utility(self):
         assert _clean_weather_value("25°C") == 25.0
@@ -84,7 +156,10 @@ class TestPlanner:
     def test_solar_visibility_exception(self, mock_mud, mock_weather, mock_sun, mock_weather_data):
         mock_sun.side_effect = Exception("Astral calculation failed")
         mock_weather.return_value = mock_weather_data
-        mock_mud.return_value = {"tactical_analysis": {"mud_risk_numeric": 0.0}}
+        mock_mud.return_value = {
+            "status": "Success",
+            "tactical_analysis": {"mud_risk_numeric": 0.0},
+        }
 
         result = calculate_ride_windows(41.9, 12.4, ride_duration_hours=2, surface_type="asphalt")
 

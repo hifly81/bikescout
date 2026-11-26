@@ -596,13 +596,19 @@ class WeatherContext(BaseModel):
 class EnvironmentalBriefing(BaseModel):
     """Aggregated environmental metrics for the selected mission window."""
 
-    message: str | None = Field(None, description="No go message")
+    message: str | None = Field(None, description="Contextual planning message")
     rain_avg: str | None = Field(
         None, description="Average probability of precipitation (e.g., '0%')"
     )
     wind_max: str | None = Field(None, description="Maximum expected wind speed (e.g., '8 km/h')")
     temp_avg: str | None = Field(
         None, description="Average temperature during the mission (e.g., '11°C')"
+    )
+    mud_score_mm: float | None = Field(
+        None, description="TAEL mud moisture index in mm when available; null otherwise."
+    )
+    mud_available: bool | None = Field(
+        None, description="Whether mud analysis was available for scoring."
     )
 
 
@@ -882,11 +888,14 @@ class StrategicPlannerResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    message: str | None = Field(None, description="Error message when status is Error.")
+    next_step: str | None = Field(None, description="Actionable next step when status is Error.")
     metadata: dict[str, Any] = Field(
-        ..., description="Metadata including analyzed date and surface type"
+        default_factory=dict,
+        description="Metadata including analyzed date, surface type, solar window and mud availability.",
     )
-    planner_report: PlannerReport = Field(
-        ..., description="Strategic assessment and tactical timing"
+    planner_report: PlannerReport | None = Field(
+        None, description="Strategic assessment and tactical timing; null on Error."
     )
 
 

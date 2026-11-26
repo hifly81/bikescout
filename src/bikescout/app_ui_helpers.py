@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import html
 import os
 import re
 from pathlib import Path
@@ -1109,6 +1110,85 @@ def _nutrition_note(briefing: dict) -> str | None:
     return " ".join(parts) or None
 
 
+def render_gonogo_report(gonogo: dict[str, Any] | None, error: str | None = None) -> None:
+    """Render a Go/No-Go planner report in the Streamlit UI."""
+    if error:
+        st.warning(f"Go/No-Go report unavailable: {error}")
+        return
+    if not isinstance(gonogo, dict):
+        st.warning("Go/No-Go report unavailable.")
+        return
+
+    if gonogo.get("status") != "Success":
+        msg = str(gonogo.get("message") or "Go/No-Go planning failed.")
+        next_step = gonogo.get("next_step")
+        st.error(msg)
+        if next_step:
+            st.info(f"**Next step:** {next_step}")
+        return
+
+    report = gonogo.get("planner_report") or {}
+    metadata = gonogo.get("metadata") or {}
+    briefing = report.get("environmental_briefing") or {}
+    verdict = str(report.get("verdict") or "UNKNOWN").upper()
+    tactical_color = str(report.get("tactical_color") or "RED").upper()
+    best_window = str(report.get("best_window") or "N/A")
+    confidence = str(report.get("confidence_score") or "0/100")
+    mud_impact = str(report.get("mud_risk_impact") or "Unavailable")
+
+    color = (
+        "#22c55e"
+        if tactical_color == "GREEN"
+        else "#f59e0b"
+        if tactical_color == "YELLOW"
+        else "#ef4444"
+    )
+    verdict_label = "Go" if verdict == "GO" else "Caution" if verdict == "CAUTION" else "No-Go"
+
+    st.markdown(
+        f"""
+        <div class="bs-score-card" style="margin-top:0.25rem;">
+            <div class="bs-score-label">Go/No-Go verdict</div>
+            <div class="bs-score-value" style="color:{color};">{html.escape(verdict_label)}</div>
+            <div class="bs-score-sub">Confidence: {html.escape(confidence)} · Best window: {html.escape(best_window)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        metric_card("Rain avg", str(briefing.get("rain_avg") or "N/A"), "🌧️", "#38bdf8")
+    with c2:
+        metric_card("Wind max", str(briefing.get("wind_max") or "N/A"), "💨", "#a78bfa")
+    with c3:
+        metric_card("Temp avg", str(briefing.get("temp_avg") or "N/A"), "🌡️", "#f59e0b")
+    with c4:
+        metric_card("Mud impact", mud_impact, "🟤", "#d97706", "TAEL mm index")
+
+    briefing_message = briefing.get("message")
+    if briefing_message:
+        if verdict == "GO":
+            st.success(str(briefing_message))
+        elif verdict == "CAUTION":
+            st.warning(str(briefing_message))
+        else:
+            st.error(str(briefing_message))
+
+    solar = metadata.get("solar_window")
+    mud_status = metadata.get("mud_status")
+    mud_conf = metadata.get("model_confidence")
+    caption_parts = []
+    if solar:
+        caption_parts.append(f"Solar window: {solar}")
+    if mud_status:
+        caption_parts.append(f"Mud status: {mud_status}")
+    if mud_conf:
+        caption_parts.append(f"Mud confidence: {mud_conf}")
+    if caption_parts:
+        st.caption(" · ".join(str(p) for p in caption_parts))
+
+
 def _altimetry_caption(res_data: dict) -> str | None:
     """Build a compact data-credit and uncertainty note for the elevation chart."""
     source = res_data.get("elevation_source")
@@ -1732,6 +1812,15 @@ def render_route_results(res_data: dict) -> None:
                             f"</div>"
                         )
                         st.markdown(card_html, unsafe_allow_html=True)
+
+    gonogo = res_data.get("ride_window_planner")
+    gonogo_error = res_data.get("ride_window_planner_error")
+    if gonogo or gonogo_error:
+        section_intro(
+            "Go/No-Go ride window",
+            "Heuristic daylight, weather, and TAEL mud-risk planning signal. Verify local conditions before riding.",
+        )
+        render_gonogo_report(gonogo, gonogo_error)
 
     nutrition = logistics.get("nutrition_plan", {}) if logistics else {}
     if nutrition:

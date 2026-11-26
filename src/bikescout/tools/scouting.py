@@ -333,18 +333,60 @@ class TrailScoutService:
                 dest_longitude=dest_longitude,
             )
 
+            perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
+            estimated_hours = perf["estimated_hours"]
+            intensity_score = perf["intensity_score"]
+            estimated_speed_kmh = float(perf.get("applied_base_speed", 18.0))
+
+            ambient_temp_c: float | None = None
+            weather_report: dict[str, Any] | None = None
+            if include_weather:
+                try:
+                    weather_report = self.weather_getter(latitude, longitude, target_date)
+                    if weather_report.get("status") == "Success":
+                        ref = weather_report.get("reference_conditions", {})
+                        temp_candidate = ref.get(
+                            "temp_actual", ref.get("temp", ref.get("temp_max"))
+                        )
+                        try:
+                            ambient_temp_c = float(temp_candidate)
+                        except (TypeError, ValueError):
+                            ambient_temp_c = None
+                    else:
+                        weather_report = None
+                except Exception as e:
+                    response_payload["conditions"]["weather_error"] = f"Technical bypass: {e!s}"
+                    weather_report = None
+
             surface_report: dict[str, Any]
             try:
-                surface_report = self.surface_analyzer(
-                    api_key,
-                    latitude,
-                    longitude,
-                    rider,
-                    bike,
-                    mission,
-                    target_date,
-                    route_feature=feature,
-                )
+                try:
+                    surface_report = self.surface_analyzer(
+                        api_key,
+                        latitude,
+                        longitude,
+                        rider,
+                        bike,
+                        mission,
+                        target_date,
+                        route_feature=feature,
+                        estimated_speed_kmh=estimated_speed_kmh,
+                        intensity_score=intensity_score,
+                        ambient_temp_c=ambient_temp_c,
+                    )
+                except TypeError as te:
+                    if "unexpected keyword argument" not in str(te):
+                        raise
+                    surface_report = self.surface_analyzer(
+                        api_key,
+                        latitude,
+                        longitude,
+                        rider,
+                        bike,
+                        mission,
+                        target_date,
+                        route_feature=feature,
+                    )
             except Exception as e:
                 surface_report = {"status": "Error", "message": f"Surface Analysis failed: {e!s}"}
 
@@ -396,33 +438,23 @@ class TrailScoutService:
                     "data_confidence", terrain.get("data_confidence")
                 )
 
-                perf = calculate_performance_metrics(dist_km, ascent_m, rider, bike)
-                estimated_hours = perf["estimated_hours"]
-                intensity_score = perf["intensity_score"]
-
-            if include_weather:
+            if include_weather and weather_report is not None:
                 try:
-                    weather_report = self.weather_getter(latitude, longitude, target_date)
+                    weather_report = self.weather_windowing(weather_report, start=9, end=19)
+                    weather_list = self._weather_snapshot_list(weather_report)
+                    max_temp = weather_report.get("reference_conditions", {}).get("temp_max", "N/A")
+                    response_payload["conditions"]["max_temp_detected"] = f"{max_temp}"
+                    response_payload["conditions"]["weather"] = (
+                        weather_list if weather_list else None
+                    )
 
-                    if weather_report.get("status") == "Success":
-                        weather_report = self.weather_windowing(weather_report, start=9, end=19)
-                        weather_list = self._weather_snapshot_list(weather_report)
-                        max_temp = weather_report.get("reference_conditions", {}).get(
-                            "temp_max", "N/A"
-                        )
-                        response_payload["conditions"]["max_temp_detected"] = f"{max_temp}"
-                        response_payload["conditions"]["weather"] = (
-                            weather_list if weather_list else None
-                        )
-
-                        safety_advice = weather_report.get("safety_advice", None)
-                        if safety_advice:
-                            response_payload["conditions"]["safety_advice"] = safety_advice
-                    else:
-                        response_payload["conditions"]["weather_status"] = "Unavailable"
-
+                    safety_advice = weather_report.get("safety_advice", None)
+                    if safety_advice:
+                        response_payload["conditions"]["safety_advice"] = safety_advice
                 except Exception as e:
                     response_payload["conditions"]["weather_error"] = f"Technical bypass: {e!s}"
+            elif include_weather and "weather_error" not in response_payload["conditions"]:
+                response_payload["conditions"]["weather_status"] = "Unavailable"
 
             if include_mud_analysis:
                 avg_slope_pct = terrain.get("avg_gradient")

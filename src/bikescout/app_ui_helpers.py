@@ -1553,7 +1553,7 @@ def render_route_results(res_data: dict) -> None:
 
         emtb_tactical = surface_analysis.get("emtb_tactical", {}) or {}
         if emtb_tactical and emtb_tactical.get("status") == "Success":
-            with st.expander("eMTB tactical analytics", expanded=False):
+            with st.expander("eMTB tactical analytics", expanded=True):
                 advice = emtb_tactical.get("tactical_advice", "No tactical advice available")
                 st.markdown(
                     f"""
@@ -1566,6 +1566,7 @@ def render_route_results(res_data: dict) -> None:
                 )
 
                 b_metrics = emtb_tactical.get("battery_metrics", {}) or {}
+                assumptions = emtb_tactical.get("assumptions", {}) or {}
                 e1, e2, e3 = st.columns(3)
                 with e1:
                     metric_card(
@@ -1587,6 +1588,16 @@ def render_route_results(res_data: dict) -> None:
                         f"{b_metrics.get('usable_wh_at_temp', 0):.1f} Wh",
                         "🌡️",
                         "#a78bfa",
+                    )
+                if assumptions:
+                    st.caption(
+                        "Battery estimate assumptions: "
+                        f"speed {assumptions.get('avg_speed_kmh', 'N/A')} km/h, "
+                        f"temp {assumptions.get('ambient_temp_c', 'N/A')} °C, "
+                        f"FTP {assumptions.get('rider_ftp_w', 'N/A')} W, "
+                        f"intensity {assumptions.get('intensity_score', 'N/A')}/5, "
+                        f"motor limit {assumptions.get('motor_power_limit_w', 'N/A')} W. "
+                        f"Confidence: {assumptions.get('confidence', 'low')}."
                     )
 
     if weather_data:

@@ -85,6 +85,9 @@ class SurfaceAnalyzerService:
         mission,
         target_date: str | None = None,
         route_feature: dict[str, Any] | None = None,
+        estimated_speed_kmh: float | None = None,
+        intensity_score: int | None = None,
+        ambient_temp_c: float | None = None,
     ):
         """
         Analyze surface, terrain and mechanical setup for a cycling route.
@@ -218,6 +221,9 @@ class SurfaceAnalyzerService:
                     real_dist_m=real_dist_m,
                     breakdown=breakdown,
                     mud_score_val=mud_score_val,
+                    estimated_speed_kmh=estimated_speed_kmh,
+                    intensity_score=intensity_score,
+                    ambient_temp_c=ambient_temp_c,
                 )
 
                 avg_gradient_total = terrain["avg_gradient"]
@@ -361,7 +367,17 @@ class SurfaceAnalyzerService:
             return {}
 
     def _emtb_analysis(
-        self, bike, rider, mission, clean_ascent, real_dist_m, breakdown, mud_score_val
+        self,
+        bike,
+        rider,
+        mission,
+        clean_ascent,
+        real_dist_m,
+        breakdown,
+        mud_score_val,
+        estimated_speed_kmh: float | None = None,
+        intensity_score: int | None = None,
+        ambient_temp_c: float | None = None,
     ):
         emtb_analysis = None
 
@@ -376,6 +392,26 @@ class SurfaceAnalyzerService:
 
         if is_emtb:
             try:
+                mud_index = _normalize_mud_index(mud_score_val)
+                weather = getattr(mission, "_weather_context", None) or {}
+                ref = weather.get("reference_conditions", {}) if isinstance(weather, dict) else {}
+                resolved_ambient = (
+                    ambient_temp_c
+                    if ambient_temp_c is not None
+                    else ref.get("temp_actual", ref.get("temp", 20.0))
+                )
+                resolved_speed = (
+                    estimated_speed_kmh
+                    if estimated_speed_kmh is not None
+                    else getattr(mission, "_estimated_speed_kmh", 18.0)
+                )
+                rider_ftp_w = getattr(rider, "ftp_w", 200)
+                resolved_intensity = (
+                    intensity_score
+                    if intensity_score is not None
+                    else getattr(mission, "_intensity_score", 3)
+                )
+
                 emtb_analysis = self.battery_drain_calculator(
                     battery_wh=battery_cap,
                     assist_level=getattr(mission, "assist_mode", "Trail"),
@@ -383,7 +419,12 @@ class SurfaceAnalyzerService:
                     ascent_m=clean_ascent,
                     distance_km=real_dist_m / 1000,
                     surface_breakdown=flat_surface_breakdown,
-                    mud_index=mud_score_val,
+                    mud_index=mud_index,
+                    avg_speed_kmh=resolved_speed,
+                    ambient_temp_c=resolved_ambient,
+                    rider_ftp_w=rider_ftp_w,
+                    intensity_score=resolved_intensity,
+                    motor_power_limit_w=getattr(bike, "motor_power_limit_w", None),
                 )
             except Exception:
                 emtb_analysis = {"error": "Battery calculation failed"}
@@ -403,6 +444,9 @@ def get_surface_analyzer(
     mission,
     target_date: str | None = None,
     route_feature: dict[str, Any] | None = None,
+    estimated_speed_kmh: float | None = None,
+    intensity_score: int | None = None,
+    ambient_temp_c: float | None = None,
 ) -> dict[str, Any]:
     return service.get_surface_analyzer(
         api_key=api_key,
@@ -413,4 +457,7 @@ def get_surface_analyzer(
         mission=mission,
         target_date=target_date,
         route_feature=route_feature,
+        estimated_speed_kmh=estimated_speed_kmh,
+        intensity_score=intensity_score,
+        ambient_temp_c=ambient_temp_c,
     )

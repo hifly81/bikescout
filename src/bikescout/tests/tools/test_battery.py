@@ -107,7 +107,8 @@ def test_weighted_crr_handles_invalid_percentages(service):
             "Gravel": 50,
         }
     )
-    assert result == pytest.approx(0.0075)
+    # "bad" is ignored as 0%; total becomes 50%, so weighted average is Gravel Crr.
+    assert result == pytest.approx(0.015)
 
 
 def test_battery_status(service):
@@ -143,6 +144,8 @@ def test_calculate_battery_drain_basic_success(service):
     assert "aerodynamic_drag" in result["power_breakdown_w"]
     assert "rider_contribution" in result["power_breakdown_w"]
     assert "motor_net_output" in result["power_breakdown_w"]
+    assert "assumptions" in result
+    assert result["assumptions"]["confidence"] == "low"
 
 
 def test_calculate_battery_drain_safe_status_and_pace_advice(service):
@@ -161,7 +164,7 @@ def test_calculate_battery_drain_safe_status_and_pace_advice(service):
     )
 
     assert result["battery_metrics"]["safety_buffer_status"] == "SAFE"
-    assert result["tactical_advice"] == "Pace maintained"
+    assert "Pace maintained" in result["tactical_advice"]
 
 
 def test_calculate_battery_drain_warning_or_critical_advice(service):
@@ -180,7 +183,7 @@ def test_calculate_battery_drain_warning_or_critical_advice(service):
     )
 
     assert result["battery_metrics"]["safety_buffer_status"] in {"WARNING", "CRITICAL"}
-    assert result["tactical_advice"] == "Switch to lower assist on flats to save range"
+    assert "assist" in result["tactical_advice"].lower()
 
 
 def test_calculate_battery_drain_zero_distance(service):
@@ -237,6 +240,102 @@ def test_calculate_battery_drain_invalid_inputs_fall_back(service):
     assert result["status"] == "Success"
     assert result["battery_metrics"]["usable_wh_at_temp"] == 465.0
     assert result["power_breakdown_w"]["rider_contribution"] == 140.0
+
+
+def test_calculate_battery_drain_cold_temp_clamped(service):
+    result = service.calculate_battery_drain(
+        battery_wh=500.0,
+        assist_level="Eco",
+        weight_kg=75.0,
+        ascent_m=100.0,
+        distance_km=10.0,
+        surface_breakdown={"Asphalt": 100},
+        mud_index=0.0,
+        avg_speed_kmh=18.0,
+        ambient_temp_c=-20.0,
+        rider_ftp_w=200,
+        intensity_score=3,
+    )
+    assert result["battery_metrics"]["usable_wh_at_temp"] >= 0.0
+    assert result["battery_metrics"]["remaining_battery_pct"] >= 0.0
+
+
+def test_calculate_battery_drain_normalizes_mud_mm(service):
+    low = service.calculate_battery_drain(
+        500, "Trail", 85, 300, 20, {"Gravel": 100}, mud_index=0.5, avg_speed_kmh=18
+    )
+    high_mm = service.calculate_battery_drain(
+        500, "Trail", 85, 300, 20, {"Gravel": 100}, mud_index=20.0, avg_speed_kmh=18
+    )
+    assert high_mm["assumptions"]["mud_index_0_1"] == pytest.approx(1.0)
+    assert (
+        high_mm["battery_metrics"]["estimated_drain_wh"]
+        >= low["battery_metrics"]["estimated_drain_wh"]
+    )
+
+
+def test_calculate_battery_drain_accepts_surface_list(service):
+    result = service.calculate_battery_drain(
+        500,
+        "Trail",
+        85,
+        300,
+        20,
+        [{"type": "Unpaved", "percentage": "60%"}, {"type": "Paved", "percentage": "40%"}],
+        mud_index=0.0,
+    )
+    assert result["status"] == "Success"
+    assert result["power_breakdown_w"]["rolling_resistance"] > 0
+
+
+def test_calculate_battery_drain_respects_motor_limit(service):
+    no_limit = service.calculate_battery_drain(
+        500,
+        "Boost",
+        120,
+        2500,
+        20,
+        {"Deep Mud": 100},
+        mud_index=1.0,
+        rider_ftp_w=100,
+        intensity_score=1,
+        motor_power_limit_w=1200,
+    )
+    limited = service.calculate_battery_drain(
+        500,
+        "Boost",
+        120,
+        2500,
+        20,
+        {"Deep Mud": 100},
+        mud_index=1.0,
+        rider_ftp_w=100,
+        intensity_score=1,
+        motor_power_limit_w=250,
+    )
+    assert limited["power_breakdown_w"]["motor_net_output"] <= 250.0
+    assert (
+        limited["battery_metrics"]["estimated_drain_wh"]
+        <= no_limit["battery_metrics"]["estimated_drain_wh"]
+    )
+    assert limited["assumptions"]["motor_power_limit_w"] == 250.0
+
+
+def test_calculate_battery_drain_default_motor_limit_is_heuristic(service):
+    result = service.calculate_battery_drain(
+        500,
+        "Boost",
+        120,
+        2500,
+        20,
+        {"Unpaved": 100},
+        mud_index=0.0,
+        rider_ftp_w=500,
+        intensity_score=5,
+    )
+    # Without explicit hardware limit, do not scale cap as FTP multiple; use heuristic fallback.
+    assert result["assumptions"]["motor_power_limit_w"] == 250.0
+    assert result["power_breakdown_w"]["motor_net_output"] <= 250.0
 
 
 def test_module_level_wrapper(monkeypatch):

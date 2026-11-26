@@ -304,6 +304,14 @@ def execute_plan_request(plan_request: dict) -> tuple[str, bool]:
             "bike_type": final_bike,
             "profile": resolve_profile(final_bike),
             "is_ebike": is_ebike,
+            "battery_wh": ext_cast(
+                plan_request.get("battery_wh", rider_profile.get("battery_wh")), int, 625
+            ),
+            "motor_power_limit_w": ext_cast(
+                plan_request.get("motor_power_limit_w", rider_profile.get("motor_power_limit_w")),
+                int,
+                None,
+            ),
             "fitness_level": str(rider_profile.get("fitness_level", "intermediate")),
             "direction_bias": direction_bias,
             "avoid_urban": avoid_urban,
@@ -578,6 +586,14 @@ def process_local_mcp_request(raw_llm_json: str, user_input: str) -> tuple[str, 
                 "bike_type": final_bike,
                 "profile": resolve_profile(final_bike),
                 "is_ebike": is_ebike,
+                "battery_wh": ext_cast(
+                    args.get("battery_wh", rider_profile.get("battery_wh")), int, 625
+                ),
+                "motor_power_limit_w": ext_cast(
+                    args.get("motor_power_limit_w", rider_profile.get("motor_power_limit_w")),
+                    int,
+                    None,
+                ),
                 "fitness_level": str(args.get("fitness_level") or rider_profile["fitness_level"]),
                 "direction_bias": direction_bias,
                 "avoid_urban": avoid_urban,

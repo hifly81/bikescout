@@ -459,6 +459,7 @@ class TestMcpServer:
                 tubeless=True,
                 is_ebike=False,
                 battery_wh=625,
+                motor_power_limit_w=None,
             ),
             mission=MissionConstraints(
                 total_length_km=30,

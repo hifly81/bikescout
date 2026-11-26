@@ -312,6 +312,7 @@ def trail_scout_simple(
     tubeless: bool = True,
     is_ebike: bool = False,
     battery_wh: int = 625,
+    motor_power_limit_w: int | None = None,
     total_length_km: int = 30,
     profile: Literal[
         "cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"
@@ -370,6 +371,8 @@ def trail_scout_simple(
         tubeless: False for inner tubes, which require roughly 18% more pressure.
         is_ebike: Set to True if using a pedelec/e-bike to enable battery analysis.
         battery_wh: Battery capacity in Watt-hours (default: 625).
+        motor_power_limit_w: Optional hardware motor continuous power limit in Watts.
+            When omitted, battery estimation uses a conservative heuristic fallback.
         total_length_km: The total distance of the round trip in kilometers (e.g., 25.0).
         profile: Routing engine profile (e.g., 'cycling-mountain' for trails, 'cycling-road' for asphalt).
         surface_preference: Bias towards paved or unpaved roads.
@@ -438,6 +441,7 @@ def trail_scout_simple(
             tubeless=tubeless,
             is_ebike=is_ebike,
             battery_wh=battery_wh,
+            motor_power_limit_w=motor_power_limit_w,
         )
 
         mission = MissionConstraints(

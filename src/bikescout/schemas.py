@@ -116,8 +116,20 @@ class BikeSetup(BaseModel):
     )
     battery_wh: int = Field(
         625,
+        ge=100,
+        le=2000,
         description="Battery capacity in Watt-hours. Mandatory if is_ebike is True.",
         json_schema_extra={"examples": [625, 750]},
+    )
+    motor_power_limit_w: int | None = Field(
+        None,
+        ge=100,
+        le=1200,
+        description=(
+            "Optional hardware motor continuous power limit in Watts. "
+            "When omitted, battery estimation uses a conservative heuristic fallback."
+        ),
+        json_schema_extra={"examples": [250, 600]},
     )
 
     @model_validator(mode="after")
@@ -458,6 +470,10 @@ class EmtbTactical(BaseModel):
     battery_metrics: EmtbMetrics = Field(..., description="Detailed battery drain and safety data")
     power_breakdown_w: EmtbPower = Field(..., description="Breakdown of physical forces in Watts")
     tactical_advice: str = Field(..., description="E-MTB specific pacing and assistance advice")
+    assumptions: dict[str, Any] | None = Field(
+        None,
+        description="Assumptions and confidence for the heuristic battery estimate.",
+    )
 
 
 class WeatherSnapshot(BaseModel):

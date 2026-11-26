@@ -198,6 +198,7 @@
                         <tr><td><code>tubeless</code></td><td><code>bool</code></td><td>true</td><td>True for tubeless; false for inner tubes, which require roughly 18% more pressure.</td></tr>
                         <tr><td><code>is_ebike</code></td><td><code>bool</code></td><td>false</td><td>Triggers battery consumption logic.</td></tr>
                         <tr><td><code>battery_wh</code></td><td><code>int</code></td><td>625</td><td>Battery capacity in Wh (required if is_ebike is true).</td></tr>
+                        <tr><td><code>motor_power_limit_w</code></td><td><code>int | null</code></td><td><code>null</code></td><td>Optional hardware motor continuous power limit in Watts. When omitted, battery estimation uses a conservative heuristic fallback.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -752,6 +753,12 @@
                             <td><code>string</code></td>
                             <td>-</td>
                             <td>E-MTB specific guidance on mode selection, pacing, and battery management.</td>
+                        </tr>
+                        <tr>
+                            <td><code>assumptions</code></td>
+                            <td><code>object | null</code></td>
+                            <td><code>null</code></td>
+                            <td>Heuristic assumptions and confidence: speed, temperature, rider FTP/intensity, assist, motor limit, mud index, model basis.</td>
                         </tr>
                         </tbody>
                     </table>
@@ -1742,6 +1749,12 @@
                                 <td class="py-2 px-3 text-blue-300"><code>int</code></td>
                                 <td class="text-blue-400/70 italic text-xs">Default: 625</td>
                                 <td>Battery capacity in Watt-hours.</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3"><code>motor_power_limit_w</code></td>
+                                <td class="py-2 px-3 text-blue-300"><code>int | null</code></td>
+                                <td class="text-slate-500">Optional</td>
+                                <td>Hardware motor continuous power limit in Watts. Omitted uses a conservative heuristic fallback in battery estimates.</td>
                             </tr>
                             <tr>
                                 <td class="py-2 px-3"><code>total_length_km</code></td>

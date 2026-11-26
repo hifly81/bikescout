@@ -233,6 +233,16 @@ def generate_tactical_response(
                                         "include_map": {"type": "boolean"},
                                         "include_altimetry": {"type": "boolean"},
                                         "is_ebike": {"type": "boolean"},
+                                        "battery_wh": {
+                                            "type": "integer",
+                                            "minimum": 100,
+                                            "maximum": 2000,
+                                        },
+                                        "motor_power_limit_w": {
+                                            "type": ["integer", "null"],
+                                            "minimum": 100,
+                                            "maximum": 1200,
+                                        },
                                         "weight_kg": {"type": "number"},
                                         "sweat_rate_ml_per_hour": {
                                             "type": "number",

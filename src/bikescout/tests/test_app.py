@@ -1,105 +1,33 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
+import base64
+from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
-import bikescout.app as app_module
-
 APP_PATH = Path(__file__).resolve().parent.parent / "app.py"
-
-
-class StubLLM:
-    """Minimal stand-in for Llama that records the completion calls it receives."""
-
-    def __init__(self, content: str):
-        self.content = content
-        self.calls: list[dict] = []
-
-    def create_chat_completion(self, messages, **kwargs):
-        self.calls.append({"messages": messages, **kwargs})
-        return {"choices": [{"message": {"content": self.content}}]}
-
-
-class TestGenerateTacticalResponse:
-    def test_returns_stripped_llm_content(self):
-        llm = StubLLM('  {"briefing": "ok", "can_execute": false, "tool": null}  ')
-        result = app_module.generate_tactical_response(
-            [{"role": "user", "content": "45 km loop near Trento"}], llm
-        )
-        assert result == '{"briefing": "ok", "can_execute": false, "tool": null}'
-
-    def test_system_prompt_states_identity_and_json_contract(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [{"role": "user", "content": "a ride"}], llm
-        )
-        system = llm.calls[0]["messages"][0]
-        assert system["role"] == "system"
-        assert "You are BikeScout Tactical AI." in system["content"]
-        assert "Return ONLY valid JSON" in system["content"]
-
-    def test_system_prompt_documents_intent_mapping_rules(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [{"role": "user", "content": "a ride"}], llm
-        )
-        system = llm.calls[0]["messages"][0]["content"]
-        assert 'Infer bike_type="mtb"' in system
-        assert "very hard/extreme=5" in system
-        assert "explicitly requested include_* flag" in system
-        assert "mostly MTB singletrack" in system
-
-    def test_user_messages_reach_the_llm(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [{"role": "user", "content": "Ride plan near Trento please"}], llm
-        )
-        assert "Ride plan near Trento please" in llm.calls[0]["messages"][1]["content"]
-
-    def test_mission_context_is_included_in_system_prompt(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response(
-            [], llm, mission_context={"location_name": "Trento", "bike_type": "mtb"}
-        )
-        system = llm.calls[0]["messages"][0]["content"]
-        assert "ACTIVE MISSION" in system
-        assert '"location_name": "Trento"' in system
-
-    def test_excludes_placeholder_assistant_messages(self):
-        llm = StubLLM("{}")
-        messages = [
-            {"role": "user", "content": "first question"},
-            {
-                "role": "assistant",
-                "content": "Connection established. Provide input...",
-            },
-            {"role": "assistant", "content": "real answer"},
-        ]
-        app_module.generate_tactical_response(messages, llm)
-        contents = [m["content"] for m in llm.calls[0]["messages"]]
-        assert "Connection established. Provide input..." not in contents
-        assert "first question" in contents
-        assert "real answer" in contents
-
-    def test_limits_history_to_last_six_messages(self):
-        llm = StubLLM("{}")
-        messages = [{"role": "user", "content": f"message {i}"} for i in range(10)]
-        app_module.generate_tactical_response(messages, llm)
-        history = llm.calls[0]["messages"][1:]
-        assert [m["content"] for m in history] == [f"message {i}" for i in range(4, 10)]
-
-    def test_uses_json_schema_and_temperature_zero(self):
-        llm = StubLLM("{}")
-        app_module.generate_tactical_response([{"role": "user", "content": "hi"}], llm)
-        call = llm.calls[0]
-        assert call["temperature"] == 0.0
-        assert call["max_tokens"] == 1024
-        assert call["response_format"]["type"] == "json_object"
-        properties = call["response_format"]["schema"]["properties"]
-        assert "briefing" in properties
-        assert "can_execute" in properties
-        assert "tool" in properties
+PNG_1PX = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=="
+)
 
 
 class TestAppScript:
@@ -132,6 +60,36 @@ class TestAppScript:
         at.run()
         assert not at.exception
         assert any("GPX tactical audit" in m.value for m in at.markdown)
+
+    def test_rider_profile_fields_are_in_plan_tab(self, app_test):
+        assert not any(button.key == "rider_profile_launcher" for button in app_test.sidebar.button)
+        assert app_test.selectbox(key="rider_profile_fitness_level").value == "intermediate"
+        assert app_test.number_input(key="rider_profile_weight").value == 75.0
+        assert app_test.selectbox(key="rider_profile_gender").value == "male"
+
+    def test_rider_profile_fields_absent_in_chat_tab(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        at = AppTest.from_file(str(APP_PATH))
+        at.session_state["workspace_tab_selector"] = "Chat Planner"
+        at.run()
+
+        assert not at.exception
+        assert not any(button.key == "rider_profile_launcher" for button in at.sidebar.button)
+        assert not any(box.key == "rider_profile_fitness_level" for box in at.selectbox)
+
+    def test_rider_profile_fields_edit_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        at = AppTest.from_file(str(APP_PATH))
+        at.session_state["rider_profile_fitness_level"] = "pro"
+        at.session_state["rider_profile_weight"] = 82.0
+        at.run()
+
+        assert not at.exception
+        assert at.selectbox(key="rider_profile_fitness_level").value == "pro"
+        assert at.number_input(key="rider_profile_weight").value == 82.0
+        assert at.session_state["rider_profile"]["fitness_level"] == "pro"
+        assert at.session_state["rider_profile"]["weight_kg"] == 82.0
+        assert not any(button.key == "rider_profile_done" for button in at.button)
 
 
 FAKE_MISSION_RESULT = {
@@ -175,9 +133,7 @@ FAKE_MISSION_RESULT = {
                     ],
                 },
             },
-            "metadata": {
-                "elevation_source": "ORS geometry elevation (offline terrain engine)"
-            },
+            "metadata": {"elevation_source": "ORS geometry elevation (offline terrain engine)"},
             "surface_breakdown": [{"type": "Paved", "percentage": "60%"}],
             "mechanical_setup": {
                 "setup_details": {
@@ -254,17 +210,18 @@ class TestPlanFlow:
     def test_plan_tab_submit_renders_mission_results(self, tmp_path, monkeypatch):
         # Stub the network layer so the full plan-tab -> chat-planner flow runs offline.
         monkeypatch.chdir(tmp_path)
-        fake_geo = SimpleNamespace(
-            status="Success", lat=45.51, lon=11.90, display_name="Trento"
-        )
+        fake_geo = SimpleNamespace(status="Success", lat=45.51, lon=11.90, display_name="Trento")
         monkeypatch.setattr(
             "bikescout.mcp_server.geocode_location",
             lambda location_name, language="en": fake_geo,
         )
-        monkeypatch.setattr(
-            "bikescout.mcp_server.trail_scout_simple",
-            lambda **kwargs: FAKE_MISSION_RESULT,
-        )
+        scout_calls = []
+
+        def fake_scout(**kwargs):
+            scout_calls.append(kwargs)
+            return FAKE_MISSION_RESULT
+
+        monkeypatch.setattr("bikescout.mcp_server.trail_scout_simple", fake_scout)
 
         at = AppTest.from_file(str(APP_PATH)).run()
         assert not at.exception
@@ -277,17 +234,16 @@ class TestPlanFlow:
         assert "Trento" in at.session_state["mission_history"][0]
         assert at.session_state["messages"]
         assert at.session_state["messages"][-1]["role"] == "assistant"
-        assert (
-            "Mission generated successfully"
-            in at.session_state["messages"][-1]["content"]
-        )
+        assert "Mission generated successfully" in at.session_state["messages"][-1]["content"]
         assert any("TACTICAL MISSION OVERVIEW" in m.value for m in at.markdown)
         assert any("Trento Fountain" in m.value for m in at.markdown)
 
         markdown_values = [m.value for m in at.markdown]
         assert any("Max gradient" in value and "22.5%" in value for value in markdown_values)
         assert any("Data confidence" in value and "82%" in value for value in markdown_values)
-        assert any("Technical grade" in value and "S2 - Technical" in value for value in markdown_values)
+        assert any(
+            "Technical grade" in value and "S2 - Technical" in value for value in markdown_values
+        )
         assert any("Profile points" in value and "240" in value for value in markdown_values)
 
         caption_values = [caption.value for caption in at.caption]
@@ -307,3 +263,54 @@ class TestPlanFlow:
         climb_row = climb_tables[0].iloc[0]
         assert climb_row["Gain (m)"] == "120.0"
         assert climb_row["Length (km)"] == "1.80"
+        assert scout_calls
+        assert 3 <= scout_calls[0]["complexity"] <= 5
+
+    def test_climb_profile_dialog_opens_for_long_climb(self, tmp_path):
+        climb_path = tmp_path / "bs_altimetry_fixed_climb_1.png"
+        climb_path.write_bytes(PNG_1PX)
+        climb = {
+            "category": "C3 - Challenging",
+            "length_m": 1800.0,
+            "gain_m": 120.0,
+            "summit_elevation_m": 1120.0,
+        }
+        script = f"""
+import streamlit as st
+st.session_state["climb_list_table"] = {{"selection": {{"rows": [], "columns": [], "cells": []}}}}
+if "dialog_shown" not in st.session_state:
+    st.session_state["dialog_shown"] = True
+    from bikescout.app_ui_helpers import _render_climb_profile_dialog
+    _render_climb_profile_dialog(1, {climb!r}, {str(climb_path)!r})
+"""
+        at = AppTest.from_string(script)
+        at.run()
+
+        assert not at.exception
+        captions = [caption.value for caption in at.caption]
+        assert any("Climb 1" in value for value in captions)
+        assert any("1000.0 m → 1120.0 m · 1.80 km · 120.0 m gained" in value for value in captions)
+        assert not any(button.key == "climb_profile_done" for button in at.button)
+
+    def test_selected_climb_dialog_does_not_reopen_on_rerun(self, tmp_path):
+        (tmp_path / "bs_altimetry_fixed.png").write_bytes(PNG_1PX)
+        (tmp_path / "bs_altimetry_fixed_climb_1.png").write_bytes(PNG_1PX)
+        result = deepcopy(FAKE_MISSION_RESULT)
+        result["elevation_profile_path"] = str(tmp_path / "bs_altimetry_fixed.png")
+        script = f"""
+import streamlit as st
+from bikescout.app_ui_helpers import render_route_results
+st.session_state["climb_list_table"] = {{"selection": {{"rows": [0], "columns": [], "cells": []}}}}
+render_route_results({result!r})
+"""
+        at = AppTest.from_string(script)
+        at.run()
+
+        assert not at.exception
+        assert any("Climb 1" in caption.value for caption in at.caption)
+        assert not any(button.key == "climb_profile_done" for button in at.button)
+
+        at.run()
+
+        assert not at.exception
+        assert not any("Climb 1" in caption.value for caption in at.caption)

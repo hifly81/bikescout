@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 from io import StringIO
 from pathlib import Path
 
@@ -141,7 +159,9 @@ def test_identify_tactical_zones():
 
 
 def test_calculate_performance():
-    climbs = [{"km_start": 10.0, "dist_km": 5.0, "gain_m": 400.0, "avg_grade": 8.0, "category": "Cat 1"}]
+    climbs = [
+        {"km_start": 10.0, "dist_km": 5.0, "gain_m": 400.0, "avg_grade": 8.0, "category": "Cat 1"}
+    ]
     result = _calculate_performance(climbs, 75.0, 8.0, 1.2, 30.0, 20.0)
     assert len(result) == 1
     assert result[0]["weather_adjusted_wkg"] >= result[0]["target_wkg"]
@@ -177,6 +197,7 @@ def test_load_gpx_content_remote():
 
 def test_extract_points():
     import gpxpy
+
     gpx = gpxpy.parse(GPX_SAMPLE)
     points = RaceAnalysisService._extract_points(gpx)
     assert len(points) == 12
@@ -212,7 +233,10 @@ def test_analyze_track_success_road(tmp_path):
         },
         weather_windowing=lambda data, s, e: data,
         mud_analyzer=lambda *args, **kwargs: {"status": "Success"},
-        nutrition_getter=lambda *args, **kwargs: {"status": "Success", "mission_nutrition_briefing": {}},
+        nutrition_getter=lambda *args, **kwargs: {
+            "status": "Success",
+            "mission_nutrition_briefing": {},
+        },
         date_provider=lambda: "2026-06-03",
     )
 
@@ -231,7 +255,10 @@ def test_analyze_track_success_offroad_with_mud(tmp_path):
         weather_getter=lambda lat, lon, t_date: {"status": "Error"},
         weather_windowing=lambda data, s, e: data,
         mud_analyzer=lambda *args, **kwargs: {"status": "Success", "tactical_analysis": {}},
-        nutrition_getter=lambda *args, **kwargs: {"status": "Success", "mission_nutrition_briefing": {}},
+        nutrition_getter=lambda *args, **kwargs: {
+            "status": "Success",
+            "mission_nutrition_briefing": {},
+        },
         date_provider=lambda: "2026-06-03",
     )
 
@@ -249,7 +276,10 @@ def test_analyze_track_with_report(tmp_path):
         weather_getter=lambda lat, lon, t_date: {"status": "Error"},
         weather_windowing=lambda data, s, e: data,
         mud_analyzer=lambda *args, **kwargs: {"status": "Success"},
-        nutrition_getter=lambda *args, **kwargs: {"status": "Success", "mission_nutrition_briefing": {}},
+        nutrition_getter=lambda *args, **kwargs: {
+            "status": "Success",
+            "mission_nutrition_briefing": {},
+        },
         date_provider=lambda: "2026-06-03",
         plot_generator=lambda segments, t_date: "/tmp/fake_plot.png",
         pdf_generator=lambda data, plot_path: "/tmp/fake_report.pdf",
@@ -310,6 +340,7 @@ def test_module_level_wrapper(monkeypatch):
     assert result == {"status": "Success"}
     assert len(fake_service.calls) == 1
 
+
 def test_detect_uci_climbs_final_current_branch():
     segments = [
         {"dist": 1000, "grade": 4.0, "ele_start": 100, "ele_end": 180},
@@ -321,11 +352,13 @@ def test_detect_uci_climbs_final_current_branch():
 
     assert len(climbs) >= 1
 
+
 def test_calculate_aero_risks_angle_wrap_branch():
     segments = [{"dist": 1000, "bearing": 350} for _ in range(100)]
     result = _calculate_aero_risks(segments, wind_dir=100, wind_speed=25)
 
     assert isinstance(result, list)
+
 
 def test_generate_pdf_report_no_zones_plot_exists(tmp_path, monkeypatch):
     plot_path = tmp_path / "plot.png"
@@ -335,21 +368,41 @@ def test_generate_pdf_report_no_zones_plot_exists(tmp_path, monkeypatch):
     report_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(analysis_module.os.path, "expanduser", lambda _: str(tmp_path))
-    monkeypatch.setattr(analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "abcdef123456"})())
+    monkeypatch.setattr(
+        analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "abcdef123456"})()
+    )
 
     class FakeFPDF:
         def __init__(self):
             self.lines = []
 
-        def add_page(self): pass
-        def set_font(self, *args, **kwargs): pass
-        def cell(self, *args, **kwargs): pass
-        def ln(self, *args, **kwargs): pass
-        def image(self, *args, **kwargs): pass
-        def get_y(self): return 20
-        def set_y(self, *args, **kwargs): pass
-        def multi_cell(self, *args, **kwargs): pass
-        def set_text_color(self, *args, **kwargs): pass
+        def add_page(self):
+            pass
+
+        def set_font(self, *args, **kwargs):
+            pass
+
+        def cell(self, *args, **kwargs):
+            pass
+
+        def ln(self, *args, **kwargs):
+            pass
+
+        def image(self, *args, **kwargs):
+            pass
+
+        def get_y(self):
+            return 20
+
+        def set_y(self, *args, **kwargs):
+            pass
+
+        def multi_cell(self, *args, **kwargs):
+            pass
+
+        def set_text_color(self, *args, **kwargs):
+            pass
+
         def output(self, path):
             Path(path).write_text("pdf", encoding="utf-8")
 
@@ -359,7 +412,9 @@ def test_generate_pdf_report_no_zones_plot_exists(tmp_path, monkeypatch):
         "target_date": "2026-06-03",
         "track_metrics": {"distance_km": 100.0, "total_ascent": 500.0},
         "tactical_action_zones": [],
-        "planning_tools": {"weather_forecast": {"reference_conditions": {"temp": 20, "wind_speed": 10}}},
+        "planning_tools": {
+            "weather_forecast": {"reference_conditions": {"temp": 20, "wind_speed": 10}}
+        },
     }
 
     result = analysis_module._generate_pdf_report(data, str(plot_path))
@@ -367,23 +422,44 @@ def test_generate_pdf_report_no_zones_plot_exists(tmp_path, monkeypatch):
     assert result.endswith(".pdf")
     assert Path(result).exists()
 
+
 def test_generate_pdf_report_xc_circuit_plot_missing(tmp_path, monkeypatch):
     report_dir = tmp_path / "race"
     report_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(analysis_module.os.path, "expanduser", lambda _: str(tmp_path))
-    monkeypatch.setattr(analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "123456abcdef"})())
+    monkeypatch.setattr(
+        analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "123456abcdef"})()
+    )
 
     class FakeFPDF:
-        def add_page(self): pass
-        def set_font(self, *args, **kwargs): pass
-        def cell(self, *args, **kwargs): pass
-        def ln(self, *args, **kwargs): pass
-        def image(self, *args, **kwargs): pass
-        def get_y(self): return 20
-        def set_y(self, *args, **kwargs): pass
-        def multi_cell(self, *args, **kwargs): pass
-        def set_text_color(self, *args, **kwargs): pass
+        def add_page(self):
+            pass
+
+        def set_font(self, *args, **kwargs):
+            pass
+
+        def cell(self, *args, **kwargs):
+            pass
+
+        def ln(self, *args, **kwargs):
+            pass
+
+        def image(self, *args, **kwargs):
+            pass
+
+        def get_y(self):
+            return 20
+
+        def set_y(self, *args, **kwargs):
+            pass
+
+        def multi_cell(self, *args, **kwargs):
+            pass
+
+        def set_text_color(self, *args, **kwargs):
+            pass
+
         def output(self, path):
             Path(path).write_text("pdf", encoding="utf-8")
 
@@ -393,15 +469,23 @@ def test_generate_pdf_report_xc_circuit_plot_missing(tmp_path, monkeypatch):
         "target_date": "2026-06-03",
         "track_metrics": {"distance_km": 10.0, "total_ascent": 200.0},
         "tactical_action_zones": [
-            {"km": 2.0, "type": "Explosive Wall / Attack Point", "grade": 14.0, "difficulty": "high"}
+            {
+                "km": 2.0,
+                "type": "Explosive Wall / Attack Point",
+                "grade": 14.0,
+                "difficulty": "high",
+            }
         ],
-        "planning_tools": {"weather_forecast": {"reference_conditions": {"temp": 29, "wind_speed": 12}}},
+        "planning_tools": {
+            "weather_forecast": {"reference_conditions": {"temp": 29, "wind_speed": 12}}
+        },
     }
 
     result = analysis_module._generate_pdf_report(data, str(tmp_path / "missing_plot.png"))
 
     assert result.endswith(".pdf")
     assert Path(result).exists()
+
 
 def test_generate_pdf_report_brutal_mountain_high_wind(tmp_path, monkeypatch):
     plot_path = tmp_path / "plot.png"
@@ -411,18 +495,38 @@ def test_generate_pdf_report_brutal_mountain_high_wind(tmp_path, monkeypatch):
     report_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(analysis_module.os.path, "expanduser", lambda _: str(tmp_path))
-    monkeypatch.setattr(analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "fedcba654321"})())
+    monkeypatch.setattr(
+        analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "fedcba654321"})()
+    )
 
     class FakeFPDF:
-        def add_page(self): pass
-        def set_font(self, *args, **kwargs): pass
-        def cell(self, *args, **kwargs): pass
-        def ln(self, *args, **kwargs): pass
-        def image(self, *args, **kwargs): pass
-        def get_y(self): return 20
-        def set_y(self, *args, **kwargs): pass
-        def multi_cell(self, *args, **kwargs): pass
-        def set_text_color(self, *args, **kwargs): pass
+        def add_page(self):
+            pass
+
+        def set_font(self, *args, **kwargs):
+            pass
+
+        def cell(self, *args, **kwargs):
+            pass
+
+        def ln(self, *args, **kwargs):
+            pass
+
+        def image(self, *args, **kwargs):
+            pass
+
+        def get_y(self):
+            return 20
+
+        def set_y(self, *args, **kwargs):
+            pass
+
+        def multi_cell(self, *args, **kwargs):
+            pass
+
+        def set_text_color(self, *args, **kwargs):
+            pass
+
         def output(self, path):
             Path(path).write_text("pdf", encoding="utf-8")
 
@@ -432,15 +536,23 @@ def test_generate_pdf_report_brutal_mountain_high_wind(tmp_path, monkeypatch):
         "target_date": "2026-06-03",
         "track_metrics": {"distance_km": 100.0, "total_ascent": 2500.0},
         "tactical_action_zones": [
-            {"km": 80.0, "type": "Explosive Wall / Attack Point", "grade": 16.0, "difficulty": "high"}
+            {
+                "km": 80.0,
+                "type": "Explosive Wall / Attack Point",
+                "grade": 16.0,
+                "difficulty": "high",
+            }
         ],
-        "planning_tools": {"weather_forecast": {"reference_conditions": {"temp": 15, "wind_speed": 25}}},
+        "planning_tools": {
+            "weather_forecast": {"reference_conditions": {"temp": 15, "wind_speed": 25}}
+        },
     }
 
     result = analysis_module._generate_pdf_report(data, str(plot_path))
 
     assert result.endswith(".pdf")
     assert Path(result).exists()
+
 
 def test_generate_pdf_report_rolling_cold(tmp_path, monkeypatch):
     plot_path = tmp_path / "plot.png"
@@ -450,18 +562,38 @@ def test_generate_pdf_report_rolling_cold(tmp_path, monkeypatch):
     report_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(analysis_module.os.path, "expanduser", lambda _: str(tmp_path))
-    monkeypatch.setattr(analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "aa11bb22cc33"})())
+    monkeypatch.setattr(
+        analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "aa11bb22cc33"})()
+    )
 
     class FakeFPDF:
-        def add_page(self): pass
-        def set_font(self, *args, **kwargs): pass
-        def cell(self, *args, **kwargs): pass
-        def ln(self, *args, **kwargs): pass
-        def image(self, *args, **kwargs): pass
-        def get_y(self): return 20
-        def set_y(self, *args, **kwargs): pass
-        def multi_cell(self, *args, **kwargs): pass
-        def set_text_color(self, *args, **kwargs): pass
+        def add_page(self):
+            pass
+
+        def set_font(self, *args, **kwargs):
+            pass
+
+        def cell(self, *args, **kwargs):
+            pass
+
+        def ln(self, *args, **kwargs):
+            pass
+
+        def image(self, *args, **kwargs):
+            pass
+
+        def get_y(self):
+            return 20
+
+        def set_y(self, *args, **kwargs):
+            pass
+
+        def multi_cell(self, *args, **kwargs):
+            pass
+
+        def set_text_color(self, *args, **kwargs):
+            pass
+
         def output(self, path):
             Path(path).write_text("pdf", encoding="utf-8")
 
@@ -471,15 +603,23 @@ def test_generate_pdf_report_rolling_cold(tmp_path, monkeypatch):
         "target_date": "2026-06-03",
         "track_metrics": {"distance_km": 80.0, "total_ascent": 1000.0},
         "tactical_action_zones": [
-            {"km": 20.0, "type": "Explosive Wall / Attack Point", "grade": 12.0, "difficulty": "medium"}
+            {
+                "km": 20.0,
+                "type": "Explosive Wall / Attack Point",
+                "grade": 12.0,
+                "difficulty": "medium",
+            }
         ],
-        "planning_tools": {"weather_forecast": {"reference_conditions": {"temp": 5, "wind_speed": 10}}},
+        "planning_tools": {
+            "weather_forecast": {"reference_conditions": {"temp": 5, "wind_speed": 10}}
+        },
     }
 
     result = analysis_module._generate_pdf_report(data, str(plot_path))
 
     assert result.endswith(".pdf")
     assert Path(result).exists()
+
 
 def test_generate_pdf_report_flat_long_day(tmp_path, monkeypatch):
     plot_path = tmp_path / "plot.png"
@@ -489,18 +629,38 @@ def test_generate_pdf_report_flat_long_day(tmp_path, monkeypatch):
     report_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(analysis_module.os.path, "expanduser", lambda _: str(tmp_path))
-    monkeypatch.setattr(analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "112233445566"})())
+    monkeypatch.setattr(
+        analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "112233445566"})()
+    )
 
     class FakeFPDF:
-        def add_page(self): pass
-        def set_font(self, *args, **kwargs): pass
-        def cell(self, *args, **kwargs): pass
-        def ln(self, *args, **kwargs): pass
-        def image(self, *args, **kwargs): pass
-        def get_y(self): return 20
-        def set_y(self, *args, **kwargs): pass
-        def multi_cell(self, *args, **kwargs): pass
-        def set_text_color(self, *args, **kwargs): pass
+        def add_page(self):
+            pass
+
+        def set_font(self, *args, **kwargs):
+            pass
+
+        def cell(self, *args, **kwargs):
+            pass
+
+        def ln(self, *args, **kwargs):
+            pass
+
+        def image(self, *args, **kwargs):
+            pass
+
+        def get_y(self):
+            return 20
+
+        def set_y(self, *args, **kwargs):
+            pass
+
+        def multi_cell(self, *args, **kwargs):
+            pass
+
+        def set_text_color(self, *args, **kwargs):
+            pass
+
         def output(self, path):
             Path(path).write_text("pdf", encoding="utf-8")
 
@@ -510,7 +670,9 @@ def test_generate_pdf_report_flat_long_day(tmp_path, monkeypatch):
         "target_date": "2026-06-03",
         "track_metrics": {"distance_km": 180.0, "total_ascent": 800.0},
         "tactical_action_zones": [],
-        "planning_tools": {"weather_forecast": {"reference_conditions": {"temp": 20, "wind_speed": 10}}},
+        "planning_tools": {
+            "weather_forecast": {"reference_conditions": {"temp": 20, "wind_speed": 10}}
+        },
     }
 
     result = analysis_module._generate_pdf_report(data, str(plot_path))
@@ -518,7 +680,8 @@ def test_generate_pdf_report_flat_long_day(tmp_path, monkeypatch):
     assert result.endswith(".pdf")
     assert Path(result).exists()
 
-def test_generate_pdf_report_cleans_matching_climb_files(tmp_path, monkeypatch):
+
+def test_generate_pdf_report_does_not_delete_unrelated_climb_files(tmp_path, monkeypatch):
     plot_path = tmp_path / "plot.png"
     plot_path.write_bytes(b"fakepng")
 
@@ -528,18 +691,39 @@ def test_generate_pdf_report_cleans_matching_climb_files(tmp_path, monkeypatch):
     climb_file.write_bytes(b"x")
 
     monkeypatch.setattr(analysis_module.os.path, "expanduser", lambda _: str(tmp_path))
-    monkeypatch.setattr(analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "abcdef123456"})())
+    monkeypatch.setattr(analysis_module.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(
+        analysis_module.uuid, "uuid4", lambda: type("U", (), {"hex": "abcdef123456"})()
+    )
 
     class FakeFPDF:
-        def add_page(self): pass
-        def set_font(self, *args, **kwargs): pass
-        def cell(self, *args, **kwargs): pass
-        def ln(self, *args, **kwargs): pass
-        def image(self, *args, **kwargs): pass
-        def get_y(self): return 20
-        def set_y(self, *args, **kwargs): pass
-        def multi_cell(self, *args, **kwargs): pass
-        def set_text_color(self, *args, **kwargs): pass
+        def add_page(self):
+            pass
+
+        def set_font(self, *args, **kwargs):
+            pass
+
+        def cell(self, *args, **kwargs):
+            pass
+
+        def ln(self, *args, **kwargs):
+            pass
+
+        def image(self, *args, **kwargs):
+            pass
+
+        def get_y(self):
+            return 20
+
+        def set_y(self, *args, **kwargs):
+            pass
+
+        def multi_cell(self, *args, **kwargs):
+            pass
+
+        def set_text_color(self, *args, **kwargs):
+            pass
+
         def output(self, path):
             Path(path).write_text("pdf", encoding="utf-8")
 
@@ -549,10 +733,12 @@ def test_generate_pdf_report_cleans_matching_climb_files(tmp_path, monkeypatch):
         "target_date": "2026-06-03",
         "track_metrics": {"distance_km": 100.0, "total_ascent": 2000.0},
         "tactical_action_zones": [],
-        "planning_tools": {"weather_forecast": {"reference_conditions": {"temp": 20, "wind_speed": 10}}},
+        "planning_tools": {
+            "weather_forecast": {"reference_conditions": {"temp": 20, "wind_speed": 10}}
+        },
     }
 
     result = analysis_module._generate_pdf_report(data, str(plot_path))
 
     assert Path(result).exists()
-    assert not climb_file.exists()
+    assert climb_file.exists()

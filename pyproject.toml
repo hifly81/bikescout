@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bikescout"
-version = "1.7.0"
+version = "1.8.0"
 authors = [
     { name="Bikescout", email="bikescout.mcp@gmail.com" },
 ]
@@ -51,10 +51,11 @@ dependencies = [
     "staticmap>=0.5.6",
     "pillow>=10.2.0",
     "fpdf>=1.7.2",
-    "streamlit>=1.35.0",
+    "streamlit>=1.53.0",
     "watchdog>=4.0.0",
     "huggingface_hub>=0.27.0",
     "llama-cpp-python>=0.3.16",
+    "langchain-core>=0.3.0,<1.8.0",
 ]
 
 [project.optional-dependencies]
@@ -73,6 +74,20 @@ dev = [
 pythonpath = ["src"]
 testpaths = ["src/bikescout/tests"]
 asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Keep the gate actionable: syntax/compile errors and unused/undefined names.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.10"
+venvPath = "."
+venv = ".venv"
 
 [tool.coverage.run]
 source = ["src/bikescout"]

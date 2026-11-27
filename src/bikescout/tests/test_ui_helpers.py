@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 from unittest.mock import MagicMock
 
 import bikescout.app_ui_helpers as ui_helpers
@@ -37,6 +55,32 @@ class TestRenderEmptyState:
         assert kwargs["unsafe_allow_html"] is True
 
 
+class TestTerrainClimbRows:
+    def test_shows_start_and_summit_without_max_grade(self):
+        rows = ui_helpers._terrain_climb_rows(
+            {
+                "climb_list": [
+                    {
+                        "start_index": 12,
+                        "end_index": 48,
+                        "length_m": 1800.0,
+                        "gain_m": 120.0,
+                        "avg_gradient": 6.7,
+                        "max_gradient": 22.5,
+                        "summit_elevation_m": 1120.0,
+                        "fiets_index": 2.4,
+                        "category": "C3 - Challenging",
+                    }
+                ]
+            },
+            {},
+        )
+
+        assert rows[0]["Start (m)"] == "1000.0"
+        assert rows[0]["Summit (m)"] == "1120.0"
+        assert "Max grade" not in rows[0]
+
+
 class TestNormalizeTireSetup:
     def test_normalizes_structured_model(self):
         from bikescout.schemas import TireSetupRecommendation
@@ -54,6 +98,8 @@ class TestNormalizeTireSetup:
             bar_rear=1.75,
             strategy="Compliance",
             load_split={"front": 0.4, "rear": 0.6},
+            confidence="low",
+            model_basis="Heuristic model",
             tactical_display='29" wheels | F: 19.9 PSI | R: 25.4 PSI',
         )
 
@@ -83,3 +129,51 @@ class TestNormalizeTireSetup:
         assert result["psi_front"] is None
         assert result["strategy"] == "Standard"
         assert result["advice"] == []
+
+
+class TestNutritionNote:
+    def test_combines_basis_confidence_and_uncertainty(self):
+        note = ui_helpers._nutrition_note(
+            {
+                "data_basis": "Fluid target is a population estimate.",
+                "estimate_confidence": "low",
+                "uncertainty_note": "Validate with a timed weigh-in.",
+            }
+        )
+        assert note == (
+            "Fluid target is a population estimate. Confidence: low. "
+            "Validate with a timed weigh-in."
+        )
+
+    def test_returns_none_when_provenance_is_missing(self):
+        assert ui_helpers._nutrition_note({}) is None
+
+
+class TestAltimetryCaption:
+    def test_combines_source_and_uncertainty(self):
+        caption = ui_helpers._altimetry_caption(
+            {
+                "elevation_source": "Elevation data: ORS-compatible routing (HeiGIT)",
+                "elevation_samples_total": 42,
+                "elevation_samples_interpolated": 3,
+            }
+        )
+
+        assert caption == (
+            "Elevation data: ORS-compatible routing (HeiGIT) "
+            "3 of 42 elevation samples estimated from neighbours."
+        )
+
+    def test_omits_uncertainty_when_no_samples_are_estimated(self):
+        caption = ui_helpers._altimetry_caption(
+            {
+                "elevation_source": "Elevation data: ORS-compatible routing (HeiGIT)",
+                "elevation_samples_total": 42,
+                "elevation_samples_interpolated": 0,
+            }
+        )
+
+        assert caption == "Elevation data: ORS-compatible routing (HeiGIT)"
+
+    def test_returns_none_when_provenance_is_missing(self):
+        assert ui_helpers._altimetry_caption({}) is None

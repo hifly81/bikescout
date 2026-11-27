@@ -1,4 +1,22 @@
-import io
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
+from typing import Any, cast
 
 import pytest
 import requests
@@ -59,13 +77,8 @@ def config():
 
 
 @pytest.fixture
-def stderr_buffer():
-    return io.StringIO()
-
-
-@pytest.fixture
-def service(config, stderr_buffer):
-    return PoiScoutService(config=config, session=FakeSession(), stderr=stderr_buffer)
+def service(config):
+    return PoiScoutService(config=config, session=cast(Any, FakeSession()))
 
 
 def test_validate_inputs_accepts_valid_values(service):
@@ -98,11 +111,11 @@ def test_validate_inputs_rejects_negative_total_length(service):
 
 
 def test_compute_safe_buffer_clamps_to_min(service):
-    assert service._compute_safe_buffer_m(0.0) == 1
+    assert service._compute_safe_buffer_m(0.0) == 500
 
 
 def test_compute_safe_buffer_scales_normally(service):
-    assert service._compute_safe_buffer_m(1.5) == 1500
+    assert service._compute_safe_buffer_m(15.0) == 1500
 
 
 def test_compute_safe_buffer_clamps_to_max(service):
@@ -241,7 +254,7 @@ def test_extract_amenities_skips_bad_features(service):
     assert amenities[0]["type"] == "Water Fountain"
 
 
-def test_get_poi_scout_success(config, stderr_buffer):
+def test_get_poi_scout_success(config):
     payload = {
         "features": [
             {
@@ -256,7 +269,7 @@ def test_get_poi_scout_success(config, stderr_buffer):
                 "properties": {
                     "distance": 50,
                     "category_ids": {"162": True},
-                    "osm_tags": {"name": "Water Point"},
+                    "osm_tags": {"name": "Water Point", "drinking_water": "yes"},
                 },
                 "geometry": {"coordinates": [10.1, 45.1]},
             },
@@ -264,36 +277,34 @@ def test_get_poi_scout_success(config, stderr_buffer):
     }
 
     session = FakeSession(response=FakeResponse(ok=True, payload=payload))
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+    service = PoiScoutService(config=config, session=cast(Any, session))
 
-    result = service.get_poi_scout("key", 45.0, 10.0, 1.5)
+    result = service.get_poi_scout("key", 45.0, 10.0, 15.0)
 
     assert result["status"] == "Success"
-    assert result["search_km"] == "1500m"
+    assert result["search_km"] == 1.5
+    assert result["search_radius_m"] == 1500
+    assert result["search_strategy"] == "start_radius"
     assert result["total_found"] == 2
     assert result["amenities"][0]["distance_m"] == 50
+    assert result["amenities"][0]["potability"] == "potable_tagged"
     assert session.calls[0]["url"] == poi_module.ORS_POIS_URL
     assert session.calls[0]["timeout"] == 10.0
-    assert poi_module.ORS_POIS_URL == "https://api.heigit.org/openpoiservice/v0/pois"
 
 
-def test_get_poi_scout_returns_api_error(config, stderr_buffer):
-    session = FakeSession(
-        response=FakeResponse(ok=False, status_code=429, text="rate limit")
-    )
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+def test_get_poi_scout_returns_api_error(config):
+    session = FakeSession(response=FakeResponse(ok=False, status_code=429, text="rate limit"))
+    service = PoiScoutService(config=config, session=cast(Any, session))
 
     result = service.get_poi_scout("key", 45.0, 10.0, 1.0)
 
-    assert result == {"status": "Error", "message": "ORS API error 429"}
-    assert "ORS API Error: 429 - rate limit" in stderr_buffer.getvalue()
+    assert result["status"] == "Error"
+    assert "ORS POI API error 429" in result["message"]
 
 
-def test_get_poi_scout_returns_domain_error_on_invalid_json(config, stderr_buffer):
-    session = FakeSession(
-        response=FakeResponse(ok=True, json_exc=ValueError("bad json"))
-    )
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+def test_get_poi_scout_returns_domain_error_on_invalid_json(config):
+    session = FakeSession(response=FakeResponse(ok=True, json_exc=ValueError("bad json")))
+    service = PoiScoutService(config=config, session=cast(Any, session))
 
     result = service.get_poi_scout("key", 45.0, 10.0, 1.0)
 
@@ -306,15 +317,28 @@ def test_get_poi_scout_returns_domain_error_on_invalid_input(service):
     assert result == {"status": "Error", "message": "API key must not be empty."}
 
 
-def test_get_poi_scout_handles_unexpected_exception(config, stderr_buffer):
+def test_get_poi_scout_handles_request_exception(config):
     session = FakeSession(exc=requests.RequestException("network boom"))
-    service = PoiScoutService(config=config, session=session, stderr=stderr_buffer)
+    service = PoiScoutService(config=config, session=cast(Any, session))
 
     result = service.get_poi_scout("key", 45.0, 10.0, 1.0)
 
     assert result["status"] == "Error"
-    assert result["message"] == "Internal Engine failure: network boom"
-    assert "POI Engine Critical Exception: network boom" in stderr_buffer.getvalue()
+    assert "POI provider error: network boom" in result["message"]
+
+
+def test_get_poi_scout_samples_route_geometry(config):
+    payload = {"features": []}
+    session = FakeSession(response=FakeResponse(ok=True, payload=payload))
+    service = PoiScoutService(config=config, session=cast(Any, session))
+    route = [[10.0, 45.0, 0], [10.02, 45.0, 0], [10.04, 45.0, 0], [10.06, 45.0, 0]]
+
+    result = service.get_poi_scout("key", 45.0, 10.0, 40.0, route_geometry=route)
+
+    assert result["status"] == "Success"
+    assert result["search_strategy"] == "route_sampled"
+    assert result["sample_points"] >= 2
+    assert len(session.calls) == result["sample_points"]
 
 
 def test_haversine_distance_zero():
@@ -336,8 +360,8 @@ def test_module_level_wrapper(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def get_poi_scout(self, api_key, lat, lon, total_length_km):
-            self.calls.append((api_key, lat, lon, total_length_km))
+        def get_poi_scout(self, api_key, lat, lon, total_length_km, route_geometry=None):
+            self.calls.append((api_key, lat, lon, total_length_km, route_geometry))
             return {"status": "Success", "amenities": []}
 
     fake_service = FakeService()
@@ -346,4 +370,4 @@ def test_module_level_wrapper(monkeypatch):
     result = get_poi_scout("key", 45.0, 10.0, 1.2)
 
     assert result == {"status": "Success", "amenities": []}
-    assert fake_service.calls == [("key", 45.0, 10.0, 1.2)]
+    assert fake_service.calls == [("key", 45.0, 10.0, 1.2, None)]

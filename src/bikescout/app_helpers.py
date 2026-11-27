@@ -14,8 +14,20 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
+import os
 import re
+from datetime import date, timedelta
 from typing import Any
+
+import streamlit as st
+
+from bikescout.tools.bike_setup import (
+    default_casing_type,
+    default_rim_internal_width_mm,
+    default_tire_width_mm,
+)
 
 
 def ext_cast(val: Any, to_type, default):
@@ -26,22 +38,22 @@ def ext_cast(val: Any, to_type, default):
         match = re.search(r"[-+]?\d*\.?\d+", val)
         if match and to_type in (float, int):
             val = match.group()
-        elif to_type == bool:
+        elif to_type is bool:
             return val.strip().lower() in ["true", "1", "t", "y", "yes"]
         elif not match and to_type in (float, int):
             return default
 
     try:
-        if to_type == bool:
+        if to_type is bool:
             return str(val).lower() in ["true", "1", "t", "y", "yes"]
-        if to_type == int:
+        if to_type is int:
             return int(float(val))
         return to_type(val)
     except (ValueError, TypeError):
         return default
 
 
-def extract_location_hint(text: str) -> str | None:
+def extract_location_hint(text: str | None) -> str | None:
     if not text:
         return None
 
@@ -105,6 +117,53 @@ def resolve_route_mode(args: dict, user_input: str) -> str:
         return "point_to_point"
 
     return "round_trip"
+
+
+def get_default_analysis_date(today: date | None = None) -> date:
+    base = today or date.today()
+    return base + timedelta(days=1)
+
+
+def get_max_analysis_date(today: date | None = None) -> date:
+    base = today or date.today()
+    return base + timedelta(days=5)
+
+
+def clamp_analysis_date(value: date | str | None, today: date | None = None) -> date:
+    default_date = get_default_analysis_date(today)
+    max_date = get_max_analysis_date(today)
+    if value is None or value == "":
+        return default_date
+    try:
+        d = date.fromisoformat(value) if isinstance(value, str) else value
+    except (TypeError, ValueError):
+        return default_date
+    if d < default_date:
+        return default_date
+    if d > max_date:
+        return max_date
+    return d
+
+
+def parse_analysis_date_or_error(
+    value: date | str | None, today: date | None = None
+) -> tuple[str | None, str | None]:
+    default_date = get_default_analysis_date(today)
+    max_date = get_max_analysis_date(today)
+    if value is None or value == "":
+        return default_date.isoformat(), None
+    try:
+        d = date.fromisoformat(value) if isinstance(value, str) else value
+    except (TypeError, ValueError):
+        return None, (
+            f"Invalid date. Use YYYY-MM-DD between {default_date.isoformat()} and {max_date.isoformat()}."
+        )
+    if d < default_date or d > max_date:
+        return None, (
+            f"Analysis date must be between {default_date.isoformat()} and {max_date.isoformat()} "
+            "(tomorrow up to 5 days ahead). Dates beyond 5 days are not supported because the forecast would not be reliable."
+        )
+    return d.isoformat(), None
 
 
 def normalize_bike_type(raw_bike: str | None) -> tuple[str, bool]:
@@ -194,6 +253,24 @@ def clamp_complexity(raw_complexity: Any) -> int:
     return max(1, min(5, value))
 
 
+def difficulty_to_waypoints(raw_difficulty: Any) -> int:
+    """
+    Map the UI difficulty scale (1-5) to valid MissionConstraints waypoint counts.
+
+    The tool exposes 3-10 ORS waypoints, while the UI and planner use a 1-5
+    difficulty scale. Difficulty 4 and 5 are preserved as 4 and 5 so the
+    existing difficulty boost in scouting keeps working; 1-3 map to the
+    default of 3 waypoints. This keeps the tool's public schema unchanged.
+
+    Args:
+        raw_difficulty: Difficulty value coming from the UI or the planner.
+
+    Returns:
+        An integer in the 3-5 range accepted by trail_scout_simple.
+    """
+    return max(3, clamp_complexity(raw_difficulty))
+
+
 _WHEEL_SIZE_PATTERNS = (
     r'\b29\s*-?\s*(?:er\b|"|inch(?:es)?\b|in\b|pollici\b)',
     r'\b27[.,]5\s*-?\s*(?:er\b|"|inch(?:es)?\b|in\b|pollici\b)',
@@ -227,7 +304,15 @@ def extract_bike_type_from_text(user_input: str) -> str | None:
 
     if any(
         keyword in text
-        for keyword in ("e-mtb", "emtb", "e bike", "e-bike", "ebike", "electric bike", "bici elettrica")
+        for keyword in (
+            "e-mtb",
+            "emtb",
+            "e bike",
+            "e-bike",
+            "ebike",
+            "electric bike",
+            "bici elettrica",
+        )
     ):
         return "e-mtb"
     if "downhill" in text or "enduro" in text:
@@ -294,16 +379,16 @@ def apply_text_overrides(args: dict[str, Any], user_input: str) -> dict[str, Any
 
 
 def build_mission_snapshot(
-        *,
-        location_name: str,
-        lat: float,
-        lon: float,
-        args: dict,
-        distance_km: float,
-        route_mode: str = "round_trip",
-        destination_name: str | None = None,
-        dest_lat: float | None = None,
-        dest_lon: float | None = None,
+    *,
+    location_name: str,
+    lat: float,
+    lon: float,
+    args: dict,
+    distance_km: float,
+    route_mode: str = "round_trip",
+    destination_name: str | None = None,
+    dest_lat: float | None = None,
+    dest_lon: float | None = None,
 ) -> dict:
     ctx = {
         "route_mode": route_mode,
@@ -336,28 +421,25 @@ def summarize_mission(ctx: dict) -> str:
         return "No active mission"
 
     if ctx.get("route_mode") == "point_to_point" and ctx.get("destination_name"):
-        return (
-            f"{ctx['location_name']} → {ctx['destination_name']} · "
-            f"{ctx.get('bike_type', 'mtb')}"
-        )
+        return f"{ctx['location_name']} → {ctx['destination_name']} · {ctx.get('bike_type', 'mtb')}"
 
     return (
-        f"{ctx['location_name']} · "
-        f"{ctx.get('distance_km', '?')} km · "
-        f"{ctx.get('bike_type', 'mtb')}"
+        f"{ctx['location_name']} · {ctx.get('distance_km', '?')} km · {ctx.get('bike_type', 'mtb')}"
     )
 
 
 def resolve_location_query(args: dict, user_input: str) -> str | None:
     return (
-            args.get("location_name")
-            or st.session_state.get("last_location_query")
-            or extract_location_hint(user_input)
-            or (st.session_state.get("mission_context") or {}).get("location_name")
+        args.get("location_name")
+        or st.session_state.get("last_location_query")
+        or extract_location_hint(user_input)
+        or (st.session_state.get("mission_context") or {}).get("location_name")
     )
 
 
-def compute_readiness_score(info: dict, conditions: dict, logistics: dict) -> tuple[int, str, list[str]]:
+def compute_readiness_score(
+    info: dict, conditions: dict, logistics: dict
+) -> tuple[int, str, list[str]]:
     score = 82
     badges: list[str] = []
 
@@ -379,11 +461,15 @@ def compute_readiness_score(info: dict, conditions: dict, logistics: dict) -> tu
         badges.append("Moderate mud")
 
     safety = (conditions or {}).get("safety_advice") or {}
-    wind_risk = ext_cast(safety.get("wind_risk_score"), int, 0)
-    if wind_risk >= 8:
+    safety_status = str(safety.get("status", "")).upper()
+    if "UNAVAILABLE" in safety_status:
+        score -= 20
+        badges.append("Weather unavailable")
+    wind_risk = ext_cast(safety.get("wind_risk_score"), float, 0.0)
+    if wind_risk >= 55:
         score -= 15
         badges.append("Strong wind")
-    elif wind_risk >= 5:
+    elif wind_risk >= 35:
         score -= 7
         badges.append("Wind caution")
 
@@ -500,30 +586,39 @@ def extract_prefer_offroad_from_text(user_input: str) -> bool:
 def extract_distance_flex_from_text(user_input: str) -> tuple[int, str | None]:
     text = (user_input or "").lower()
 
-    if any(p in text for p in [
-        "exactly",
-        "as close as possible",
-        "precisely",
-        "exact distance",
-    ]):
+    if any(
+        p in text
+        for p in [
+            "exactly",
+            "as close as possible",
+            "precisely",
+            "exact distance",
+        ]
+    ):
         return 0, "distance_first"
 
-    if any(p in text for p in [
-        "doesn't have to be exact",
-        "does not have to be exact",
-        "roughly",
-        "around",
-        "about",
-        "approximately",
-    ]):
+    if any(
+        p in text
+        for p in [
+            "doesn't have to be exact",
+            "does not have to be exact",
+            "roughly",
+            "around",
+            "about",
+            "approximately",
+        ]
+    ):
         return 10, "balanced"
 
-    if any(p in text for p in [
-        "ride character matters more",
-        "vibe matters more",
-        "more about the ride quality",
-        "prefer the character of the ride",
-    ]):
+    if any(
+        p in text
+        for p in [
+            "ride character matters more",
+            "vibe matters more",
+            "more about the ride quality",
+            "prefer the character of the ride",
+        ]
+    ):
         return 15, "ride_character_first"
 
     return 10, None
@@ -555,3 +650,105 @@ def normalize_direction_bias(value) -> list[str]:
             normalized.append(item_str)
 
     return normalized
+
+
+def init_session_state() -> None:
+    defaults = {
+        "messages": [],
+        "mission_context": {},
+        "mission_history": [],
+        "ors_api_key": os.getenv("ORS_API_KEY", ""),
+        "last_location_query": None,
+        "last_raw_distance": 25.0,
+        "current_tab": "Plan a Ride",
+        "workspace_tab_selector": "Plan a Ride",
+        "pending_tab_redirect": None,
+        "pending_chat_prompt": None,
+        "pending_chat_hidden": False,
+        "pending_plan_request": None,
+        "rider_profile": {
+            "bike_type": "mtb",
+            "tire_size": "29",
+            "tire_width_mm": default_tire_width_mm("mtb"),
+            "rim_internal_width_mm": default_rim_internal_width_mm("mtb"),
+            "casing_type": default_casing_type("mtb"),
+            "tubeless": True,
+            "fitness_level": "intermediate",
+            "weight_kg": 75.0,
+            "gender": "male",
+            "sweat_rate_ml_per_hour": None,
+        },
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def update_mission_context(
+    location_name: str,
+    lat: float,
+    lon: float,
+    args: dict,
+    distance_km: float,
+    route_mode: str = "round_trip",
+    destination_name: str | None = None,
+    dest_lat: float | None = None,
+    dest_lon: float | None = None,
+):
+    st.session_state["last_location_query"] = location_name
+    ctx = build_mission_snapshot(
+        location_name=location_name,
+        lat=lat,
+        lon=lon,
+        args=args,
+        distance_km=distance_km,
+        route_mode=route_mode,
+        destination_name=destination_name,
+        dest_lat=dest_lat,
+        dest_lon=dest_lon,
+    )
+    st.session_state["mission_context"] = ctx
+
+    history = st.session_state.get("mission_history", [])
+    history = [summarize_mission(ctx)] + history[:4]
+    st.session_state["mission_history"] = history
+
+
+VALID_CASING_TYPES = {"xc", "trail", "enduro", "dh"}
+
+
+def setup_args_from_request(request: dict, profile: dict, bike_type: str) -> dict[str, Any]:
+    """Resolve tire/rim/casing inputs from a plan request and rider defaults."""
+    casing = (
+        str(
+            request.get("casing_type")
+            or profile.get("casing_type")
+            or default_casing_type(bike_type)
+        )
+        .strip()
+        .lower()
+    )
+    if casing not in VALID_CASING_TYPES:
+        casing = default_casing_type(bike_type)
+
+    return {
+        "tire_width_mm": ext_cast(
+            request.get("tire_width_mm", profile.get("tire_width_mm")),
+            int,
+            default_tire_width_mm(bike_type),
+        ),
+        "rim_internal_width_mm": ext_cast(
+            request.get("rim_internal_width_mm", profile.get("rim_internal_width_mm")),
+            int,
+            default_rim_internal_width_mm(bike_type),
+        ),
+        "casing_type": casing,
+        "tubeless": ext_cast(request.get("tubeless", profile.get("tubeless", True)), bool, True),
+    }
+
+
+def append_mission_summary(text: str) -> str:
+    ctx = st.session_state.get("mission_context") or {}
+    if not ctx:
+        return text
+    return f"{text}\n\n[{summarize_mission(ctx)}]"

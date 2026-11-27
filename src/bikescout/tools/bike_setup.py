@@ -16,15 +16,36 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from typing import Any
 
 from bikescout.schemas import TireSetupRecommendation
 
-BAR_PER_PSI = 0.0689476
+BAR_PER_PSI = 0.0689475729317831
 REFERENCE_RIDER_WEIGHT_KG = 85.0
 
+# Approximate bead-seat diameters (mm). Used to scale air volume by wheel size;
+# this is a physics-based correction, not an empirical tire-pressure calibration.
+WHEEL_BSD_MM: dict[str, float] = {
+    "29": 622.0,
+    '29"': 622.0,
+    "700c": 622.0,
+    "28": 622.0,
+    "27.5": 584.0,
+    '27.5"': 584.0,
+    "650b": 584.0,
+    "26": 559.0,
+    '26"': 559.0,
+}
+REFERENCE_WHEEL_BSD_MM = 622.0
+
+MODEL_BASIS = (
+    "Heuristic pneumatic volume/load model (Boussinesq-inspired scaling); "
+    "not calibrated against field pressure measurements."
+)
+MODEL_CONFIDENCE = "low"
 # Approximate bike mass used to convert rider mass into total system load.
 BIKE_MASS_KG: dict[str, float] = {
     "road": 9.0,
@@ -111,16 +132,12 @@ def _bike_key(bike_type: Any) -> str:
 
 def default_tire_width_mm(bike_type: str) -> int:
     """Return the reference tire width for a bike category."""
-    return REFERENCE_TIRE_WIDTH_MM.get(
-        _bike_key(bike_type), REFERENCE_TIRE_WIDTH_MM["road"]
-    )
+    return REFERENCE_TIRE_WIDTH_MM.get(_bike_key(bike_type), REFERENCE_TIRE_WIDTH_MM["road"])
 
 
 def default_rim_internal_width_mm(bike_type: str) -> int:
     """Return the reference rim internal width for a bike category."""
-    return REFERENCE_RIM_INTERNAL_MM.get(
-        _bike_key(bike_type), REFERENCE_RIM_INTERNAL_MM["road"]
-    )
+    return REFERENCE_RIM_INTERNAL_MM.get(_bike_key(bike_type), REFERENCE_RIM_INTERNAL_MM["road"])
 
 
 def default_casing_type(bike_type: str) -> str:
@@ -132,6 +149,10 @@ def default_casing_type(bike_type: str) -> str:
 class BikeSetupConfig:
     road_default_bike_type: str = "road"
     unmapped_surface_label: str = "Unmapped/Mixed"
+
+
+class BikeSetupValidationError(ValueError):
+    """Raised when setup inputs are invalid and no safe recommendation can be made."""
 
 
 class BikeSetupService:
@@ -162,8 +183,8 @@ class BikeSetupService:
             A tuple of (surface breakdown, warnings, compatible flag). A rim-width
             mismatch is reported as a warning and does not mark the bike incompatible.
         """
-        normalized_bike_type = self._normalize_bike_type(bike_type)
-        normalized_tire_mm = self._coerce_tire_mm(tire_mm)
+        normalized_bike_type = self._require_bike_type(bike_type)
+        normalized_tire_mm = self._require_tire_mm(tire_mm)
         aggregated = self._aggregate_surface_summary(extras, surface_map)
 
         breakdown: list[dict[str, str]] = []
@@ -213,11 +234,9 @@ class BikeSetupService:
 
             breakdown.append({"type": name, "percentage": f"{percentage}%"})
 
-        breakdown.sort(
-            key=lambda x: float(x["percentage"].replace("%", "")), reverse=True
-        )
+        breakdown.sort(key=lambda x: float(x["percentage"].replace("%", "")), reverse=True)
 
-        rim_mm = self._coerce_optional_int(rim_internal_width_mm)
+        rim_mm = self._require_rim_internal_width_mm(rim_internal_width_mm)
         if rim_mm is not None:
             min_rim_mm, max_rim_mm = self._rim_width_recommendation(
                 normalized_bike_type, normalized_tire_mm
@@ -250,9 +269,12 @@ class BikeSetupService:
         Compute differential front/rear pressures with a volume and load model.
 
         The model scales reference pressures by total system mass (non-linear),
-        tire air volume (width squared), rim support, casing stiffness and tube
-        setup, then splits the load between the wheels before applying grip and
-        rim-impact optimization.
+        tire air volume (width squared and wheel bead-seat diameter), rim support,
+        casing stiffness and tube setup, then splits the load between the wheels
+        before applying grip and rim-impact optimization.
+
+        This is a heuristic model, not empirically calibrated; outputs are rounded
+        to 0.5 PSI and carry confidence/provenance metadata.
 
         Args:
             bike_type: Bike category driving load split and reference geometry.
@@ -273,9 +295,9 @@ class BikeSetupService:
             A TireSetupRecommendation with front/rear PSI and bar, strategy,
             equipment advice, warnings and a tactical display string.
         """
-        normalized_bike_type = self._normalize_bike_type(bike_type)
+        normalized_bike_type = self._require_bike_type(bike_type)
         normalized_surface_type = self._normalize_surface_type(surface_type)
-        normalized_weight = self._coerce_rider_weight(rider_weight_kg, fallback=80.0)
+        normalized_weight = self._require_rider_weight(rider_weight_kg)
         normalized_mud_index = self._clamp_mud_index(mud_index)
         normalized_tire_size_option = self._normalize_tire_size_option(tire_size_option)
 
@@ -287,33 +309,36 @@ class BikeSetupService:
             wheel_label = (
                 '29"'
                 if normalized_tire_size_option in ["700c", "650b", "25", "28"]
-                else normalized_tire_size_option
+                else (
+                    tire_size_option.strip()
+                    if isinstance(tire_size_option, str) and tire_size_option.strip()
+                    else '29"'
+                )
             )
         elif normalized_bike_type == "gravel":
             wheel_label = (
-                normalized_tire_size_option
-                if normalized_tire_size_option in ["700c", "650b"]
+                tire_size_option.strip()
+                if isinstance(tire_size_option, str)
+                and normalized_tire_size_option in ["700c", "650b"]
                 else "700c"
             )
 
-        effective_width_mm = self._coerce_optional_int(tire_width_mm)
-        if effective_width_mm is None:
-            effective_width_mm = (
-                default_tire_width_mm(normalized_bike_type) or fallback_width_mm
-            )
+        effective_width_mm = (
+            self._require_tire_mm(tire_width_mm)
+            if tire_width_mm is not None
+            else default_tire_width_mm(normalized_bike_type) or fallback_width_mm
+        )
 
-        rim_mm = self._coerce_optional_int(rim_internal_width_mm)
+        rim_mm = self._require_rim_internal_width_mm(rim_internal_width_mm)
         if rim_mm is None:
             rim_mm = default_rim_internal_width_mm(normalized_bike_type)
 
-        casing = self._normalize_casing_type(casing_type, normalized_bike_type)
+        casing = self._require_casing_type(casing_type, normalized_bike_type)
         is_tubeless = self._coerce_bool(tubeless)
         technical_level = self._technical_difficulty_level(technical_difficulty)
         clean_ascent_m = self._coerce_nonnegative_float(ascent_m)
 
-        reference_width_mm = REFERENCE_TIRE_WIDTH_MM.get(
-            normalized_bike_type, fallback_width_mm
-        )
+        reference_width_mm = REFERENCE_TIRE_WIDTH_MM.get(normalized_bike_type, fallback_width_mm)
         reference_rim_mm = REFERENCE_RIM_INTERNAL_MM.get(
             normalized_bike_type, default_rim_internal_width_mm(normalized_bike_type)
         )
@@ -323,6 +348,8 @@ class BikeSetupService:
 
         mass_factor = (total_mass_kg / reference_mass_kg) ** WEIGHT_EXPONENT
         volume_factor = (reference_width_mm / effective_width_mm) ** VOLUME_EXPONENT
+        wheel_bsd = self._wheel_bsd_mm(wheel_label, normalized_bike_type)
+        wheel_volume_factor = REFERENCE_WHEEL_BSD_MM / wheel_bsd
         rim_factor = (reference_rim_mm / rim_mm) ** RIM_SUPPORT_EXPONENT
         casing_factor = CASING_STIFFNESS_FACTOR.get(
             casing, CASING_STIFFNESS_FACTOR[default_casing_type(normalized_bike_type)]
@@ -334,15 +361,14 @@ class BikeSetupService:
             base_psi
             * mass_factor
             * volume_factor
+            * wheel_volume_factor
             * rim_factor
             * casing_factor
             * tube_factor
         )
 
         rocky_surface = (
-            any(
-                keyword in normalized_surface_type for keyword in ROCKY_SURFACE_KEYWORDS
-            )
+            any(keyword in normalized_surface_type for keyword in ROCKY_SURFACE_KEYWORDS)
             or technical_level >= TECHNICAL_ADVICE_MIN_LEVEL
             or self._rocky_surface_from_analysis(surface_analysis)
         )
@@ -364,9 +390,7 @@ class BikeSetupService:
             grip_factor = SMOOTH_SURFACE_FACTOR
             strategy = "Efficiency"
 
-        front_share = FRONT_LOAD_SHARE.get(
-            normalized_bike_type, FRONT_LOAD_SHARE["road"]
-        )
+        front_share = FRONT_LOAD_SHARE.get(normalized_bike_type, FRONT_LOAD_SHARE["road"])
         rear_share = 1.0 - front_share
         front_load_factor = (front_share / 0.5) ** LOAD_DISTRIBUTION_EXPONENT
         rear_load_factor = (rear_share / 0.5) ** LOAD_DISTRIBUTION_EXPONENT
@@ -411,9 +435,7 @@ class BikeSetupService:
         if technical_level >= TECHNICAL_ADVICE_MIN_LEVEL:
             advice.append("Tire Inserts Recommended (rear wheel first) for S3+ terrain")
             if is_tubeless:
-                advice.append(
-                    "Verify sealant and tubeless setup before technical riding"
-                )
+                advice.append("Verify sealant and tubeless setup before technical riding")
             else:
                 advice.append("Tubeless Conversion Recommended for S3+ terrain")
         if normalized_mud_index > MUD_FLOTATION_THRESHOLD:
@@ -428,15 +450,15 @@ class BikeSetupService:
         else:
             knob_choice = "All-Terrain / Trail"
 
-        psi_front = round(target_front_psi, 1)
-        psi_rear = round(target_rear_psi, 1)
+        psi_front = self._round_pressure(target_front_psi)
+        psi_rear = self._round_pressure(target_rear_psi)
         bar_front = round(psi_front * BAR_PER_PSI, 2)
         bar_rear = round(psi_rear * BAR_PER_PSI, 2)
 
         tactical_display = (
             f"{wheel_label} wheels | {effective_width_mm}mm | "
-            f"F: {psi_front} PSI | R: {psi_rear} PSI "
-            f"({bar_front}/{bar_rear} Bar) [{strategy} Setup]"
+            f"F: {psi_front:.1f} PSI | R: {psi_rear:.1f} PSI "
+            f"({bar_front:.2f}/{bar_rear:.2f} bar) [{strategy} Setup]"
         )
 
         return TireSetupRecommendation(
@@ -454,12 +476,12 @@ class BikeSetupService:
             knob_choice=knob_choice,
             advice=advice,
             warnings=warnings,
+            confidence=MODEL_CONFIDENCE,
+            model_basis=MODEL_BASIS,
             tactical_display=tactical_display,
         )
 
-    def _aggregate_surface_summary(
-        self, extras: Any, surface_map: Any
-    ) -> dict[str, float]:
+    def _aggregate_surface_summary(self, extras: Any, surface_map: Any) -> dict[str, float]:
         if not isinstance(extras, dict):
             return {}
         if not isinstance(surface_map, dict):
@@ -501,12 +523,49 @@ class BikeSetupService:
         return bike_type.strip().lower()
 
     @staticmethod
+    def _require_bike_type(bike_type: Any) -> str:
+        if not isinstance(bike_type, str) or not bike_type.strip():
+            raise BikeSetupValidationError(
+                "bike_type is required; use mtb, road, gravel, e-mtb or enduro."
+            )
+        normalized = bike_type.strip().lower()
+        if normalized not in REFERENCE_TIRE_WIDTH_MM:
+            raise BikeSetupValidationError(
+                f"Unsupported bike_type {bike_type!r}; use mtb, road, gravel, e-mtb or enduro."
+            )
+        return normalized
+
+    @staticmethod
     def _coerce_tire_mm(tire_mm: Any) -> int:
         try:
             value = int(tire_mm)
         except (TypeError, ValueError):
             return 25
         return value
+
+    @staticmethod
+    def _require_tire_mm(tire_mm: Any) -> int:
+        try:
+            value = int(tire_mm)
+        except (TypeError, ValueError) as exc:
+            raise BikeSetupValidationError("tire_width_mm must be an integer in mm.") from exc
+        if not 18 <= value <= 75:
+            raise BikeSetupValidationError("tire_width_mm must be between 18 and 75 mm.")
+        return value
+
+    @staticmethod
+    def _require_rim_internal_width_mm(value: Any) -> int | None:
+        if value is None:
+            return None
+        try:
+            coerced = int(value)
+        except (TypeError, ValueError) as exc:
+            raise BikeSetupValidationError(
+                "rim_internal_width_mm must be an integer in mm."
+            ) from exc
+        if not 10 <= coerced <= 45:
+            raise BikeSetupValidationError("rim_internal_width_mm must be between 10 and 45 mm.")
+        return coerced
 
     @staticmethod
     def _coerce_optional_int(value: Any) -> int | None:
@@ -533,7 +592,17 @@ class BikeSetupService:
     def _normalize_tire_size_option(tire_size_option: Any) -> str:
         if not isinstance(tire_size_option, str):
             return ""
-        return tire_size_option.strip()
+        return tire_size_option.strip().strip('"').lower()
+
+    @staticmethod
+    def _wheel_bsd_mm(tire_size_option: Any, bike_type: str) -> float:
+        normalized = BikeSetupService._normalize_tire_size_option(tire_size_option)
+        if normalized in WHEEL_BSD_MM:
+            return WHEEL_BSD_MM[normalized]
+        # Discipline fallback: off-road defaults to 622mm (29"/700c), not a guess.
+        if bike_type in {"mtb", "e-mtb", "enduro", "gravel", "road"}:
+            return REFERENCE_WHEEL_BSD_MM
+        return REFERENCE_WHEEL_BSD_MM
 
     @staticmethod
     def _coerce_rider_weight(rider_weight_kg: Any, fallback: float = 80.0) -> float:
@@ -542,6 +611,16 @@ class BikeSetupService:
         except (TypeError, ValueError):
             return fallback
         return value if value > 0 else fallback
+
+    @staticmethod
+    def _require_rider_weight(rider_weight_kg: Any) -> float:
+        try:
+            value = float(rider_weight_kg)
+        except (TypeError, ValueError) as exc:
+            raise BikeSetupValidationError("rider_weight_kg must be a number.") from exc
+        if not math.isfinite(value) or not 30 <= value <= 200:
+            raise BikeSetupValidationError("rider_weight_kg must be between 30 and 200 kg.")
+        return value
 
     @staticmethod
     def _coerce_nonnegative_float(value: Any) -> float:
@@ -565,6 +644,24 @@ class BikeSetupService:
         if value in CASING_STIFFNESS_FACTOR:
             return value
         return default_casing_type(bike_type)
+
+    @staticmethod
+    def _require_casing_type(casing_type: Any, bike_type: str) -> str:
+        if casing_type is None:
+            return default_casing_type(bike_type)
+        if not isinstance(casing_type, str) or not casing_type.strip():
+            raise BikeSetupValidationError("casing_type must be one of xc, trail, enduro or dh.")
+        value = casing_type.strip().lower()
+        if value not in CASING_STIFFNESS_FACTOR:
+            raise BikeSetupValidationError(
+                f"Unsupported casing_type {casing_type!r}; use xc, trail, enduro or dh."
+            )
+        return value
+
+    @staticmethod
+    def _round_pressure(psi: float) -> float:
+        """Round to a rider-actionable precision (0.5 PSI)."""
+        return round(round(psi * 2) / 2, 1)
 
     @staticmethod
     def _rocky_surface_from_analysis(surface_analysis: Any) -> bool:
@@ -610,13 +707,9 @@ class BikeSetupService:
             match = re.search(r"\b([0-5])\b", label)
         return int(match.group(1)) if match else 0
 
-    def _rim_width_recommendation(
-        self, bike_type: str, tire_mm: int
-    ) -> tuple[int, int]:
+    def _rim_width_recommendation(self, bike_type: str, tire_mm: int) -> tuple[int, int]:
         normalized = self._normalize_bike_type(bike_type)
-        min_ratio, max_ratio = RIM_WIDTH_RATIO_RANGE.get(
-            normalized, RIM_WIDTH_RATIO_RANGE["road"]
-        )
+        min_ratio, max_ratio = RIM_WIDTH_RATIO_RANGE.get(normalized, RIM_WIDTH_RATIO_RANGE["road"])
         return round(tire_mm * min_ratio), round(tire_mm * max_ratio)
 
     @staticmethod

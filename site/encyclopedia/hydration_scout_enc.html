@@ -35,7 +35,7 @@
   "operatingSystem": "Independent",
   "downloadUrl": "https://github.com/hifly81/bikescout",
   "license": "https://www.gnu.org/licenses/agpl-3.0-standalone.html",
-  "softwareVersion": "1.7.0",
+  "softwareVersion": "1.8.0",
   "keywords": "AI, cycling intelligence, predictive mud logic, S-Scale MTB, OpenStreetMap AI, tactical cycling",
   "author": {
     "@type": "Person",
@@ -113,30 +113,34 @@
     </header>
 
     <div class="article-content">
-        <p><strong>Hydration Scout</strong> is BikeScout’s bio-energetic engine. It solves the critical problem of "the wall" (bonking) by correlating geospatial effort with environmental thermal stress. Unlike generic calorie counters, it predicts the <strong>sweat rate</strong> and <strong>glycogen depletion</strong> specifically for off-road cycling conditions.</p>
+        <p><strong>Hydration Scout</strong> is BikeScout’s bio-energetic planning engine. It estimates fluids, carbohydrates and sodium for a ride by combining duration, intensity, rider mass, temperature and sweat-profile inputs. It is a planning model, not a clinical prescription.</p>
 
-        <h2>The Dynamic Fluid Model</h2>
-        <p>The algorithm calculates hydration requirements by setting a baseline metabolic rate and adjusting it for every 5°C increase above the 20°C thermal threshold.</p>
-
-        <div class="tech-box">
-            <span class="mono text-neon-text font-bold">// HYDRATION FLOW FORMULA</span><br>
-            <span class="mono text-slate-400">Hourly_Fluid = (Base_500ml + Heat_Adjustment) * Intensity_Multiplier</span>
+        <div class="highlight-box">
+            <strong class="neon-text">Note:</strong> When no reliable weather temperature is available, BikeScout can use a conservative 20°C assumption for nutrition calculation only. The output marks this as an assumption and does not fabricate weather observations.
         </div>
 
-        <h2>Glycogen Prediction</h2>
-        <p>Intensity isn't just speed; it's a factor of vertical gain and technical terrain (HC climbs, technical singletracks). Hydration Scout categorizes intake into three tiers:</p>
-        <ul>
-            <li><strong>Low Intensity (<40):</strong> 40g Carbs/hr (Endurance/Z2).</li>
-            <li><strong>Moderate Intensity (40-70):</strong> 60g Carbs/hr (Tempo/Trail).</li>
-            <li><strong>High Intensity (>70):</strong> 80g+ Carbs/hr (Legendary HC Climbs).</li>
-        </ul>
-
-        <h2>Tactical Advice & Safety</h2>
-        <p>Hydration Scout monitors for "Metabolic Redlines". If the forecasted temperature exceeds 28°C or the mission duration crosses the 3-hour mark, the system automatically triggers an <strong>Electrolyte Critical</strong> alert, recommending sodium supplementation to prevent hyponatremia.</p>
+        <h2>How the Model Works</h2>
+        <p>The nutrition engine uses deterministic heuristics bounded by published ranges. Fluid targets start from rider mass and are adjusted by temperature and intensity. If the rider provides a measured sweat rate, that measurement replaces the population estimate.</p>
 
         <div class="tech-box">
-            <span class="mono text-neon-text font-bold">// TACTICAL WARNING LOGIC</span><br>
-            <span class="mono text-slate-400">If (Temp > 28°C OR Duration > 3h): Trigger "Sodium Supplementation Needed"</span>
+            <span class="mono text-neon-text font-bold">// PLANNING INPUTS</span><br>
+            <span class="mono text-slate-400">duration_hours, temp_c, intensity_score, weight_kg, gender, sweat_profile, optional sweat_rate_ml_per_hour</span>
+        </div>
+
+        <h2>Carbohydrate Tiers</h2>
+        <p>Carbohydrate targets follow published endurance ranges and scale with intensity and duration. BikeScout reports the selected tier and ratio in the nutrition briefing:</p>
+        <ul>
+            <li><strong>Endurance / Recovery:</strong> lower target, typically around 40 g/h.</li>
+            <li><strong>Tempo:</strong> medium target, typically around 60 g/h.</li>
+            <li><strong>Race / Threshold:</strong> high target, typically 90 g/h and up to 120 g/h in long high-intensity cases, using multiple transportable carbs.</li>
+        </ul>
+
+        <h2>Safety, Assumptions and Evidence</h2>
+        <p>BikeScout adds tactical alerts for heat stress, bonk risk, high sodium loss, over-hydration risk and uncertain inputs. The response includes <code>data_basis</code>, <code>estimate_confidence</code>, <code>uncertainty_note</code>, <code>inputs_used</code> and references so clients can distinguish measured inputs from estimates.</p>
+
+        <div class="tech-box">
+            <span class="mono text-neon-text font-bold">// EXAMPLE ASSUMPTION</span><br>
+            <span class="mono text-slate-400">If temperature is unavailable: temp assumed 20°C for calculation only, temperature_reliable=false, weather not fabricated.</span>
         </div>
 
         <div class="mt-16 flex flex-wrap gap-4">

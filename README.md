@@ -3,7 +3,7 @@
 ### Open-source AI cycling route planner for MTB, gravel, road and e-bike riders
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-red.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Version](https://img.shields.io/badge/Version-1.7.0-green.svg)](https://github.com/hifly81/bikescout/releases)
+[![Version](https://img.shields.io/badge/Version-1.8.0-green.svg)](https://github.com/hifly81/bikescout/releases)
 ![Python](https://img.shields.io/badge/python-3.10-blue.svg)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
@@ -83,16 +83,19 @@ You can ask **BikeScout** complex, multi-step requests. It combines real-time da
 
 ---
 
-## Why BikeScout?
+## How BikeScout compares
 
-While others products focus on where to go, BikeScout focuses on how you can thrive on that specific ride, right now.
+BikeScout is built for **pre-ride tactical planning and route audit**. It complements route discovery, training logs, and trail databases with deterministic, cycling-specific analysis.
 
-| Platform | What they provide | Why BikeScout is superior |
+| Platform | Typical focus | What BikeScout adds |
 | :--- | :--- | :--- |
-| **Komoot** | Static maps | We add **live risk-context** |
-| **Strava** | History/Social | We add **predictive safety** |
-| **Trailforks** | Databases | We add **personalized intelligence** |
-| **Generic AI** | Theory | We add **real-world telemetry** |
+| **Komoot** | Route discovery and navigation | Weather-aware route planning, TAEL mud-risk heuristics, surface/S-scale context, tire pressure and setup guidance, nutrition planning, and exportable GPX/altimetry artifacts. |
+| **Strava** | Activity tracking, social, and training history | Pre-ride Go/No-Go window planning with forecast-bounded analysis dates (tomorrow to +5 days), plus GPX tactical audit with heuristic climb categorization, performance simulation, and risk alerts. |
+| **Ride with GPS** | Route planning and cue sheets | Terrain truth (distance, ascent, gradient, climb metrics), rider/bike-aware recommendations, POI/logistics overlays, and structured tool outputs. |
+| **Trailforks** | Trail maps and community condition reports | Route-specific planning context: weather window, mud/traction heuristics, surface/difficulty signals, and equipment/nutrition recommendations for the planned ride. |
+| **Generic AI assistants** | General reasoning from text prompts | Grounded MCP tools with typed schemas, a local Streamlit planner/chat GUI, explicit uncertainty/assumption labels, and exportable artifacts (GPX, altimetry, map, race PDF MCP resource). |
+
+> BikeScout is designed to work alongside these tools, not replace their social, navigation, or community-history strengths.
 
 ---
 
@@ -103,17 +106,19 @@ Contributions are what make the open-source community such an amazing place to l
 ### How to Contribute
 
 1. **Report Bugs**: Found a glitch? Open an [Issue](https://github.com/hifly81/bikescout/issues) with a detailed description and steps to reproduce.
-2. **Feature Requests**: Have an idea to make BikeScout better? Open an issue to discuss it!
+2. **Feature Requests**: Have an idea to make BikeScout better? Open an issue to discuss it first.
 3. **Pull Requests**:
-   - Fork the Project.
-   - Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
-   - Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-   - Push to the Branch (`git checkout origin feature/AmazingFeature`).
-   - Open a Pull Request.
+   - Fork the repository and create a feature branch (`git checkout -b feature/AmazingFeature`).
+   - Make a focused change with clear commits. Keep comments in English.
+   - If you touch Python under `src/`, run `uv run ruff check`, `uv run ruff format --check`, `uv run pyright` and `uv run pytest --cov=src/bikescout --cov-fail-under=80` before opening the PR.
+   - Push the branch (`git push -u origin feature/AmazingFeature`) and open a Pull Request describing the change and the checks you ran.
+   - Discuss changes to public MCP tool signatures, tool names or Streamlit session keys in an issue before opening the PR.
+
+Development setup: `uv sync --extra test --extra dev`. Set `ORS_API_KEY` in a local, untracked `.env` — never in committed client configs.
 
 ### Coding Standards
 - Please follow [PEP 8](https://peps.python.org/pep-0008/) for Python code.
-- Ensure all new tools are documented in the `README.md`.
+- Document new tools and schema changes in `site/documentation/api-reference.html`, with tests.
 - Keep comments in English for international collaboration.
 
 *By contributing, you agree that your contributions will be licensed under the project's AGPLv3 License.*

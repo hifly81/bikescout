@@ -1,9 +1,10 @@
 ## 2. Mechanical Setup & Tire Pressure
-Prefer the BikeScout tire setup tool over static tables. Its volume/load model returns
-differential `psi_front` / `psi_rear` values, equipment advice and warnings, using an
-85kg rider baseline, tire width squared, rim internal width, casing stiffness and
-tubeless/tube setup. Ask the rider for tire width (mm), rim internal width (mm), casing
-(xc/trail/enduro/dh) and whether the setup is tubeless when they are known.
+Prefer the pressure and compatibility data in `info.surface_analysis.mechanical_setup`
+from `trail_scout_simple` (internal service `bikescout.tools.bike_setup.get_tire_setup`);
+there is no standalone tire-setup MCP tool. Its volume/load model returns differential
+`psi_front` / `psi_rear` values, equipment advice and warnings from rider mass, tire width
+squared, rim internal width, casing stiffness and tubeless/tube setup. Ask the rider for
+tire width (mm), rim internal width (mm), casing (xc/trail/enduro/dh) and tubeless status.
 
 ### Reference Pressures (tubeless, 85kg rider)
 | Discipline | Tire Width | Front PSI | Rear PSI |
@@ -35,6 +36,6 @@ Before confirming "Ready to Ride," ensure the following items are logged:
 ## 4. Agent Operational Logic
 When an user asks for a route or mission prep:
 1. **Identify** the `bike_type` from the user profile.
-2. **Retrieve** the corresponding `EXTRA_PROTOCOLS`.
-3. **Calculate** the tire pressure using the `PRESSURE_DATA` and apply the `MECHANICAL_NOTES` regarding inner tubes.
+2. **Retrieve** `info.surface_analysis.mechanical_setup` (`bike_type`, `compatible`, `setup_details`, `safety_warnings`) from the mission briefing.
+3. **Apply** `setup_details` (front/rear PSI, strategy, casing, inserts) and `safety_warnings`, including the inner-tube correction, to the Mission Readiness Report.
 4. **Output** a consolidated "Mission Readiness Report."

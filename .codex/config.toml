@@ -5,9 +5,5 @@
 timeout = 30
 
 [mcp.servers.bike-scout]
-command = "/app/mcp_servers/bikescout_project/venv/bin/python3"
-args = ["-u", "-m", "bikescout.mcp_server"]
-
-[mcp.servers.bike-scout.env]
-ORS_API_KEY = "YOUR_API_KEY"
-PYTHONPATH = "/app/mcp_servers/bikescout_project/src"
+command = "uv"
+args = ["run", "bikescout"]

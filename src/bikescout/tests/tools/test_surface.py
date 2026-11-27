@@ -1,3 +1,21 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 from types import SimpleNamespace
 
 import pytest
@@ -116,30 +134,45 @@ def test_normalize_mud_index_maps_tael_mm_to_zero_one():
     assert _normalize_mud_index("bad") == 0.0
 
 
-def test_surface_analyzer_passes_physical_setup_inputs_and_normalized_mud(
-    rider, bike, mission
-):
+def test_surface_analyzer_passes_physical_setup_inputs_and_normalized_mud(rider, bike, mission):
     calls = {}
     service = SurfaceAnalyzerService(
         config=SurfaceAnalyzerConfig(),
-        http_session=FakeSession(responses=[FakeResponse(status_code=200, payload={
-            "features": [{
-                "properties": {"extras": {"surface": {"summary": [
-                    {"value": 5, "distance": 2000},
-                ]}}},
-                "geometry": {"coordinates": [
-                    [10.0, 45.0, 100], [10.001, 45.0, 101], [10.002, 45.0, 102],
-                ]},
-            }]
-        })]),
+        http_session=FakeSession(
+            responses=[
+                FakeResponse(
+                    status_code=200,
+                    payload={
+                        "features": [
+                            {
+                                "properties": {
+                                    "extras": {
+                                        "surface": {
+                                            "summary": [
+                                                {"value": 5, "distance": 2000},
+                                            ]
+                                        }
+                                    }
+                                },
+                                "geometry": {
+                                    "coordinates": [
+                                        [10.0, 45.0, 100],
+                                        [10.001, 45.0, 101],
+                                        [10.002, 45.0, 102],
+                                    ]
+                                },
+                            }
+                        ]
+                    },
+                )
+            ]
+        ),
         mud_analyzer=lambda *args, **kwargs: {
             "metadata": {},
             "tactical_analysis": {"mud_risk_numeric": 12.0},
         },
         compatibility_analyzer=lambda *args, **kwargs: ([], [], True),
-        tire_setup_getter=lambda **kwargs: (
-            calls.update(kwargs) or sample_tire_setup()
-        ),
+        tire_setup_getter=lambda **kwargs: calls.update(kwargs) or sample_tire_setup(),
         battery_drain_calculator=lambda **kwargs: {},
     )
     bike.rim_internal_width_mm = 19
@@ -344,7 +377,9 @@ def test_get_surface_analyzer_success_with_emtb(service, rider, mission):
     payload = {
         "features": [
             {
-                "properties": {"extras": {"surface": {"summary": [{"value": 5, "distance": 1000}]}}},
+                "properties": {
+                    "extras": {"surface": {"summary": [{"value": 5, "distance": 1000}]}}
+                },
                 "geometry": {
                     "coordinates": [
                         [10.0, 45.0, 100],
@@ -372,13 +407,17 @@ def test_get_surface_analyzer_fallback_after_ors_error(service, rider, bike, mis
     mission.profile = "cycling-mountain"
     service.http_session = FakeSession(
         responses=[
-            FakeResponse(status_code=400, payload={"error": {"message": "bad request"}}, text="bad request"),
+            FakeResponse(
+                status_code=400, payload={"error": {"message": "bad request"}}, text="bad request"
+            ),
             FakeResponse(
                 status_code=200,
                 payload={
                     "features": [
                         {
-                            "properties": {"extras": {"surface": {"summary": [{"value": 1, "distance": 1000}]}}},
+                            "properties": {
+                                "extras": {"surface": {"summary": [{"value": 1, "distance": 1000}]}}
+                            },
                             "geometry": {
                                 "coordinates": [
                                     [10.0, 45.0, 100],
@@ -404,7 +443,9 @@ def test_get_surface_analyzer_fallback_after_ors_error(service, rider, bike, mis
     assert result["profile_used"] == "cycling-regular"
 
 
-def test_get_surface_analyzer_returns_global_failure_after_all_attempts(service, rider, bike, mission):
+def test_get_surface_analyzer_returns_global_failure_after_all_attempts(
+    service, rider, bike, mission
+):
     service.http_session = FakeSession(
         responses=[
             FakeResponse(status_code=400, payload={"error": {"message": "bad1"}}, text="bad1"),
@@ -432,7 +473,9 @@ def test_get_surface_analyzer_handles_local_processing_error(service, rider, bik
     assert "Global failure: Local processing error:" in result["message"]
 
 
-def test_get_surface_analyzer_uses_provided_route_feature_without_ors_request(service, rider, bike, mission):
+def test_get_surface_analyzer_uses_provided_route_feature_without_ors_request(
+    service, rider, bike, mission
+):
     geometry = [
         [10.0, 45.0, 100],
         [10.001, 45.001, 102],
@@ -458,14 +501,18 @@ def test_get_surface_analyzer_uses_provided_route_feature_without_ors_request(se
     assert service.http_session.calls == []
     terrain = result["tactical_briefing"]["terrain_analysis"]
     assert terrain["profile_points"] == len(geometry)
-    assert result["tactical_briefing"]["distance_km"] == round(terrain["profile_length_m"] / 1000, 2)
+    assert result["tactical_briefing"]["distance_km"] == round(
+        terrain["profile_length_m"] / 1000, 2
+    )
     assert result["tactical_briefing"]["elevation_gain_m"] == round(terrain["total_ascent_m"])
 
 
 def test_get_surface_analyzer_provided_route_error_is_structured(service, rider, bike, mission):
     service.http_session = FakeSession(responses=[])
 
-    result = service.get_surface_analyzer("key", 45.0, 10.0, rider, bike, mission, route_feature="invalid")
+    result = service.get_surface_analyzer(
+        "key", 45.0, 10.0, rider, bike, mission, route_feature="invalid"
+    )
 
     assert result["status"] == "Error"
     assert "Local processing error" in result["message"]

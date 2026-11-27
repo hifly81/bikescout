@@ -1,8 +1,30 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
 
 from bikescout.mcp_server import (
+    _ride_window_temperature,
     analyze_gpx_track,
     check_trail_weather,
     geocode_location,
@@ -122,21 +144,42 @@ class TestMcpServer:
             "mcp_resource_uri_map": "bikescout://maps/map.png",
             "mcp_resource_uri_gpx": "bikescout://gpx/route.gpx",
             "mcp_resource_uri_elevation_profile": "bikescout://altimetry/profile.png",
+            "elevation_source": "Elevation data: ORS-compatible routing (HeiGIT)",
+            "elevation_samples_total": 120,
+            "elevation_samples_interpolated": 4,
+            "elevation_uncertainty": "4 of 120 elevation samples estimated from neighbours.",
+            "elevation_error": None,
         }
 
         response = trail_scout(
-            latitude=45.0, longitude=9.0, rider=None, bike=None, mission=None
+            latitude=45.0,
+            longitude=9.0,
+            rider=cast(Any, None),
+            bike=cast(Any, None),
+            mission=cast(Any, None),
         )
 
         assert response.status == "Success"
+        assert response.info is not None
         assert response.info.distance_km == 30.0
+        assert response.elevation_source == "Elevation data: ORS-compatible routing (HeiGIT)"
+        assert response.elevation_samples_total == 120
+        assert response.elevation_samples_interpolated == 4
+        assert response.elevation_uncertainty == (
+            "4 of 120 elevation samples estimated from neighbours."
+        )
+        assert response.elevation_error is None
 
     @patch("bikescout.mcp_server.get_complete_trail_scout")
     @patch("bikescout.mcp_server.ORS_API_KEY", None)
     def test_trail_scout_missing_api_key_error(self, m_scout):
 
         response = trail_scout(
-            latitude=45.0, longitude=9.0, rider=None, bike=None, mission=None
+            latitude=45.0,
+            longitude=9.0,
+            rider=cast(Any, None),
+            bike=cast(Any, None),
+            mission=cast(Any, None),
         )
 
         m_scout.assert_not_called()
@@ -146,8 +189,13 @@ class TestMcpServer:
     @patch("bikescout.mcp_server.get_nutrition_plan")
     def test_hydration_scout_flow(self, m_nut, m_weather):
         m_weather.return_value = {
-            "tactical_forecast": [{"temp": "28.0°C"}],
-            "metadata": {"date_analyzed": "2026-06-15"},
+            "tactical_forecast": [
+                {"time": "09:00", "temp": 22.0},
+                {"time": "10:00", "temp": 28.0},
+                {"time": "18:00", "temp": 34.0},
+            ],
+            "metadata": {"date_analyzed": "2026-06-15", "target_time_local": "09:00"},
+            "reference_conditions": {"temp": 22.0},
         }
 
         m_nut.return_value = {
@@ -160,13 +208,68 @@ class TestMcpServer:
                     "Drink early and often due to 28°C heat.",
                     "Pre-hydrate with 500ml of electrolytes 1 hour before start.",
                 ],
+                "data_basis": "Measured sweat rate used.",
+                "estimate_confidence": "moderate",
+                "uncertainty_note": "Sodium remains self-reported.",
+                "inputs_used": {"sweat_rate_ml_per_hour": 900.0},
+                "references": ["ACSM 2009"],
             },
         }
 
-        response = hydration_scout(lat=45.0, lon=9.0, duration_hours=2.0)
+        response = hydration_scout(
+            lat=45.0,
+            lon=9.0,
+            duration_hours=2.0,
+            sweat_rate_ml_per_hour=900.0,
+            relative_humidity_pct=65.0,
+        )
 
         assert response.weather_context.max_temp_detected == "28.0°C"
+        assert response.weather_context.temperature_basis == "ride_window"
         assert "Drink early" in response.mission_nutrition_briefing.tactical_advice[0]
+        assert response.mission_nutrition_briefing.estimate_confidence == "moderate"
+        called_args = m_nut.call_args.kwargs
+        assert called_args["temperature_basis"] == "ride_window"
+        assert called_args["sweat_rate_ml_per_hour"] == 900.0
+        assert called_args["relative_humidity_pct"] == 65.0
+
+    def test_ride_window_temperature_ignores_daily_peak(self):
+        weather = {
+            "metadata": {"target_time_local": "09:00"},
+            "tactical_forecast": [
+                {"time": "09:00", "temp": 21.0},
+                {"time": "10:00", "temp": 25.5},
+                {"time": "17:00", "temp": 36.0},
+            ],
+            "reference_conditions": {"temp": 21.0},
+        }
+        assert _ride_window_temperature(weather, 2.0) == (25.5, "ride_window")
+
+    def test_ride_window_temperature_falls_back_to_reference(self):
+        weather = {
+            "metadata": {},
+            "tactical_forecast": [{"temp": 30.0}],
+            "reference_conditions": {"temp": 18.0},
+        }
+        assert _ride_window_temperature(weather, 2.0) == (18.0, "reference_fallback")
+        assert _ride_window_temperature({}, 2.0) == (20.0, "default")
+
+    @patch("bikescout.mcp_server.get_weather_forecast")
+    @patch("bikescout.mcp_server.get_nutrition_plan")
+    def test_hydration_scout_exposes_input_error(self, m_nut, m_weather):
+        m_weather.return_value = {
+            "tactical_forecast": [{"time": "09:00", "temp": 22.0}],
+            "metadata": {"date_analyzed": "2026-06-15", "target_time_local": "09:00"},
+        }
+        m_nut.return_value = {
+            "status": "Error",
+            "error_message": "duration_hours must be between 0.1 and 24; got 0.",
+        }
+
+        response = hydration_scout(lat=45.0, lon=9.0, duration_hours=0.0)
+
+        assert response.status == "Error"
+        assert response.error_message == "duration_hours must be between 0.1 and 24; got 0."
 
     @patch("bikescout.mcp_server.analyze_track")
     def test_analyze_gpx_track(self, m_analyze):
@@ -194,6 +297,7 @@ class TestMcpServer:
         assert response.track_metrics["distance_km"] == 50.5
         assert response.mode == "ROAD"
 
+        expected_target_date = (date.today() + timedelta(days=1)).isoformat()
         m_analyze.assert_called_once_with(
             gpx_url="https://tour.com/stage1.gpx",
             rider_weight_kg=75,
@@ -203,7 +307,7 @@ class TestMcpServer:
             bike_weight_kg=8.5,
             pro_intensity=1.3,
             activity_type="road",
-            target_date=None,
+            target_date=expected_target_date,
             start_hour=None,
             end_hour=None,
             report=True,
@@ -325,9 +429,7 @@ class TestMcpServer:
             ),
         ],
     )
-    def test_tools_log_exception_traceback(
-        self, service_target, tool_call, tool_name, capsys
-    ):
+    def test_tools_log_exception_traceback(self, service_target, tool_call, tool_name, capsys):
         with patch(service_target, side_effect=RuntimeError("boom")):
             response = tool_call()
 
@@ -360,6 +462,7 @@ class TestMcpServer:
                 tubeless=True,
                 is_ebike=False,
                 battery_wh=625,
+                motor_power_limit_w=None,
             ),
             mission=MissionConstraints(
                 total_length_km=30,

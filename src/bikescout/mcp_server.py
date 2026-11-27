@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import sys
 import traceback
@@ -57,7 +58,34 @@ load_dotenv()
 BIKESCOUT_PROTOCOL_VERSION = "1.0"
 ORS_API_KEY = os.getenv("ORS_API_KEY")
 
+ANALYSIS_DEFAULT_DAYS_AHEAD = 1
+ANALYSIS_MAX_DAYS_AHEAD = 5
+
 ResponseT = TypeVar("ResponseT", bound=BaseModel)
+
+
+def _resolve_target_date(target_date: str | None) -> tuple[str | None, str | None]:
+    """Resolve analysis date: default tomorrow, max 5 days ahead."""
+    from datetime import date, timedelta
+
+    today = date.today()
+    default_date = today + timedelta(days=ANALYSIS_DEFAULT_DAYS_AHEAD)
+    max_date = today + timedelta(days=ANALYSIS_MAX_DAYS_AHEAD)
+    if target_date is None or str(target_date).strip() == "":
+        return default_date.isoformat(), None
+    try:
+        d = date.fromisoformat(str(target_date).strip())
+    except (TypeError, ValueError):
+        return None, (
+            f"Invalid target_date '{target_date}'. Use YYYY-MM-DD between "
+            f"{default_date.isoformat()} and {max_date.isoformat()}."
+        )
+    if d < default_date or d > max_date:
+        return None, (
+            f"Analysis date must be between {default_date.isoformat()} and {max_date.isoformat()} "
+            "(tomorrow up to 5 days ahead). Dates beyond 5 days are not supported because the forecast would not be reliable."
+        )
+    return d.isoformat(), None
 
 
 def _error_reason(data: dict[str, Any]) -> str:
@@ -145,6 +173,12 @@ def _tool_error_response(
     """
     reason = _error_reason(data) if data is not None else None
     _log_error_details(reason=reason, exception=exception, tool_name=tool_name)
+    if reason and "error_message" in response_model.model_fields:
+        return response_model.model_construct(
+            payload_version=BIKESCOUT_PROTOCOL_VERSION,
+            status="Error",
+            error_message=reason,
+        )
     return response_model.model_construct(
         payload_version=BIKESCOUT_PROTOCOL_VERSION, status="Error"
     )
@@ -169,14 +203,10 @@ def geocode_location(location_name: str, language: str = "en") -> GeocodingRespo
     try:
         data = get_coordinates(location_name, language)
         if data.get("status") == "Error":
-            return _tool_error_response(
-                GeocodingResponse, tool_name="geocode_location", data=data
-            )
+            return _tool_error_response(GeocodingResponse, tool_name="geocode_location", data=data)
         return GeocodingResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
     except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
-        return _tool_error_response(
-            GeocodingResponse, tool_name="geocode_location", exception=exc
-        )
+        return _tool_error_response(GeocodingResponse, tool_name="geocode_location", exception=exc)
 
 
 @mcp.tool()
@@ -205,7 +235,7 @@ def trail_scout(
     Supports both single-point Round Trips and A->B separate destinations.
     If target_date is None, it defaults to the current date.
     OPERATIONAL NOTE FOR AGENTS:
-    - If the user requests a 'circular' route of a specific length (target_distance_km),
+    - If the user requests a 'circular' route of a specific length (total_length_km),
       a variance of ±10% is considered a SUCCESSFUL MATCH.
     - DO NOT re-invoke the tool or attempt to refine the 'total_length_km' if the
       returned route falls within this 10% tolerance window.
@@ -214,7 +244,8 @@ def trail_scout(
     Args:
         latitude: Latitude of the starting point.
         longitude: Longitude of the starting point.
-        rider: Profile including weight and fitness level.
+        rider: Profile including weight, fitness level and an optional measured
+            sweat rate (ml/h) that replaces the population fluid estimate.
         bike: Setup details including bike type and tire width.
         mission: Constraints like search total_length_km and surface preference.
         dest_latitude: Latitude of the ending point.
@@ -242,7 +273,12 @@ def trail_scout(
           and its resource reference.
         - elevation_profile_path & mcp_resource_uri_elevation_profile: The visual
           altimetry report (PNG) in the requested 'style'.
-        - gpx_stats: Technical summary of the generated trace (point count, healed segments).
+        - elevation_source / elevation_samples_total / elevation_samples_interpolated /
+          elevation_uncertainty: Elevation data credit and sample-level uncertainty;
+          elevation_error explains an omitted profile.
+        - logistics.nutrition_plan: Fueling targets with their evidence basis, confidence,
+          uncertainty note, normalised inputs and references; nutrition_error explains a
+          rejected plan. A rider-provided measured sweat rate replaces the population estimate.
     """
 
     if not ORS_API_KEY:
@@ -257,6 +293,10 @@ def trail_scout(
         )
 
     try:
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _error_mission_response(reason=target_date_error, tool_name="trail_scout")
+
         data = get_complete_trail_scout(
             ORS_API_KEY,
             latitude,
@@ -267,7 +307,7 @@ def trail_scout(
             dest_latitude,
             dest_longitude,
             style,
-            target_date,
+            resolved_target_date,
             include_gpx,
             include_map,
             include_poi,
@@ -275,18 +315,15 @@ def trail_scout(
             include_weather,
             include_mud_analysis,
             include_nutrition_plan,
+            sweat_rate_ml_per_hour=getattr(rider, "sweat_rate_ml_per_hour", None),
         )
         if data.get("status") == "Error":
-            return _error_mission_response(
-                reason=_error_reason(data), tool_name="trail_scout"
-            )
-        return FullMissionBriefingResponse(
-            payload_version=BIKESCOUT_PROTOCOL_VERSION, **data
+            return _error_mission_response(reason=_error_reason(data), tool_name="trail_scout")
+        return FullMissionBriefingResponse.model_validate(
+            {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
         )
     except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
-        return _error_mission_response(
-            reason=str(exc), exception=exc, tool_name="trail_scout"
-        )
+        return _error_mission_response(reason=str(exc), exception=exc, tool_name="trail_scout")
 
 
 @mcp.tool()
@@ -305,6 +342,7 @@ def trail_scout_simple(
     tubeless: bool = True,
     is_ebike: bool = False,
     battery_wh: int = 625,
+    motor_power_limit_w: int | None = None,
     total_length_km: int = 30,
     profile: Literal[
         "cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"
@@ -317,9 +355,7 @@ def trail_scout_simple(
     avoid_urban: bool = False,
     prefer_rural: bool = False,
     distance_flex_percent: int = 10,
-    priority_mode: Literal[
-        "balanced", "distance_first", "ride_character_first"
-    ] = "balanced",
+    priority_mode: Literal["balanced", "distance_first", "ride_character_first"] = "balanced",
     dest_latitude: float | None = None,
     dest_longitude: float | None = None,
     style: Literal["sparkline", "filled", "bars"] = "filled",
@@ -330,30 +366,34 @@ def trail_scout_simple(
     include_weather: bool = False,
     include_mud_analysis: bool = False,
     include_nutrition_plan: bool = False,
+    sweat_rate_ml_per_hour: float | None = None,
+    target_date: str | None = None,
 ) -> FullMissionBriefingResponse:
     """
     Simplified tactical scout for cycling routes.
     Use this for quick route generation with sensible defaults.
     Only lat and lon are strictly required.
     Supports both single-point Round Trips and A->B separate destinations.
-    If target_date is None, it defaults to the current date.
     OPERATIONAL NOTE FOR AGENTS:
-    - If the user requests a 'circular' route of a specific length (target_distance_km),
+    - If the user requests a 'circular' route of a specific length (total_length_km),
       a variance of ±10% is considered a SUCCESSFUL MATCH.
     - DO NOT re-invoke the tool or attempt to refine the 'total_length_km' if the
       returned route falls within this 10% tolerance window.
     - Example: For a 25km request, any result between 22.5km and 27.5km is optimal.
+    Date policy: if target_date is omitted, analysis defaults to tomorrow; dates more than 5 days ahead are rejected as unreliable.
 
     Args:
         latitude: Latitude of the starting point.
         longitude: Longitude of the starting point.
         weight_kg: Rider's weight in kilograms (default: 75.0). Used for energy and nutrition math.
-        gender: "male" or "female". Scales sweat rate based on plasma volume variances.
-        sweat_profile: Genetic sodium loss classification.
-            - "low": ~400mg/L (Diluted sweat).
-            - "standard": ~800mg/L (Population average).
-            - "high": ~1200mg/L (Salty sweater).
-            - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).
+        gender: "male" or "female". Recorded for context; it does not change the
+            fluid target without a measured sweat rate.
+        sweat_profile: Self-reported sweat sodium concentration profile; a measured
+            sweat test is needed to personalise it.
+            - "low": ~400 mg/L.
+            - "standard": ~800 mg/L (population average).
+            - "high": ~1200 mg/L.
+            - "extreme": ~1800 mg/L.
         fitness_level: Rider's stamina level ("beginner", "intermediate", "pro").
         bike_type: Type of bicycle to optimize the mechanical and tactical advice.
         tire_size: Wheel/tire diameter for specific pressure (PSI) recommendations.
@@ -363,10 +403,12 @@ def trail_scout_simple(
         tubeless: False for inner tubes, which require roughly 18% more pressure.
         is_ebike: Set to True if using a pedelec/e-bike to enable battery analysis.
         battery_wh: Battery capacity in Watt-hours (default: 625).
+        motor_power_limit_w: Optional hardware motor continuous power limit in Watts.
+            When omitted, battery estimation uses a conservative heuristic fallback.
         total_length_km: The total distance of the round trip in kilometers (e.g., 25.0).
         profile: Routing engine profile (e.g., 'cycling-mountain' for trails, 'cycling-road' for asphalt).
         surface_preference: Bias towards paved or unpaved roads.
-        complexity: Route complexity factor (1-5). Higher values allow more turns and technical segments.
+        complexity: Number of ORS waypoints shaping the loop (3-10). Higher values add turns; the Streamlit UI maps its 1-5 difficulty scale to 3-5.
         seed: Random seed for route generation consistency.
         assist_mode: E-bike motor support level (affects range estimation).
         direction_bias: Preferred route quadrant bias, e.g. ["south", "east"].
@@ -374,6 +416,9 @@ def trail_scout_simple(
         prefer_rural: Bias route generation toward countryside or quieter roads when possible.
         distance_flex_percent: Allowed tolerance on target distance when route character matters more than exact mileage.
         priority_mode: Optimization strategy between exact distance and ride character.
+        sweat_rate_ml_per_hour: Optional measured whole-body sweat rate (ml/h) from a
+            timed weigh-in; overrides the population fluid estimate in the nutrition plan.
+        target_date: Optional analysis date (YYYY-MM-DD). Defaults to tomorrow; max 5 days ahead.
         dest_latitude: Optional. Latitude of the finish line (for A-to-B missions).
         dest_longitude: Optional. Longitude of the finish line (for A-to-B missions).
         style: Visual style for the elevation profile graphic.
@@ -398,7 +443,12 @@ def trail_scout_simple(
           and its resource reference.
         - elevation_profile_path & mcp_resource_uri_elevation_profile: The visual
           altimetry report (PNG) in the requested 'style'.
-        - gpx_stats: Technical summary of the generated trace (point count, healed segments).
+        - elevation_source / elevation_samples_total / elevation_samples_interpolated /
+          elevation_uncertainty: Elevation data credit and sample-level uncertainty;
+          elevation_error explains an omitted profile.
+        - logistics.nutrition_plan: Fueling targets with their evidence basis, confidence,
+          uncertainty note, normalised inputs and references; nutrition_error explains a
+          rejected plan. A rider-provided measured sweat rate replaces the population estimate.
     """
     try:
         rider = RiderProfile(
@@ -406,6 +456,7 @@ def trail_scout_simple(
             gender=gender,
             fitness_level=fitness_level,
             sweat_profile=sweat_profile,
+            sweat_rate_ml_per_hour=sweat_rate_ml_per_hour,
         )
 
         bike = BikeSetup(
@@ -422,6 +473,7 @@ def trail_scout_simple(
             tubeless=tubeless,
             is_ebike=is_ebike,
             battery_wh=battery_wh,
+            motor_power_limit_w=motor_power_limit_w,
         )
 
         mission = MissionConstraints(
@@ -431,12 +483,18 @@ def trail_scout_simple(
             complexity=complexity,
             seed=seed,
             assist_mode=assist_mode,
-            direction_bias=direction_bias or [],
+            direction_bias=cast(
+                list[Literal["north", "south", "east", "west"]], direction_bias or []
+            ),
             avoid_urban=avoid_urban,
             prefer_rural=prefer_rural,
             distance_flex_percent=distance_flex_percent,
             priority_mode=priority_mode,
         )
+
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _error_mission_response(reason=target_date_error)
 
         response = trail_scout(
             latitude=latitude,
@@ -454,6 +512,7 @@ def trail_scout_simple(
             include_weather=include_weather,
             include_mud_analysis=include_mud_analysis,
             include_nutrition_plan=include_nutrition_plan,
+            target_date=resolved_target_date,
         )
         return response
 
@@ -463,31 +522,37 @@ def trail_scout_simple(
 
 @mcp.tool()
 def check_trail_weather(
-    lat: float, lon: float, target_date: str | None = None
+    lat: float, lon: float, target_date: str | None = None, target_hour: int = 9
 ) -> TacticalForecastResponse:
-    """
-    Advanced cycling-specific weather assistant for real-time and future planning.
-    Provides temperature, rain risk, and wind speed analysis.
+    """Cycling-specific weather briefing for a full forecast day.
 
-    If target_date is provided, it analyzes the forecast for that specific day
-    (ideal for race planning like Tour de France stages or MTB World Cup).
-    If target_date is None, it defaults to the current 4-hour window.
+    The safety advice always scans every hourly slot of the requested day.
+    ``target_hour`` only anchors the reference conditions; it does not narrow
+    the safety analysis. If ``target_date`` is omitted, today is analyzed.
 
     Args:
         lat: Latitude of the trail area.
         lon: Longitude of the trail area.
         target_date: Optional. The date of the event in YYYY-MM-DD format.
+        target_hour: Reference hour (0-23) used for the headline conditions.
     Returns:
         A TacticalForecastResponse containing:
         - status: API operation status.
-        - metadata: Contextual data (date, timezone, location).
-        - tactical_forecast: Hourly breakdown of temp, rain probability, and wind.
-        - reference_conditions: Aggregated metrics for the analysis window.
-        - safety_advice: Crucial briefing on wind risk scores and recommended gear.
+        - error_message: Diagnostic reason when status is Error.
+        - metadata: Contextual data (date, timezone, location, analysis scope).
+        - tactical_forecast: Numeric hourly breakdown including WMO condition.
+        - reference_conditions: Verified reference-hour values and window aggregates.
+        - safety_advice: Worst-hour briefing, or an explicit [UNAVAILABLE] verdict.
     """
-    # Now passing the optional target_date to the underlying weather engine
     try:
-        data = get_weather_forecast(lat, lon, target_date)
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                TacticalForecastResponse,
+                tool_name="check_trail_weather",
+                data={"status": "Error", "error_message": target_date_error},
+            )
+        data = get_weather_forecast(lat, lon, resolved_target_date, target_hour)
         if data.get("status") == "Error":
             return _tool_error_response(
                 TacticalForecastResponse, tool_name="check_trail_weather", data=data
@@ -529,18 +594,70 @@ def ride_window_planner(
     """
 
     try:
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                StrategicPlannerResponse,
+                tool_name="ride_window_planner",
+                data={"status": "Error", "message": target_date_error},
+            )
         data = calculate_ride_windows(
-            lat, lon, ride_duration_hours, surface_type, target_date
+            lat, lon, ride_duration_hours, surface_type, resolved_target_date
         )
         if data.get("status") == "Error":
             return _tool_error_response(
                 StrategicPlannerResponse, tool_name="ride_window_planner", data=data
             )
-        return StrategicPlannerResponse(payload_version=BIKESCOUT_PROTOCOL_VERSION, **data)
+        return StrategicPlannerResponse.model_validate(
+            {"payload_version": BIKESCOUT_PROTOCOL_VERSION, **data}
+        )
     except Exception as exc:  # noqa: BLE001 - log all unexpected tool failures
         return _tool_error_response(
             StrategicPlannerResponse, tool_name="ride_window_planner", exception=exc
         )
+
+
+def _ride_window_temperature(
+    weather_data: dict[str, Any], duration_hours: float
+) -> tuple[float, Literal["ride_window", "reference_fallback", "default"]]:
+    """Return the forecast peak inside the ride window, never the daily maximum.
+
+    Args:
+        weather_data: Weather payload returned by the forecast tool.
+        duration_hours: Planned ride duration used to bound the window.
+
+    Returns:
+        The temperature in °C and a label describing where it came from.
+    """
+    metadata = weather_data.get("metadata") or {}
+    start_label = str(metadata.get("target_time_local") or "")
+    try:
+        start_hour = int(start_label.split(":")[0])
+    except (ValueError, IndexError):
+        start_hour = 9
+    try:
+        window_hours = max(1, min(24, math.ceil(float(duration_hours))))
+    except (TypeError, ValueError):
+        window_hours = 1
+    end_hour = min(23, start_hour + window_hours - 1)
+
+    window_temps: list[float] = []
+    for entry in weather_data.get("tactical_forecast") or []:
+        try:
+            hour = int(str(entry["time"]).split(":")[0])
+            temp = float(str(entry["temp"]).replace("°C", "").strip())
+        except (ValueError, KeyError, TypeError):
+            continue
+        if start_hour <= hour <= end_hour:
+            window_temps.append(temp)
+    if window_temps:
+        return max(window_temps), "ride_window"
+
+    reference = weather_data.get("reference_conditions") or {}
+    try:
+        return float(reference["temp"]), "reference_fallback"
+    except (KeyError, TypeError, ValueError):
+        return 20.0, "default"
 
 
 @mcp.tool()
@@ -553,14 +670,17 @@ def hydration_scout(
     gender: str = "male",
     sweat_profile: Literal["standard", "low", "high", "extreme"] = "standard",
     target_date: str | None = None,
+    sweat_rate_ml_per_hour: float | None = None,
+    relative_humidity_pct: float | None = None,
 ) -> HydrationScoutResponse:
     """
     Physiological Intelligence Engine.
-    Calculates a specific nutrition and hydration plan by cross-referencing
-    weather data (heat/humidity) with predicted mission intensity.
+    Calculates a nutrition and hydration plan from the ride-window temperature
+    and the predicted mission intensity.
 
     If target_date is None, it defaults to the current window.
-    For future dates, it analyzes the predicted race-day thermal peak.
+    For future dates, it uses the forecast peak inside the ride window rather
+    than the daily maximum.
 
     Args:
         lat: Latitude of the mission area.
@@ -568,48 +688,55 @@ def hydration_scout(
         duration_hours: Estimated time in the saddle.
         intensity_score: Physiological effort (1 to 5) 5 = Max Effort/Race.
         weight_kg: Weight in Kg.
-        gender: "male" or "female". Scales sweat rate based on plasma volume variances.
-        sweat_profile: Genetic sodium loss classification.
-            - "low": ~400mg/L (Diluted sweat).
-            - "standard": ~800mg/L (Population average).
-            - "high": ~1200mg/L (Salty sweater).
-            - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).
+        gender: "male" or "female". Recorded for context; it does not change the
+            fluid target without a measured sweat rate.
+        sweat_profile: Self-reported sweat sodium concentration profile; a measured
+            sweat test is needed to personalise it.
+            - "low": ~400 mg/L.
+            - "standard": ~800 mg/L (population average).
+            - "high": ~1200 mg/L.
+            - "extreme": ~1800 mg/L.
         target_date: Optional. The date of the event in YYYY-MM-DD format.
+        sweat_rate_ml_per_hour: Optional measured whole-body sweat rate (ml/h)
+            from a timed weigh-in; replaces the population fluid estimate.
+        relative_humidity_pct: Optional relative humidity (%). It raises a heat
+            alert but does not change the fluid target.
     Returns:
-        A HydrationScoutResponse containing the tactical weather context and
-        the complete nutrition briefing (fluids, carbs, electrolytes).
+        A HydrationScoutResponse containing the weather context (with the
+        temperature basis) and the nutrition briefing, including its evidence
+        basis, confidence, uncertainty note, normalised inputs and references.
+        error_message explains rejected inputs.
     """
     try:
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                HydrationScoutResponse,
+                tool_name="hydration_scout",
+                data={"status": "Error", "error_message": target_date_error},
+            )
         # 1. Fetch weather context using the updated forecast engine
-        # This now supports both real-time and future dates
-        weather_data = get_weather_forecast(lat, lon, target_date)
+        weather_data = get_weather_forecast(lat, lon, resolved_target_date)
         if weather_data.get("status") == "Error":
             return _tool_error_response(
                 HydrationScoutResponse, tool_name="hydration_scout", data=weather_data
             )
 
-        # 2. Extract peak temperature from the tactical forecast window
-        # Default to 20°C if weather data is unavailable
-        max_temp = 20.0
-
-        # We now look for 'tactical_forecast' (the new key in our updated weather tool)
-        forecast = weather_data.get("tactical_forecast", [])
-
-        if forecast:
-            try:
-                # We parse the temperature strings (e.g., "24.5°C" -> 24.5)
-                # and find the maximum expected during the ride window
-                temps = [float(h["temp"].replace("°C", "")) for h in forecast]
-                max_temp = max(temps)
-            except (ValueError, KeyError, TypeError):
-                # Fallback to the reference condition if list parsing fails
-                ref_cond = weather_data.get("reference_conditions", {})
-                max_temp = float(ref_cond.get("temp", 20.0))
+        # 2. Use the peak temperature inside the ride window, not the daily maximum.
+        max_temp, temperature_basis = _ride_window_temperature(weather_data, duration_hours)
 
         # 3. Execute the Nutrition Logic
         # The engine calculates carbs/hour and ml/hour based on heat and intensity
         data = get_nutrition_plan(
-            duration_hours, max_temp, intensity_score, weight_kg, gender, sweat_profile
+            duration_hours=duration_hours,
+            temp_c=max_temp,
+            intensity_score=intensity_score,
+            weight_kg=weight_kg,
+            gender=gender,
+            sweat_profile=sweat_profile,
+            sweat_rate_ml_per_hour=sweat_rate_ml_per_hour,
+            relative_humidity_pct=relative_humidity_pct,
+            temperature_basis=temperature_basis,
         )
         if data.get("status") == "Error":
             return _tool_error_response(
@@ -618,12 +745,11 @@ def hydration_scout(
 
         context = WeatherContext(
             date_referenced=weather_data.get("metadata", {}).get(
-                "date_analyzed", target_date
+                "date_analyzed", resolved_target_date
             ),
             max_temp_detected=f"{max_temp}°C",
-            is_future_event=weather_data.get("metadata", {}).get(
-                "is_future_planning", False
-            ),
+            temperature_basis=temperature_basis,
+            is_future_event=weather_data.get("metadata", {}).get("is_future_planning", False),
         )
 
         return HydrationScoutResponse(
@@ -651,38 +777,48 @@ def analyze_gpx_track(
     report: bool = False,
 ) -> GpxRaceAuditResponse:
     """
-    Performs a high-fidelity professional audit of a GPX race track.
-    Calculates UCI climb categories, VAM, W/kg requirements, and crosswind (echelon) risks.
-    Integrates predictive weather, mud risk, and nutrition planning.
+    Performs a high-fidelity audit of a GPX race track.
+    Estimates climb categories (BikeScout heuristic, not official UCI race classification),
+    VAM, W/kg requirements, and crosswind (echelon) risks. Integrates weather, mud risk,
+    and nutrition planning.
 
     Args:
         gpx_url: Remote URL or local path of the GPX file to analyze.
         rider_weight_kg: Body mass of the rider for Power-to-Weight calculations. Default: 75
         rider_gender: Default "male",
         rider_fitness_level: User's athletic preparation level. Affects fatigue and climbing logic. Default "intermediate"
-        sweat_profile: Genetic sodium loss classification.
-            - "low": ~400mg/L (Diluted sweat).
-            - "standard": ~800mg/L (Population average).
-            - "high": ~1200mg/L (Salty sweater).
-            - "extreme": ~1800mg/L (Genetic outlier/Heavy loser).
+        sweat_profile: Self-reported sweat sodium concentration profile; a measured
+            sweat test is needed to personalise it.
+            - "low": ~400 mg/L.
+            - "standard": ~800 mg/L (population average).
+            - "high": ~1200 mg/L.
+            - "extreme": ~1800 mg/L.
         bike_weight_kg: Mass of the bike (default 8.5kg for road bikes).
         pro_intensity: Effort multiplier (1.0 = amateur, 1.6 = pro pace, 2.0 = world-class attack).
         activity_type: Type of activity ('road' or 'mtb').
         target_date: Optional race date (YYYY-MM-DD). If provided, fetches historical or forecast weather.
         start_hour: Expected start time (0-23). If provided with end_hour, calculates window-averaged metrics.
         end_hour: Expected finish time (0-23). Used to average weather conditions during the event.
-        report: True or False, generate a pdf report with the analysis.
+        report: True or False, generate a PDF race book.
     Returns:
         A GpxRaceAuditResponse object containing:
         - track_metrics: Core distance and elevation data.
-        - planning_tools: Predictive weather, nutrition strategy, and mud risk analysis.
-        - climb_analysis: Detailed UCI categorization of all climbs.
+        - planning_tools: Weather, nutrition strategy, mud risk, and weather basis metadata.
+        - climb_analysis: Detailed climb categorization (BikeScout heuristic).
         - performance_simulation: Estimated times, VAM, and W/kg per sector.
         - tactical_alerts: Positioning warnings, echelon risks, and attack points.
-        - report_path: Local URI to the generated PDF document (if requested).
+        - report_path: Local filesystem path to the generated PDF document (if requested).
+        - mcp_resource_uri_report: MCP resource URI for the generated PDF document (if requested).
     """
 
     try:
+        resolved_target_date, target_date_error = _resolve_target_date(target_date)
+        if target_date_error:
+            return _tool_error_response(
+                GpxRaceAuditResponse,
+                tool_name="analyze_gpx_track",
+                data={"status": "Error", "error_message": target_date_error},
+            )
         data = analyze_track(
             gpx_url=gpx_url,
             rider_weight_kg=rider_weight_kg,
@@ -692,7 +828,7 @@ def analyze_gpx_track(
             bike_weight_kg=bike_weight_kg,
             pro_intensity=pro_intensity,
             activity_type=activity_type,
-            target_date=target_date,
+            target_date=resolved_target_date,
             start_hour=start_hour,
             end_hour=end_hour,
             report=report,
@@ -729,6 +865,14 @@ def serve_gpx(filename: str) -> bytes:
     file_path = Path.home() / ".bikescout" / "gpx" / filename
     if not file_path.exists():
         raise FileNotFoundError("GPX not found.")
+    return file_path.read_bytes()
+
+
+@mcp.resource("bikescout://race/{filename}")
+def serve_race_report(filename: str) -> bytes:
+    file_path = Path.home() / ".bikescout" / "race" / filename
+    if not file_path.exists():
+        raise FileNotFoundError("Race report not found.")
     return file_path.read_bytes()
 
 

@@ -1,5 +1,24 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import zoneinfo
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
 
@@ -51,6 +70,7 @@ class FakeSession:
 def fixed_now():
     def _now(tz):
         return datetime(2026, 6, 3, 12, 0, 0, tzinfo=tz)
+
     return _now
 
 
@@ -78,7 +98,7 @@ def test_resolve_timezone_name_fallback_to_utc(fixed_now):
     service = MudAnalysisService(
         config=MudAnalysisConfig(),
         requests_session=FakeSession(),
-        timezone_finder=FakeTimezoneFinder(None),
+        timezone_finder=FakeTimezoneFinder(cast(Any, None)),
         solar_altitude_func=lambda lat, lon, dt: 0.0,
         now_func=fixed_now,
     )
@@ -319,8 +339,74 @@ def test_get_mud_risk_analysis_handles_missing_hourly_data(fixed_now):
     result = service.get_mud_risk_analysis(45.0, 10.0, "dirt", None)
 
     assert result["status"] == "Error"
-    assert "No hourly weather data returned from API." in result["message"]
+    assert "No hourly weather data returned" in result["message"]
+    assert "not treated as dry" in result["message"]
+    assert result["next_step"]
     assert result["tactical_analysis"] is None
+
+
+def test_get_mud_risk_analysis_rejects_invalid_coords(fixed_now):
+    service = MudAnalysisService(
+        config=MudAnalysisConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload={})),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        solar_altitude_func=lambda lat, lon, dt: 0.0,
+        now_func=fixed_now,
+    )
+
+    result = service.get_mud_risk_analysis(999, 10.0, "dirt", None)
+
+    assert result["status"] == "Error"
+    assert "lat must be between -90 and 90" in result["message"]
+    assert result["next_step"]
+
+
+def test_get_mud_risk_analysis_rejects_inconsistent_hourly_arrays(fixed_now):
+    payload = {
+        "hourly": {
+            "time": ["2026-06-03T12:00", "2026-06-03T13:00"],
+            "precipitation": [0.0],
+            "temperature_2m": [20.0, 21.0],
+            "wind_speed_10m": [10.0, 10.0],
+            "cloudcover": [0.0, 0.0],
+        }
+    }
+    service = MudAnalysisService(
+        config=MudAnalysisConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload=payload)),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        solar_altitude_func=lambda lat, lon, dt: 0.0,
+        now_func=fixed_now,
+    )
+
+    result = service.get_mud_risk_analysis(45.0, 10.0, "dirt", None)
+
+    assert result["status"] == "Error"
+    assert "Inconsistent hourly weather arrays" in result["message"]
+
+
+def test_get_mud_risk_analysis_rejects_missing_weather_value(fixed_now):
+    payload = {
+        "hourly": {
+            "time": ["2026-06-03T12:00"],
+            "precipitation": [None],
+            "temperature_2m": [20.0],
+            "wind_speed_10m": [10.0],
+            "cloudcover": [0.0],
+        }
+    }
+    service = MudAnalysisService(
+        config=MudAnalysisConfig(),
+        requests_session=FakeSession(response=FakeResponse(payload=payload)),
+        timezone_finder=FakeTimezoneFinder("UTC"),
+        solar_altitude_func=lambda lat, lon, dt: 0.0,
+        now_func=fixed_now,
+    )
+
+    result = service.get_mud_risk_analysis(45.0, 10.0, "dirt", None)
+
+    assert result["status"] == "Error"
+    assert "Missing weather value" in result["message"]
 
 
 def test_get_mud_risk_analysis_handles_request_failure(fixed_now):
@@ -339,29 +425,19 @@ def test_get_mud_risk_analysis_handles_request_failure(fixed_now):
     assert "network down" in result["message"]
 
 
-def test_get_mud_risk_analysis_uses_surface_fallback_and_coerced_coords(fixed_now):
-    payload = {
-        "hourly": {
-            "time": ["2026-06-03T12:00"],
-            "precipitation": [0.0],
-            "temperature_2m": [20.0],
-            "wind_speed_10m": [10.0],
-            "cloudcover": [0.0],
-        }
-    }
-    session = FakeSession(response=FakeResponse(payload=payload))
+def test_get_mud_risk_analysis_invalid_coords_do_not_fallback_to_null_island(fixed_now):
     service = MudAnalysisService(
         config=MudAnalysisConfig(),
-        requests_session=session,
+        requests_session=FakeSession(response=FakeResponse(payload={})),
         timezone_finder=FakeTimezoneFinder("UTC"),
         solar_altitude_func=lambda lat, lon, dt: 25.0,
         now_func=fixed_now,
     )
 
-    result = service.get_mud_risk_analysis("bad", "bad", None, None)
+    result = service.get_mud_risk_analysis(cast(Any, "bad"), cast(Any, "bad"), "dirt", None)
 
-    assert result["status"] == "Success"
-    assert result["tactical_analysis"]["surface_type"] == "dirt"
+    assert result["status"] == "Error"
+    assert "lat and lon must be valid numbers" in result["message"]
 
 
 def test_module_level_wrapper(monkeypatch):
@@ -371,7 +447,12 @@ def test_module_level_wrapper(monkeypatch):
 
         def get_mud_risk_analysis(self, **kwargs):
             self.calls.append(kwargs)
-            return {"status": "Success", "metadata": {}, "environmental_context": {}, "tactical_analysis": {}}
+            return {
+                "status": "Success",
+                "metadata": {},
+                "environmental_context": {},
+                "tactical_analysis": {},
+            }
 
     fake_service = FakeService()
     monkeypatch.setattr(mud_module, "service", fake_service)

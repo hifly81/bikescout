@@ -1,9 +1,28 @@
+# BikeScout - Tactical Intelligence for Cyclists
+# Copyright (C) 2026 hifly81 (https://github.com/hifly81/bikescout)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+from __future__ import annotations
+
 import pytest
 
 from bikescout.app_helpers import (
     apply_text_overrides,
     build_mission_snapshot,
     clamp_complexity,
+    difficulty_to_waypoints,
     ext_cast,
     extract_bike_type_from_text,
     extract_complexity_from_text,
@@ -206,6 +225,18 @@ class TestClampComplexity:
         assert clamp_complexity(9) == 5
 
 
+class TestDifficultyToWaypoints:
+    @pytest.mark.parametrize(
+        ("difficulty", "expected"),
+        [(1, 3), (2, 3), (3, 3), (4, 4), (5, 5), (9, 5), (-1, 3), ("bad", 3)],
+    )
+    def test_maps_difficulty_to_valid_waypoint_counts(self, difficulty, expected):
+        assert difficulty_to_waypoints(difficulty) == expected
+
+    def test_never_produces_invalid_waypoint_count(self):
+        assert all(3 <= difficulty_to_waypoints(value) <= 10 for value in range(-5, 15))
+
+
 class TestBuildMissionSnapshot:
     def test_builds_round_trip_snapshot(self):
         ctx = build_mission_snapshot(
@@ -316,9 +347,7 @@ class TestTextIntentOverrides:
 
     def test_overrides_only_explicit_intent(self):
         args = {"bike_type": "road", "complexity": 3, "is_ebike": False}
-        result = apply_text_overrides(
-            args, "35 km near Albano, very hard, 29-inch wheel bike"
-        )
+        result = apply_text_overrides(args, "35 km near Albano, very hard, 29-inch wheel bike")
 
         assert result == {
             "bike_type": "mtb",

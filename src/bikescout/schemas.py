@@ -14,9 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 BIKESCOUT_PROTOCOL_VERSION_MSG = "BikeScout protocol version"
 BIKESCOUT_PROTOCOL_OPERATION_MSG = "Operation status (Success/Error)"
@@ -47,8 +49,12 @@ class RiderProfile(BaseModel):
     )
     sweat_profile: Literal["standard", "low", "high", "extreme"] = Field(
         "standard",
-        description="Genetic sodium loss classification. low: ~400mg/L (Diluted sweat), standard: ~800mg/L (Population average), high: ~1200mg/L (Salty sweater), extreme: ~1800mg/L (Genetic outlier/Heavy loser).",
-        json_schema_extra={"examples": ["default", "extreme", "low", "high"]},
+        description="Self-reported sweat sodium concentration profile. low: ~400 mg/L, standard: ~800 mg/L, high: ~1200 mg/L, extreme: ~1800 mg/L; a measured sweat test is needed to personalise it.",
+        json_schema_extra={"examples": ["standard", "extreme", "low", "high"]},
+    )
+    sweat_rate_ml_per_hour: float | None = Field(
+        default=None,
+        description="Optional measured whole-body sweat rate (ml/h) from a timed weigh-in; overrides the population fluid estimate.",
     )
 
 
@@ -110,8 +116,20 @@ class BikeSetup(BaseModel):
     )
     battery_wh: int = Field(
         625,
+        ge=100,
+        le=2000,
         description="Battery capacity in Watt-hours. Mandatory if is_ebike is True.",
         json_schema_extra={"examples": [625, 750]},
+    )
+    motor_power_limit_w: int | None = Field(
+        None,
+        ge=100,
+        le=1200,
+        description=(
+            "Optional hardware motor continuous power limit in Watts. "
+            "When omitted, battery estimation uses a conservative heuristic fallback."
+        ),
+        json_schema_extra={"examples": [250, 600]},
     )
 
     @model_validator(mode="after")
@@ -135,12 +153,12 @@ class MissionConstraints(BaseModel):
         description="The total distance of the round trip in kilometers (e.g., 25.0).",
         json_schema_extra={"examples": [20, 50]},
     )
-    profile: Literal[
-        "cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"
-    ] = Field(
-        "cycling-mountain",
-        description="The OpenRouteService routing profile.",
-        json_schema_extra={"examples": ["cycling-mountain"]},
+    profile: Literal["cycling-mountain", "cycling-road", "cycling-regular", "cycling-electric"] = (
+        Field(
+            "cycling-mountain",
+            description="The OpenRouteService routing profile.",
+            json_schema_extra={"examples": ["cycling-mountain"]},
+        )
     )
     surface_preference: Literal["neutral", "prefer_paved", "avoid_unpaved"] = Field(
         "neutral",
@@ -187,20 +205,16 @@ class MissionConstraints(BaseModel):
         description="Allowed flexibility around target distance when route character matters more than exact distance.",
         json_schema_extra={"examples": [10, 15]},
     )
-    priority_mode: Literal["balanced", "distance_first", "ride_character_first"] = (
-        Field(
-            "balanced",
-            description="Optimization strategy between exact target distance and requested route character.",
-            json_schema_extra={"examples": ["balanced", "ride_character_first"]},
-        )
+    priority_mode: Literal["balanced", "distance_first", "ride_character_first"] = Field(
+        "balanced",
+        description="Optimization strategy between exact target distance and requested route character.",
+        json_schema_extra={"examples": ["balanced", "ride_character_first"]},
     )
 
     @field_validator("direction_bias")
     @classmethod
     def normalize_direction_bias(cls, value: list[str]) -> list[str]:
-        return list(
-            dict.fromkeys([str(v).strip().lower() for v in value if str(v).strip()])
-        )
+        return list(dict.fromkeys([str(v).strip().lower() for v in value if str(v).strip()]))
 
 
 class RouteGeometry(BaseModel):
@@ -212,9 +226,7 @@ class RouteGeometry(BaseModel):
     coordinates: list[list[float]] = Field(
         ...,
         description="A list of coordinate triplets: [lon, lat, ele].",
-        json_schema_extra={
-            "examples": [[[9.1913, 45.4642, 120.0], [9.1915, 45.4645, 122.5]]]
-        },
+        json_schema_extra={"examples": [[[9.1913, 45.4642, 120.0], [9.1915, 45.4645, 122.5]]]},
     )
 
     @field_validator("coordinates")
@@ -229,9 +241,7 @@ class RouteGeometry(BaseModel):
 
         for point in v:
             if len(point) < 2:
-                raise ValueError(
-                    f"Invalid point structure: {point}. Expected [lon, lat, ele]."
-                )
+                raise ValueError(f"Invalid point structure: {point}. Expected [lon, lat, ele].")
             if len(point) == 2:
                 # Standardize to 3D by adding 0.0 elevation if missing
                 point.append(0.0)
@@ -249,17 +259,11 @@ class RouteGeometry(BaseModel):
 
 class MudIntelligence(BaseModel):
     score: float = Field(
-        ..., description="TAEL® mud score (higher means more saturation)"
+        ..., description="TAEL® mud moisture index in mm (heuristic, not a 1-100 score)"
     )
-    label: str = Field(
-        ..., description="Qualitative risk label (e.g., Low, High, Extreme)"
-    )
-    traction_risk: str = Field(
-        ..., description="Assessment of tire grip on the predicted surface"
-    )
-    trail_damage_risk: str = Field(
-        ..., description="Risk of damaging the trail due to soft ground"
-    )
+    label: str = Field(..., description="Qualitative risk label (e.g., Low, High, Extreme)")
+    traction_risk: str = Field(..., description="Assessment of tire grip on the predicted surface")
+    trail_damage_risk: str = Field(..., description="Risk of damaging the trail due to soft ground")
     dry_time_eta: str = Field(
         ..., description="Estimated time until trail returns to dry conditions"
     )
@@ -267,11 +271,14 @@ class MudIntelligence(BaseModel):
 
 class MudTactical(BaseModel):
     surface_type: str = Field(..., description="Primary soil/surface type analyzed")
-    mud_risk_numeric: float = Field(..., description="Raw TAEL® moisture index")
-    mud_risk_score: str = Field(..., description="Qualitative mud risk label")
-    traction_risk: dict[str, str] = Field(
-        ..., description="Grip assessment and tire advice"
+    mud_risk_numeric: float = Field(
+        ...,
+        description="Raw TAEL® moisture index in mm (heuristic reservoir value, not ground truth)",
     )
+    mud_risk_score: str = Field(
+        ..., description="Qualitative mud risk label from heuristic thresholds"
+    )
+    traction_risk: dict[str, str] = Field(..., description="Grip assessment and tire advice")
     trail_damage_risk: dict[str, str] = Field(
         ..., description="Risk of leaving deep ruts or damaging terrain"
     )
@@ -282,14 +289,16 @@ class MudTactical(BaseModel):
 
 class MudRiskAnalysis(BaseModel):
     status: str = Field(..., description="Mud analysis status")
+    message: str | None = Field(None, description="Error message when status is Error")
+    next_step: str | None = Field(None, description="Actionable next step when status is Error")
     metadata: dict[str, Any] = Field(
-        ..., description="Model version and predictive flags"
+        default_factory=dict, description="Model version, confidence, basis and predictive flags"
     )
     environmental_context: dict[str, Any] = Field(
-        ..., description="Soil moisture and 72h rain accumulation"
+        default_factory=dict, description="Soil moisture and 72h rain accumulation"
     )
-    tactical_analysis: MudTactical = Field(
-        ..., description="Direct riding implications of ground conditions"
+    tactical_analysis: MudTactical | None = Field(
+        None, description="Direct riding implications of ground conditions"
     )
 
 
@@ -318,15 +327,29 @@ class TechnicalDifficulty(BaseModel):
 class TerrainAnalysis(BaseModel):
     """Geometry-derived terrain intelligence produced by the offline engine."""
 
-    total_ascent_m: float = Field(..., description="Ascent summed from significant profile segments")
+    total_ascent_m: float = Field(
+        ..., description="Ascent summed from significant profile segments"
+    )
     max_gradient: float = Field(..., description="Steepest positive gradient in percent")
     avg_gradient: float = Field(..., description="Ascent over total route distance in percent")
-    avg_climb_gradient: float = Field(..., description="Weighted gradient of detected climbs in percent")
-    profile_length_m: float = Field(..., description="Ground length of the analyzed profile in meters")
+    avg_climb_gradient: float = Field(
+        ..., description="Weighted gradient of detected climbs in percent"
+    )
+    profile_length_m: float = Field(
+        ..., description="Ground length of the analyzed profile in meters"
+    )
     climbs: list[ClimbDetail] = Field(..., description="Detected climbs sorted along the route")
     climb_category: str = Field(..., description="Hardest detected climb category")
-    data_confidence: float = Field(..., description="Confidence in the elevation data from 0.0 to 1.0")
-    technical_difficulty: TechnicalDifficulty = Field(..., description="Technical grade and its provenance")
+    data_confidence: float = Field(
+        ..., description="Heuristic confidence in elevation-derived metrics from 0.0 to 1.0"
+    )
+    data_confidence_basis: str | None = Field(
+        None,
+        description="How data_confidence is computed; heuristic, not a statistical interval or DEM error bound",
+    )
+    technical_difficulty: TechnicalDifficulty = Field(
+        ..., description="Technical grade and its provenance"
+    )
     profile_points: int = Field(..., description="Number of usable elevation samples")
     noise_floor_m: float = Field(..., description="Adaptive hysteresis threshold in meters")
     micro_spikes: bool = Field(..., description="True when a pitch of 20% or more was detected")
@@ -335,12 +358,8 @@ class TerrainAnalysis(BaseModel):
 
 class TacticalBriefing(BaseModel):
     distance_km: float = Field(..., description="Total route distance in kilometers")
-    elevation_gain_m: int = Field(
-        ..., description="Total positive altitude gain in meters"
-    )
-    climb_category: str = Field(
-        ..., description="UCI or HC climb categorization based on effort"
-    )
+    elevation_gain_m: int = Field(..., description="Total positive altitude gain in meters")
+    climb_category: str = Field(..., description="UCI or HC climb categorization based on effort")
     avg_gradient: str = Field(..., description="Average gradient of the entire route")
     avg_climb_gradient: str = Field(
         ..., description="Average gradient considering only the uphill sectors"
@@ -389,39 +408,37 @@ class TireSetupRecommendation(BaseModel):
     warnings: list[str] = Field(
         default_factory=list, description="Setup-specific warnings (e.g. pinch-flat risk)"
     )
+    confidence: str | None = Field(
+        None,
+        description="Confidence in the recommendation: low for heuristic, uncalibrated models",
+    )
+    model_basis: str | None = Field(
+        None,
+        description="Short description of the model and its calibration status",
+    )
     tactical_display: str = Field(
         ..., description="Human-readable tactical string with differential pressures"
     )
 
 
 class MechanicalSetup(BaseModel):
-    compatible: bool = Field(
-        ..., description="True if the bike setup is suitable for the route"
-    )
+    compatible: bool = Field(..., description="True if the bike setup is suitable for the route")
     setup_details: TireSetupRecommendation = Field(
         ..., description="Structured tire-pressure and load-distribution recommendation"
     )
-    bike_type: str = Field(
-        ..., description="Category of bike analyzed (mtb, road, etc.)"
-    )
+    bike_type: str = Field(..., description="Category of bike analyzed (mtb, road, etc.)")
     safety_warnings: list[str] = Field(
         ..., description="Critical alerts regarding safety or technical risks"
     )
 
 
 class SurfaceEntry(BaseModel):
-    type: str = Field(
-        ..., description="Normalized surface type (e.g., Paved, Unmapped/Mixed)"
-    )
-    percentage: str = Field(
-        ..., description="Percentage of total distance for this surface"
-    )
+    type: str = Field(..., description="Normalized surface type (e.g., Paved, Unmapped/Mixed)")
+    percentage: str = Field(..., description="Percentage of total distance for this surface")
 
 
 class EmtbMetrics(BaseModel):
-    estimated_drain_wh: float = Field(
-        ..., description="Total energy consumption in Watt-hours"
-    )
+    estimated_drain_wh: float = Field(..., description="Total energy consumption in Watt-hours")
     remaining_battery_pct: float = Field(
         ..., description="Predicted battery percentage at destination"
     )
@@ -441,59 +458,85 @@ class EmtbPower(BaseModel):
     rolling_resistance: float = Field(
         ..., description="Power required to overcome surface friction"
     )
-    aerodynamic_drag: float = Field(
-        ..., description="Power required to overcome air resistance"
-    )
+    aerodynamic_drag: float = Field(..., description="Power required to overcome air resistance")
     rider_contribution: int = Field(
         ..., description="Estimated average power output from the cyclist"
     )
-    motor_net_output: int = Field(
-        ..., description="Required average assistance from the motor"
-    )
+    motor_net_output: int = Field(..., description="Required average assistance from the motor")
 
 
 class EmtbTactical(BaseModel):
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
-    battery_metrics: EmtbMetrics = Field(
-        ..., description="Detailed battery drain and safety data"
-    )
-    power_breakdown_w: EmtbPower = Field(
-        ..., description="Breakdown of physical forces in Watts"
-    )
-    tactical_advice: str = Field(
-        ..., description="E-MTB specific pacing and assistance advice"
+    battery_metrics: EmtbMetrics = Field(..., description="Detailed battery drain and safety data")
+    power_breakdown_w: EmtbPower = Field(..., description="Breakdown of physical forces in Watts")
+    tactical_advice: str = Field(..., description="E-MTB specific pacing and assistance advice")
+    assumptions: dict[str, Any] | None = Field(
+        None,
+        description="Assumptions and confidence for the heuristic battery estimate.",
     )
 
 
 class WeatherSnapshot(BaseModel):
     time: str = Field(..., description="Local time of the forecast snapshot")
-    temp: str = Field(..., description="Ambient temperature")
-    app_temp: str = Field(..., description="Apparent (feels-like) temperature")
-    rain_prob: str = Field(
-        ..., description="Probability of precipitation in percentage"
+    temp: float = Field(..., description="Ambient temperature in Celsius")
+    app_temp: float = Field(..., description="Apparent (feels-like) temperature in Celsius")
+    rain_prob: int = Field(..., description="Probability of precipitation in percentage")
+    rain_mm: float = Field(..., description="Expected rainfall in millimeters")
+    wind: float = Field(..., description="Average wind speed in km/h")
+    gusts: float = Field(..., description="Maximum wind gust speed in km/h")
+    wind_direction: int = Field(..., description="Wind bearing in degrees from north")
+    weather_code: int | None = Field(None, description="WMO weather code reported by the provider")
+    condition: str | None = Field(None, description="Plain-language description of the WMO code")
+
+
+class ReferenceConditions(BaseModel):
+    """Verified conditions at the reference hour, plus window aggregates."""
+
+    temp_actual: float = Field(..., description="Air temperature at the reference hour in Celsius")
+    temp_apparent: float = Field(
+        ..., description="Apparent temperature at the reference hour in Celsius"
     )
-    rain_mm: str = Field(..., description="Expected rainfall in millimeters")
-    wind: str = Field(..., description="Average wind speed")
-    gusts: str = Field(..., description="Maximum wind gust speed")
+    rain_probability: int = Field(
+        ..., description="Precipitation probability at the reference hour"
+    )
+    precipitation_mm: float = Field(
+        ..., description="Rainfall at the reference hour in millimeters"
+    )
+    wind_speed: float = Field(..., description="Wind speed at the reference hour in km/h")
+    wind_gusts: float = Field(..., description="Wind gusts at the reference hour in km/h")
+    wind_direction: int = Field(..., description="Wind bearing at the reference hour in degrees")
+    reference_hour_local: str = Field(..., description="Local reference hour in HH:MM format")
+    temp_max: float = Field(..., description="Highest forecast temperature of the analyzed day")
+    weather_code: int | None = Field(None, description="WMO weather code at the reference hour")
+    condition: str | None = Field(None, description="Description of the reference WMO code")
+    temp: float | None = Field(None, description="Mean temperature after ride-window filtering")
+    wind_dir_degrees: int | None = Field(
+        None, description="Circular mean bearing after ride-window filtering"
+    )
+    wind_direction_ambiguous: bool = Field(
+        False, description="True when opposing wind directions make the mean bearing undefined"
+    )
+    reference_hour: str | None = Field(None, description="Label of the filtered ride window")
 
 
 class SafetyAdvice(BaseModel):
     status: str = Field(
-        ..., description="Visual alert status indicator (e.g., 🔵 [WATCH], 🔴 [DANGER])"
+        ..., description="Visual alert status indicator (e.g. [GO], [WATCH], [UNAVAILABLE])"
     )
     message: str = Field(..., description="Human-readable safety assessment")
-    wind_risk_score: float = Field(
-        ..., description="Numeric risk index for crosswinds and gusts"
+    wind_risk_score: float | None = Field(
+        None, description="Numeric risk index from the worst hour, null when data is unavailable"
     )
-    gear_advice: str = Field(
-        ..., description="Recommended clothing and equipment for these conditions"
+    gear_advice: str | None = Field(
+        None, description="Recommended clothing and equipment, null when data is unavailable"
+    )
+    condition_at_peak_risk: str | None = Field(
+        None, description="Descriptive condition at the peak-risk hour"
     )
 
 
 class NutritionBriefing(BaseModel):
-    fluids: dict[str, Any] = Field(
-        ..., description="Total liters and hourly intake rate (ml/h)"
-    )
+    fluids: dict[str, Any] = Field(..., description="Total liters and hourly intake rate (ml/h)")
     carbohydrates: dict[str, Any] = Field(
         ..., description="Total grams and hourly target (g/h) with absorption ratio"
     )
@@ -503,16 +546,34 @@ class NutritionBriefing(BaseModel):
     tactical_advice: list[str] = Field(
         ..., description="Critical nutrition alerts (e.g., Bonk Risk, Heat Stress)"
     )
+    data_basis: str | None = Field(
+        None, description="Evidence basis for the fluid, carbohydrate and sodium targets"
+    )
+    estimate_confidence: str | None = Field(
+        None,
+        description="Confidence in the fluid target: low for estimates, moderate when measured",
+    )
+    uncertainty_note: str | None = Field(
+        None, description="What the plan cannot resolve without an individual sweat test"
+    )
+    inputs_used: dict[str, Any] | None = Field(
+        None, description="Normalised inputs and their measurement source"
+    )
+    references: list[str] | None = Field(
+        None, description="Published ranges informing the planning heuristics"
+    )
 
 
 class ClimbMetrics(BaseModel):
-    km_start: float = Field(
-        ..., description="Distance from start where the climb begins"
-    )
+    km_start: float = Field(..., description="Distance from start where the climb begins")
     dist_km: float = Field(..., description="Length of the climbing sector")
     gain_m: float = Field(..., description="Total vertical ascent of the climb")
     avg_grade: float = Field(..., description="Average gradient percentage")
-    category: str = Field(..., description="UCI classification (Cat 4 to HC)")
+    category: str = Field(..., description="BikeScout heuristic climb category (HC/Cat 1-4)")
+    category_system: str | None = Field(
+        "bikescout_heuristic",
+        description="Classification system used for category; not official UCI race categorization.",
+    )
 
 
 class PerformanceSim(BaseModel):
@@ -520,12 +581,8 @@ class PerformanceSim(BaseModel):
     est_time_min: float = Field(
         ..., description="Estimated time to complete the climb at the given intensity"
     )
-    est_vam: int = Field(
-        ..., description="Estimated VAM (Vertical Ascent Meters per hour)"
-    )
-    target_wkg: float = Field(
-        ..., description="Required Power-to-Weight ratio (Watts/kg)"
-    )
+    est_vam: int = Field(..., description="Estimated VAM (Vertical Ascent Meters per hour)")
+    target_wkg: float = Field(..., description="Required Power-to-Weight ratio (Watts/kg)")
     weather_adjusted_wkg: float = Field(
         ..., description="Required W/kg adjusted for wind and air density"
     )
@@ -534,21 +591,21 @@ class PerformanceSim(BaseModel):
 class TacticalActionZone(BaseModel):
     km: float = Field(..., description="Kilometer mark of the zone")
     grade: float = Field(..., description="Local extreme gradient")
-    type: str = Field(
-        ..., description="Type of zone (e.g., Explosive Wall, Technical Descent)"
-    )
+    type: str = Field(..., description="Type of zone (e.g., Explosive Wall, Technical Descent)")
     difficulty: str = Field(..., description="Technical/Physical difficulty level")
 
 
 class WeatherContext(BaseModel):
     """Contextual weather data used to adjust physiological requirements."""
 
-    date_referenced: str = Field(
-        ..., description="The date used for the thermal analysis"
-    )
+    date_referenced: str = Field(..., description="The date used for the thermal analysis")
     max_temp_detected: str = Field(
         ...,
         description="Peak temperature detected in the activity window (e.g., '16.2°C')",
+    )
+    temperature_basis: str | None = Field(
+        None,
+        description="Where the temperature came from: ride_window, reference_fallback or default",
     )
     is_future_event: bool = Field(
         ...,
@@ -559,15 +616,19 @@ class WeatherContext(BaseModel):
 class EnvironmentalBriefing(BaseModel):
     """Aggregated environmental metrics for the selected mission window."""
 
-    message: str | None = Field(None, description="No go message")
+    message: str | None = Field(None, description="Contextual planning message")
     rain_avg: str | None = Field(
         None, description="Average probability of precipitation (e.g., '0%')"
     )
-    wind_max: str | None = Field(
-        None, description="Maximum expected wind speed (e.g., '8 km/h')"
-    )
+    wind_max: str | None = Field(None, description="Maximum expected wind speed (e.g., '8 km/h')")
     temp_avg: str | None = Field(
         None, description="Average temperature during the mission (e.g., '11°C')"
+    )
+    mud_score_mm: float | None = Field(
+        None, description="TAEL mud moisture index in mm when available; null otherwise."
+    )
+    mud_available: bool | None = Field(
+        None, description="Whether mud analysis was available for scoring."
     )
 
 
@@ -575,19 +636,13 @@ class PlannerReport(BaseModel):
     """The final tactical verdict and timing recommendations."""
 
     verdict: str = Field(..., description="Final decision: GO, WATCH, or NO-GO")
-    tactical_color: str = Field(
-        ..., description="Visual risk indicator (GREEN, YELLOW, RED)"
-    )
-    confidence_score: str = Field(
-        ..., description="AI confidence level in the prediction (0-100)"
-    )
+    tactical_color: str = Field(..., description="Visual risk indicator (GREEN, YELLOW, RED)")
+    confidence_score: str = Field(..., description="AI confidence level in the prediction (0-100)")
     best_window: str = Field(..., description="The optimal time range for the activity")
     environmental_briefing: EnvironmentalBriefing = Field(
         ..., description="Summary of weather conditions"
     )
-    mud_risk_impact: str = Field(
-        ..., description="Predicted soil saturation impact on the mission"
-    )
+    mud_risk_impact: str = Field(..., description="Predicted soil saturation impact on the mission")
 
 
 class MissionConditions(BaseModel):
@@ -611,20 +666,36 @@ class Amenity(BaseModel):
         ...,
         description="The name of the point of interest (e.g., 'Water Fountain', 'Bike Shop').",
     )
-    type: str = Field(
-        ..., description="The category of the amenity for tactical filtering."
-    )
+    type: str = Field(..., description="The category of the amenity for tactical filtering.")
     distance_m: int = Field(
-        ..., description="The geodesic distance from the route path in meters."
+        ..., description="Distance from the sampled route/start point in meters."
+    )
+    route_km: float | None = Field(
+        None,
+        description="Approximate route progress in km where this POI was found; null when unknown.",
     )
     location: dict[str, float] = Field(
         ..., description="The exact GPS coordinates (lat/lon) of the amenity."
     )
+    opening_hours: str | None = Field(
+        None, description="OSM opening_hours tag when available; null if unknown"
+    )
+    drinking_water: str | None = Field(
+        None, description="OSM drinking_water tag when available; null if unknown"
+    )
+    water_source: str | None = Field(
+        None, description="OSM water source/fountain tag when available"
+    )
+    potability: str | None = Field(
+        None,
+        description="Potability hint for water POIs: potable_tagged, not_potable_tagged, unknown_verify, or null",
+    )
 
 
 class NutritionPlanWrapper(BaseModel):
-    status: str = Field(
-        ..., description="The calculation status of the nutrition engine."
+    status: str = Field(..., description="The calculation status of the nutrition engine.")
+    error_message: str | None = Field(
+        None, description="Reason why the nutrition engine rejected the inputs."
     )
     mission_nutrition_briefing: NutritionBriefing = Field(
         ..., description="The detailed fueling and hydration strategy."
@@ -642,12 +713,8 @@ class MissionLogistics(BaseModel):
 
 
 class RouteSurface(BaseModel):
-    profile_used: str = Field(
-        ..., description="Routing profile used (e.g., cycling-mountain)"
-    )
-    metadata: dict[str, Any] = Field(
-        ..., description="Technical metadata (dates, api flags)"
-    )
+    profile_used: str = Field(..., description="Routing profile used (e.g., cycling-mountain)")
+    metadata: dict[str, Any] = Field(..., description="Technical metadata (dates, api flags)")
     tactical_briefing: TacticalBriefing = Field(
         ..., description="Core route metrics including climb and mud analysis"
     )
@@ -672,9 +739,7 @@ class GeocodingResponse(BaseModel):
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     lat: float = Field(..., description="Latitude of the identified location")
     lon: float = Field(..., description="Longitude of the identified location")
-    display_name: str = Field(
-        ..., description="Full human-readable address or place name"
-    )
+    display_name: str = Field(..., description="Full human-readable address or place name")
     place_class: str = Field(
         ..., alias="class", description="Type of area (e.g., boundary, highway)"
     )
@@ -685,8 +750,7 @@ class GeocodingResponse(BaseModel):
     )
     importance: float = Field(..., description="Relevance score of the result")
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class TacticalForecastResponse(BaseModel):
@@ -694,13 +758,15 @@ class TacticalForecastResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    error_message: str | None = Field(
+        None, description="Reason reported when the weather service returns Error"
+    )
     metadata: dict[str, Any] = Field(..., description="Location and timezone metadata")
     tactical_forecast: list[WeatherSnapshot] = Field(
-        ..., description="Hourly weather breakdown for the race duration"
+        ..., description="Hourly weather breakdown for the analyzed day"
     )
-    # FIXME change to real obj
-    reference_conditions: dict[str, Any] = Field(
-        ..., description="Aggregated weather data used for performance adjustments"
+    reference_conditions: ReferenceConditions = Field(
+        ..., description="Verified reference-hour conditions and window aggregates"
     )
     safety_advice: SafetyAdvice = Field(
         ..., description="Strategic safety briefing based on weather risks"
@@ -712,12 +778,8 @@ class RouteSurfaceResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
-    profile_used: str = Field(
-        ..., description="Routing profile used (e.g., cycling-mountain)"
-    )
-    metadata: dict[str, Any] = Field(
-        ..., description="Technical metadata (dates, api flags)"
-    )
+    profile_used: str = Field(..., description="Routing profile used (e.g., cycling-mountain)")
+    metadata: dict[str, Any] = Field(..., description="Technical metadata (dates, api flags)")
     tactical_briefing: TacticalBriefing = Field(
         ..., description="Core route metrics including climb and mud analysis"
     )
@@ -740,9 +802,7 @@ class RouteInfo(BaseModel):
     distance_km: float = Field(
         ..., description="The total length of the route measured in kilometers."
     )
-    ascent_m: int = Field(
-        ..., description="The total vertical elevation gain in meters."
-    )
+    ascent_m: int = Field(..., description="The total vertical elevation gain in meters.")
     difficulty: str = Field(
         ...,
         description="The overall challenge rating based on gradient, surface, and distance.",
@@ -767,6 +827,13 @@ class FullMissionBriefingResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    target_date: str | None = Field(
+        None,
+        description="Analysis target date in YYYY-MM-DD format used by weather/mud/planning tools.",
+    )
+    error_message: str | None = Field(
+        None, description="Reason why the mission briefing could not be completed."
+    )
     info: RouteInfo | None = Field(
         None,
         description="Structured data regarding the route's morphology and difficulty.",
@@ -785,6 +852,12 @@ class FullMissionBriefingResponse(BaseModel):
     mcp_resource_uri_map: str | None = Field(
         None, description="The MCP URI for direct map layer access."
     )
+    map_style_applied: str | None = Field(
+        None, description="Map rendering style actually applied (gradient or solid)."
+    )
+    map_attribution: str | None = Field(
+        None, description="Attribution text for map tiles/data (e.g. OpenStreetMap)."
+    )
     gpx_export_path: str | None = Field(
         None, description="The local file path of the generated GPX file."
     )
@@ -797,8 +870,23 @@ class FullMissionBriefingResponse(BaseModel):
     mcp_resource_uri_elevation_profile: str | None = Field(
         None, description="The MCP URI for the visual altimetry analysis."
     )
-    gpx_stats: dict[str, int] | None = Field(
-        None, description="Dictionary of raw metadata extracted from the GPX file."
+    elevation_source: str | None = Field(
+        None, description="Credit for the elevation data behind the altimetry chart."
+    )
+    elevation_samples_total: int | None = Field(
+        None, description="Number of elevation samples considered for the altimetry chart."
+    )
+    elevation_samples_interpolated: int | None = Field(
+        None, description="Number of elevation samples estimated from neighbouring values."
+    )
+    elevation_uncertainty: str | None = Field(
+        None, description="Explanation of which elevation samples are estimates."
+    )
+    elevation_error: str | None = Field(
+        None, description="Reason why the elevation profile was omitted."
+    )
+    nutrition_error: str | None = Field(
+        None, description="Reason why the nutrition plan was omitted."
     )
 
 
@@ -814,6 +902,9 @@ class HydrationScoutResponse(BaseModel):
     mission_nutrition_briefing: NutritionBriefing = Field(
         ..., description="Detailed fluid, carb, and electrolyte plan"
     )
+    error_message: str | None = Field(
+        None, description="Reason why the nutrition engine rejected the inputs."
+    )
 
 
 class StrategicPlannerResponse(BaseModel):
@@ -821,11 +912,14 @@ class StrategicPlannerResponse(BaseModel):
 
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
+    message: str | None = Field(None, description="Error message when status is Error.")
+    next_step: str | None = Field(None, description="Actionable next step when status is Error.")
     metadata: dict[str, Any] = Field(
-        ..., description="Metadata including analyzed date and surface type"
+        default_factory=dict,
+        description="Metadata including analyzed date, surface type, solar window and mud availability.",
     )
-    planner_report: PlannerReport = Field(
-        ..., description="Strategic assessment and tactical timing"
+    planner_report: PlannerReport | None = Field(
+        None, description="Strategic assessment and tactical timing; null on Error."
     )
 
 
@@ -835,9 +929,7 @@ class GpxRaceAuditResponse(BaseModel):
     payload_version: str = Field(..., description=BIKESCOUT_PROTOCOL_VERSION_MSG)
     status: str = Field(..., description=BIKESCOUT_PROTOCOL_OPERATION_MSG)
     mode: str = Field(..., description="Activity mode (ROAD or MTB)")
-    target_date: str = Field(
-        ..., description="Date used for weather and mud prediction"
-    )
+    target_date: str = Field(..., description="Date used for weather and mud prediction")
     track_metrics: dict[str, float] = Field(
         ..., description="Core track data: distance, ascent, altitude"
     )
@@ -860,5 +952,8 @@ class GpxRaceAuditResponse(BaseModel):
         ..., description="Key points for attacks or technical caution"
     )
     report_path: str | None = Field(
-        None, description="Path to the generated PDF race book, if requested"
+        None, description="Local filesystem path to the generated PDF race book, if requested"
+    )
+    mcp_resource_uri_report: str | None = Field(
+        None, description="MCP resource URI for the generated PDF race book, if requested"
     )

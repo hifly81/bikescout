@@ -1,5 +1,31 @@
 # Changelog - BikeScout
 
+## [1.8.0]
+* release 1.8.0 ([76bebeb](https://github.com/hifly81/bikescout/commit/76bebeb618da0ee0a0642689497ba18817c3f4bf))
+* feat(planning): enforce analysis date window and surface it in UI ([2d59b37](https://github.com/hifly81/bikescout/commit/2d59b375912d5946a93cc371109d9f7d715bb000))
+* fix(race): harden gpx audit and expose race report mcp resource ([c25f182](https://github.com/hifly81/bikescout/commit/c25f1822f49f863ea104534d46a1cee60ae23ac5))
+* fix(scouting): harden mission orchestration defaults and contracts ([9a5bc74](https://github.com/hifly81/bikescout/commit/9a5bc74766d613c87717a9f72624dce19e9231a9))
+* fix(battery): harden emtb drain estimates and expose assumptions ([0bcfefe](https://github.com/hifly81/bikescout/commit/0bcfefec6c2cb06fdc3e39b7975cb9ba962ac987))
+* feat(ui): show Go/No-Go report in plan and chat flows ([5902bf2](https://github.com/hifly81/bikescout/commit/5902bf21ca15916ffa14d3e812e136a7767b12e8))
+* fix(mud): infer drainage proxy from route surface and slope ([658a82a](https://github.com/hifly81/bikescout/commit/658a82a3052765f8526feefe169dc81408c1e46a))
+* fix(maps): make tactical map artifacts deterministic and attributable ([8e0f508](https://github.com/hifly81/bikescout/commit/8e0f50871bf75e95ef672b4e2b26c0405b1a2e03))
+* fix(poi): dedupe route amenities and clarify route progress ([12006f1](https://github.com/hifly81/bikescout/commit/12006f11bbc047fa46810fcb4da171a14390e4d1))
+* fix(mud): validate inputs and avoid optimistic dry fallback ([34a3050](https://github.com/hifly81/bikescout/commit/34a305087fd4efc4e2810e948b6dccd9a4ecba6c))
+* fix(terrain): use haversine distances and clarify confidence semantics ([b465998](https://github.com/hifly81/bikescout/commit/b46599858cc7af821865a487e57d53e39c1cf373))
+* fix(bike-setup): validate inputs and expose heuristic model provenance ([3ff670f](https://github.com/hifly81/bikescout/commit/3ff670f38b7c15715e080537d1168062da1ee8a1))
+* feat(weather): validate forecasts and expose typed safety provenance ([d28a2f1](https://github.com/hifly81/bikescout/commit/d28a2f11121a1501f23f23d6199e185743c968ff))
+* feat(tools): expose nutrition provenance and measured sweat rate ([f91907e](https://github.com/hifly81/bikescout/commit/f91907e16037e7eff4e66ebd88c3fba3b4371166))
+* feat(tools): expose elevation provenance to MCP agents and UI ([ed3540b](https://github.com/hifly81/bikescout/commit/ed3540b6a464db5811df13a0e60aba5b84a4dcdd))
+* fix(tools): harden geocoding validation, caching and error reporting ([3b6245b](https://github.com/hifly81/bikescout/commit/3b6245beb3d0874a9fcc3e0cbd9dc4cd7d903d2e))
+* chore(repo): untrack contributor and agent docs ([8803ce5](https://github.com/hifly81/bikescout/commit/8803ce5fd0c21d7df3d12c8c0f60c967fff48e57))
+* refactor(ui): move rider profile into Plan a Ride tab ([854fe6a](https://github.com/hifly81/bikescout/commit/854fe6a7022ecd3ea44ae2857baa085c4e2409a6))
+* feat(ui): add per-climb elevation profile modal ([89dc682](https://github.com/hifly81/bikescout/commit/89dc6826f8ce57833dcfc504aef11f6049ee2de7))
+* refactor(ui): move rider profile into sidebar dialog ([a414ab0](https://github.com/hifly81/bikescout/commit/a414ab03c9f9667b75864f87d4a0d499372639ec))
+* fix(schemas): replace deprecated Pydantic Config class ([e872b91](https://github.com/hifly81/bikescout/commit/e872b91eac66f8503d3ab8100a4a628351e53b03))
+* refactor(planner): integrate LangChain and split app modules ([24be95b](https://github.com/hifly81/bikescout/commit/24be95b04ebe2fc081c02fbd0fceb2f8719a29c0))
+* refactor(harness): align docs with code and clear pyright type debt ([fc64d87](https://github.com/hifly81/bikescout/commit/fc64d87c91067f66c4c94c0d441d7202e0a77481))
+* changelog ([c696962](https://github.com/hifly81/bikescout/commit/c6969626108d784a30107705f07337757377198d))
+
 ## [1.7.0]
 * ready to release 1.7.0 ([680d2af](https://github.com/hifly81/bikescout/commit/680d2afe20d8940ae081d858fd419686603d37de))
 * feat(mission): normalize rider intent and off-road route reporting ([845549e](https://github.com/hifly81/bikescout/commit/845549ec5cde3127e6b85a4b63f93fe3abde544a))
